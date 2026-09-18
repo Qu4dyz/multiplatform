@@ -10,15 +10,18 @@ namespace GameAnalytics.ML.Engine;
 public class MatchPredictionEngine : IPredictionEngine
 {
     private readonly MLContext _mlContext;
-    private readonly string _modelPath;
+    private readonly string _modelDirectory;
     private ITransformer? _model;
     private PredictionEngine<MatchInputData, MatchPrediction>? _predictionEngine;
     private readonly object _lock = new();
 
+    public MLAlgorithmType ActiveAlgorithm { get; private set; } = MLAlgorithmType.FastTree;
+    public ModelMetrics? CurrentModelMetrics { get; private set; }
+
     public MatchPredictionEngine()
     {
         _mlContext = new MLContext(seed: 42);
-        _modelPath = Path.Combine(AppContext.BaseDirectory, "models", "fasttree_match_model.zip");
+        _modelDirectory = Path.Combine(AppContext.BaseDirectory, "models");
         InitializeModel();
     }
 
@@ -26,11 +29,13 @@ public class MatchPredictionEngine : IPredictionEngine
     {
         lock (_lock)
         {
-            if (File.Exists(_modelPath))
+            var modelFile = Path.Combine(_modelDirectory, $"{ActiveAlgorithm.ToString().ToLower()}_model.zip");
+
+            if (File.Exists(modelFile))
             {
                 try
                 {
-                    _model = _mlContext.Model.Load(_modelPath, out _);
+                    _model = _mlContext.Model.Load(modelFile, out _);
                     _predictionEngine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(_model);
                     return;
                 }
@@ -41,15 +46,71 @@ public class MatchPredictionEngine : IPredictionEngine
             }
 
             // Train default model on initial synthetic dataset
-            var trainer = new ModelTrainer();
+            var benchmarkService = new ModelBenchmarkService();
             var syntheticData = ModelTrainer.GenerateSyntheticRankedDataset(1500);
-            _model = trainer.TrainPipeline(syntheticData);
-            
+            var pipeline = benchmarkService.BuildPipeline(ActiveAlgorithm);
             var dataView = _mlContext.Data.LoadFromEnumerable(syntheticData);
-            trainer.SaveModel(_model, dataView.Schema, _modelPath);
+
+            _model = pipeline.Fit(dataView);
+
+            try
+            {
+                var trainer = new ModelTrainer();
+                trainer.SaveModel(_model, dataView.Schema, modelFile);
+            }
+            catch
+            {
+                // In-memory model is ready; ignore concurrent file lock
+            }
 
             _predictionEngine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(_model);
         }
+    }
+
+    public void SetActiveAlgorithm(MLAlgorithmType algorithm)
+    {
+        if (ActiveAlgorithm == algorithm && _predictionEngine != null)
+        {
+            return;
+        }
+
+        lock (_lock)
+        {
+            ActiveAlgorithm = algorithm;
+            var benchmarkService = new ModelBenchmarkService();
+            var syntheticData = ModelTrainer.GenerateSyntheticRankedDataset(1500);
+            var pipeline = benchmarkService.BuildPipeline(algorithm);
+            var dataView = _mlContext.Data.LoadFromEnumerable(syntheticData);
+
+            _model = pipeline.Fit(dataView);
+            var modelFile = Path.Combine(_modelDirectory, $"{ActiveAlgorithm.ToString().ToLower()}_model.zip");
+            try
+            {
+                var trainer = new ModelTrainer();
+                trainer.SaveModel(_model, dataView.Schema, modelFile);
+            }
+            catch
+            {
+                // In-memory model is ready; ignore concurrent file lock
+            }
+
+            _predictionEngine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(_model);
+        }
+    }
+
+    public ModelBenchmarkReport RunAlgorithmsBenchmark(int sampleCount = 2000)
+    {
+        var dataset = ModelTrainer.GenerateSyntheticRankedDataset(sampleCount);
+        var benchmark = new ModelBenchmarkService();
+        var report = benchmark.RunBenchmark(dataset);
+
+        var current = report.Models.FirstOrDefault(m => m.AlgorithmType == ActiveAlgorithm);
+        if (current != null)
+        {
+            CurrentModelMetrics = current;
+        }
+
+        return report;
     }
 
     public PredictionResult PredictMatchOutcome(MatchInputFeatures features)
@@ -80,7 +141,7 @@ public class MatchPredictionEngine : IPredictionEngine
             var blueProb = Math.Clamp(prediction.Probability, 0.05f, 0.95f);
             var redProb = 1.0f - blueProb;
             var predictedWinner = blueProb >= 0.5f ? TeamSide.Blue : TeamSide.Red;
-            var confidence = Math.Abs(blueProb - 0.5f) * 2.0; // 0.0 to 1.0
+            var confidence = Math.Abs(blueProb - 0.5f) * 2.0;
 
             var factors = new List<string>();
             if (Math.Abs(features.GoldDiffAt15) >= 1500)
@@ -157,11 +218,11 @@ public class MatchPredictionEngine : IPredictionEngine
                     var trainer = new ModelTrainer();
                     _model = trainer.TrainPipeline(matchDataList);
                     var dataView = _mlContext.Data.LoadFromEnumerable(matchDataList);
-                    trainer.SaveModel(_model, dataView.Schema, _modelPath);
+                    var modelFile = Path.Combine(_modelDirectory, $"{ActiveAlgorithm.ToString().ToLower()}_model.zip");
+                    trainer.SaveModel(_model, dataView.Schema, modelFile);
                     _predictionEngine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(_model);
                 }
             }
         }, ct);
     }
 }
-

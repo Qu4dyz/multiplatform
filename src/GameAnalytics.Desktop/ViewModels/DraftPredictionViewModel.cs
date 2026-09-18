@@ -59,12 +59,41 @@ public partial class DraftPredictionViewModel : ViewModelBase
     [ObservableProperty]
     private bool _isCalculated;
 
+    [ObservableProperty]
+    private MLAlgorithmType _selectedAlgorithm = MLAlgorithmType.FastTree;
+
+    [ObservableProperty]
+    private ModelBenchmarkReport? _benchmarkReport;
+
+    [ObservableProperty]
+    private bool _isBenchmarking;
+
     public DraftPredictionViewModel(IMatchAnalyticsService analyticsService, IDataDragonService dataDragonService)
     {
         _analyticsService = analyticsService;
         _dataDragonService = dataDragonService;
         _ = LoadChampionsAsync();
         CalculatePrediction();
+    }
+
+    partial void OnSelectedAlgorithmChanged(MLAlgorithmType value)
+    {
+        _analyticsService.SetActiveMLAlgorithm(value);
+        CalculatePrediction();
+    }
+
+    [RelayCommand]
+    public async Task RunBenchmarkAsync()
+    {
+        IsBenchmarking = true;
+        try
+        {
+            BenchmarkReport = await Task.Run(() => _analyticsService.RunBenchmark(2000));
+        }
+        finally
+        {
+            IsBenchmarking = false;
+        }
     }
 
     private async Task LoadChampionsAsync()

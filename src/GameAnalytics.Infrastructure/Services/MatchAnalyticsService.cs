@@ -63,5 +63,18 @@ public class MatchAnalyticsService : IMatchAnalyticsService
     {
         return _predictionEngine.PredictMatchOutcome(features);
     }
+
+    public ModelBenchmarkReport RunBenchmark(int sampleCount = 2000)
+    {
+        return _predictionEngine.RunAlgorithmsBenchmark(sampleCount);
+    }
+
+    public void SetActiveMLAlgorithm(GameAnalytics.Core.Enums.MLAlgorithmType algorithm)
+    {
+        _predictionEngine.SetActiveAlgorithm(algorithm);
+    }
+
+    public GameAnalytics.Core.Enums.MLAlgorithmType ActiveMLAlgorithm => _predictionEngine.ActiveAlgorithm;
+    public ModelMetrics? CurrentModelMetrics => _predictionEngine.CurrentModelMetrics;
 }
 
