@@ -214,7 +214,7 @@ public class RiotApiClient : IRiotApiClient
         }
     }
 
-    public async Task<IReadOnlyList<string>> GetRecentMatchIdsByPuuidAsync(string puuid, int count = 10, CancellationToken ct = default)
+    public async Task<IReadOnlyList<string>> GetRecentMatchIdsByPuuidAsync(string puuid, int count = 10, int? queue = null, CancellationToken ct = default)
     {
         if (!_options.HasValidApiKey)
         {
@@ -223,7 +223,9 @@ public class RiotApiClient : IRiotApiClient
 
         try
         {
-            var url = $"https://{_options.RoutingRegion}.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids?count={count}";
+            var url = queue.HasValue
+                ? $"https://{_options.RoutingRegion}.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids?queue={queue.Value}&count={count}"
+                : $"https://{_options.RoutingRegion}.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids?count={count}";
             using var response = await SendWithRetryAsync(url, ct);
             if (response == null || !response.IsSuccessStatusCode)
             {
@@ -328,6 +330,10 @@ public class RiotApiClient : IRiotApiClient
             TowerKills = blueTeamDto?.Objectives?.Tower?.Kills ?? 0,
             DragonKills = blueTeamDto?.Objectives?.Dragon?.Kills ?? 0,
             BaronKills = blueTeamDto?.Objectives?.Baron?.Kills ?? 0,
+            VoidgrubKills = blueTeamDto?.Objectives?.Horde?.Kills ?? 0,
+            RiftHeraldKills = blueTeamDto?.Objectives?.RiftHerald?.Kills ?? 0,
+            FirstVoidgrub = blueTeamDto?.Objectives?.Horde?.First ?? false,
+            FirstRiftHerald = blueTeamDto?.Objectives?.RiftHerald?.First ?? false,
             GoldAt15 = 25000,
             KillsAt15 = blueTeamDto?.Objectives?.Champion?.Kills ?? 10
         });
@@ -343,6 +349,10 @@ public class RiotApiClient : IRiotApiClient
             TowerKills = redTeamDto?.Objectives?.Tower?.Kills ?? 0,
             DragonKills = redTeamDto?.Objectives?.Dragon?.Kills ?? 0,
             BaronKills = redTeamDto?.Objectives?.Baron?.Kills ?? 0,
+            VoidgrubKills = redTeamDto?.Objectives?.Horde?.Kills ?? 0,
+            RiftHeraldKills = redTeamDto?.Objectives?.RiftHerald?.Kills ?? 0,
+            FirstVoidgrub = redTeamDto?.Objectives?.Horde?.First ?? false,
+            FirstRiftHerald = redTeamDto?.Objectives?.RiftHerald?.First ?? false,
             GoldAt15 = 25000,
             KillsAt15 = redTeamDto?.Objectives?.Champion?.Kills ?? 10
         });
@@ -401,6 +411,10 @@ public class RiotApiClient : IRiotApiClient
 
                 int goldBlue = 0;
                 int goldRed = 0;
+                int csBlue = 0;
+                int csRed = 0;
+                int xpBlue = 0;
+                int xpRed = 0;
 
                 if (frame15.TryGetProperty("participantFrames", out var pFrames))
                 {
@@ -409,14 +423,33 @@ public class RiotApiClient : IRiotApiClient
                         if (pFrames.TryGetProperty(i.ToString(), out var pf))
                         {
                             var totalGold = pf.TryGetProperty("totalGold", out var g) ? g.GetInt32() : 0;
-                            if (i <= 5) goldBlue += totalGold;
-                            else goldRed += totalGold;
+                            var minions = pf.TryGetProperty("minionsKilled", out var m) ? m.GetInt32() : 0;
+                            var jgMinions = pf.TryGetProperty("jungleMinionsKilled", out var jm) ? jm.GetInt32() : 0;
+                            var xp = pf.TryGetProperty("xp", out var x) ? x.GetInt32() : 0;
+                            var totalCs = minions + jgMinions;
+
+                            if (i <= 5)
+                            {
+                                goldBlue += totalGold;
+                                csBlue += totalCs;
+                                xpBlue += xp;
+                            }
+                            else
+                            {
+                                goldRed += totalGold;
+                                csRed += totalCs;
+                                xpRed += xp;
+                            }
                         }
                     }
                 }
 
                 result.GoldAt15Blue = goldBlue > 0 ? goldBlue : 24500;
                 result.GoldAt15Red = goldRed > 0 ? goldRed : 23800;
+                result.CsAt15Blue = csBlue;
+                result.CsAt15Red = csRed;
+                result.XpAt15Blue = xpBlue;
+                result.XpAt15Red = xpRed;
 
                 bool firstBloodSet = false;
                 bool firstTowerSet = false;
@@ -490,19 +523,36 @@ public class RiotApiClient : IRiotApiClient
                                 MonsterSubType = monsterSubType
                             });
 
+                            var isBlueMonster = killerTeamId == 100 || killerId <= 5;
+
                             if (monsterType.Equals("DRAGON", StringComparison.OrdinalIgnoreCase))
                             {
-                                var isBlueDragon = killerTeamId == 100 || killerId <= 5;
                                 if (!firstDragonSet)
                                 {
-                                    result.BlueFirstDragon = isBlueDragon;
+                                    result.BlueFirstDragon = isBlueMonster;
                                     firstDragonSet = true;
                                 }
 
                                 if (ts <= fifteenMinMs)
                                 {
-                                    if (isBlueDragon) result.DragonsAt15Blue++;
+                                    if (isBlueMonster) result.DragonsAt15Blue++;
                                     else result.DragonsAt15Red++;
+                                }
+                            }
+                            else if (monsterType.Equals("HORDE", StringComparison.OrdinalIgnoreCase))
+                            {
+                                if (ts <= fifteenMinMs)
+                                {
+                                    if (isBlueMonster) result.VoidgrubsAt15Blue++;
+                                    else result.VoidgrubsAt15Red++;
+                                }
+                            }
+                            else if (monsterType.Equals("RIFTHERALD", StringComparison.OrdinalIgnoreCase))
+                            {
+                                if (ts <= fifteenMinMs)
+                                {
+                                    if (isBlueMonster) result.HeraldsAt15Blue++;
+                                    else result.HeraldsAt15Red++;
                                 }
                             }
                         }
@@ -825,6 +875,12 @@ public class RiotApiClient : IRiotApiClient
 
         [JsonPropertyName("tower")]
         public RiotObjectiveDetailDto? Tower { get; set; }
+
+        [JsonPropertyName("horde")]
+        public RiotObjectiveDetailDto? Horde { get; set; }
+
+        [JsonPropertyName("riftHerald")]
+        public RiotObjectiveDetailDto? RiftHerald { get; set; }
     }
 
     private class RiotObjectiveDetailDto

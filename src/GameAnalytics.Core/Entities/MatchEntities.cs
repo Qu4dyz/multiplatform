@@ -85,5 +85,12 @@ public class TeamStats
 
     public int GoldAt15 { get; set; }
     public int KillsAt15 { get; set; }
+    public int CsAt15 { get; set; }
+    public int XpAt15 { get; set; }
+
+    public int VoidgrubKills { get; set; }
+    public int RiftHeraldKills { get; set; }
+    public bool FirstVoidgrub { get; set; }
+    public bool FirstRiftHerald { get; set; }
 }
 

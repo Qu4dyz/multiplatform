@@ -24,6 +24,10 @@ public class ModelTrainer
                 nameof(MatchInputData.FirstDragon),
                 nameof(MatchInputData.GoldDiff15),
                 nameof(MatchInputData.KillDiff15),
+                nameof(MatchInputData.CsDiff15),
+                nameof(MatchInputData.XpDiff15),
+                nameof(MatchInputData.VoidgrubDiff),
+                nameof(MatchInputData.HeraldDiff),
                 nameof(MatchInputData.BlueAvgWinRate),
                 nameof(MatchInputData.RedAvgWinRate),
                 nameof(MatchInputData.TowerDiff),
@@ -67,6 +71,10 @@ public class ModelTrainer
             var redWinRate = (float)rand.Next(44, 58);
             var towerDiff = (float)rand.Next(-5, 6);
             var dragonDiff = (float)rand.Next(-3, 4);
+            var csDiff = (float)rand.Next(-40, 41);
+            var xpDiff = goldDiff * 0.65f + (float)rand.Next(-300, 301);
+            var voidgrubDiff = (float)rand.Next(-4, 5);
+            var heraldDiff = (float)rand.Next(-1, 2);
 
             // Log-odds simulation for realistic LoL Solo/Duo Ranked match outcome
             double z = 0.0;
@@ -75,6 +83,10 @@ public class ModelTrainer
             z += firstTower * 0.45;       // first turret gives map pressure
             z += firstDragon * 0.30;
             z += firstBlood * 0.20;
+            z += voidgrubDiff * 0.15;     // Voidgrubs give pushing edge
+            z += heraldDiff * 0.25;
+            z += csDiff * 0.015;
+            z += xpDiff * 0.0003;
             z += (blueWinRate - redWinRate) * 0.08;
             z += towerDiff * 0.35;
             z += dragonDiff * 0.25;
@@ -89,6 +101,10 @@ public class ModelTrainer
                 FirstDragon = firstDragon,
                 GoldDiff15 = goldDiff,
                 KillDiff15 = killDiff,
+                CsDiff15 = csDiff,
+                XpDiff15 = xpDiff,
+                VoidgrubDiff = voidgrubDiff,
+                HeraldDiff = heraldDiff,
                 BlueAvgWinRate = blueWinRate,
                 RedAvgWinRate = redWinRate,
                 TowerDiff = towerDiff,

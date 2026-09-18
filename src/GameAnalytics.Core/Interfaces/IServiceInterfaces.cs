@@ -5,7 +5,7 @@ namespace GameAnalytics.Core.Interfaces;
 public interface IRiotApiClient
 {
     Task<SummonerProfile?> GetSummonerByRiotIdAsync(string gameName, string tagLine, CancellationToken ct = default);
-    Task<IReadOnlyList<string>> GetRecentMatchIdsByPuuidAsync(string puuid, int count = 10, CancellationToken ct = default);
+    Task<IReadOnlyList<string>> GetRecentMatchIdsByPuuidAsync(string puuid, int count = 10, int? queue = null, CancellationToken ct = default);
     Task<Match?> GetMatchDetailsAsync(string matchId, CancellationToken ct = default);
     Task<MatchTimelineData?> GetMatchTimelineAsync(string matchId, CancellationToken ct = default);
 }
@@ -18,6 +18,7 @@ public interface IMatchRepository
     Task UpsertMatchAsync(Match match, CancellationToken ct = default);
     Task<int> GetTotalMatchesCountAsync(CancellationToken ct = default);
     Task ClearAllMatchesAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<string>> GetDistinctParticipantPuuidsAsync(int limit = 50, CancellationToken ct = default);
 }
 
 public interface IPredictionEngine

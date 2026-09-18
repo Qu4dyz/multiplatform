@@ -1295,8 +1295,8 @@ public class DataLayerTests
                 WinningTeam = TeamSide.Blue,
                 Teams = new List<TeamStats>
                 {
-                    new TeamStats { TeamSide = TeamSide.Blue, GoldAt15 = 26000, KillsAt15 = 10, FirstBlood = true, FirstTower = true, FirstDragon = true, TowerKills = 7, DragonKills = 3 },
-                    new TeamStats { TeamSide = TeamSide.Red, GoldAt15 = 23000, KillsAt15 = 4, FirstBlood = false, FirstTower = false, FirstDragon = false, TowerKills = 2, DragonKills = 1 }
+                    new TeamStats { TeamSide = TeamSide.Blue, GoldAt15 = 26000, KillsAt15 = 10, CsAt15 = 240, XpAt15 = 18000, VoidgrubKills = 5, RiftHeraldKills = 1, FirstBlood = true, FirstTower = true, FirstDragon = true, TowerKills = 7, DragonKills = 3 },
+                    new TeamStats { TeamSide = TeamSide.Red, GoldAt15 = 23000, KillsAt15 = 4, CsAt15 = 200, XpAt15 = 16000, VoidgrubKills = 1, RiftHeraldKills = 0, FirstBlood = false, FirstTower = false, FirstDragon = false, TowerKills = 2, DragonKills = 1 }
                 },
                 Participants = new List<Participant>()
             }
@@ -1308,11 +1308,51 @@ public class DataLayerTests
         Assert.True(features[0].Label);
         Assert.Equal(3000f, features[0].GoldDiff15);
         Assert.Equal(6f, features[0].KillDiff15);
+        Assert.Equal(40f, features[0].CsDiff15);
+        Assert.Equal(2000f, features[0].XpDiff15);
+        Assert.Equal(4f, features[0].VoidgrubDiff);
+        Assert.Equal(1f, features[0].HeraldDiff);
         Assert.Equal(1f, features[0].FirstBlood);
         Assert.Equal(1f, features[0].FirstTower);
         Assert.Equal(1f, features[0].FirstDragon);
         Assert.Equal(5f, features[0].TowerDiff);
         Assert.Equal(2f, features[0].DragonDiff);
+    }
+
+    [Fact]
+    public void MatchTimelineData_ToInputFeatures_MapsCsXpAndObjectives()
+    {
+        var timeline = new MatchTimelineData
+        {
+            MatchId = "TL_TEST",
+            GoldAt15Blue = 27000,
+            GoldAt15Red = 24000,
+            KillsAt15Blue = 8,
+            KillsAt15Red = 5,
+            CsAt15Blue = 260,
+            CsAt15Red = 220,
+            XpAt15Blue = 20000,
+            XpAt15Red = 18000,
+            VoidgrubsAt15Blue = 6,
+            VoidgrubsAt15Red = 0,
+            HeraldsAt15Blue = 1,
+            HeraldsAt15Red = 0,
+            BlueFirstBlood = true,
+            BlueFirstTower = true,
+            BlueFirstDragon = true
+        };
+
+        var features = timeline.ToInputFeatures(blueAvgWinRate: 52f, redAvgWinRate: 48f);
+
+        Assert.Equal(3000, features.GoldDiffAt15);
+        Assert.Equal(3, features.KillDiffAt15);
+        Assert.Equal(40, features.CsDiffAt15);
+        Assert.Equal(2000, features.XpDiffAt15);
+        Assert.Equal(6, features.VoidgrubDiff);
+        Assert.Equal(1, features.HeraldDiff);
+        Assert.True(features.BlueFirstBlood);
+        Assert.True(features.BlueFirstTower);
+        Assert.True(features.BlueFirstDragon);
     }
 }
 

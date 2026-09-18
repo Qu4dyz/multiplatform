@@ -128,5 +128,13 @@ public class MatchInputFeatures
     public int RedDragonCount { get; set; }
     public int BlueTowerCount { get; set; }
     public int RedTowerCount { get; set; }
+    public int CsDiffAt15 { get; set; }
+    public int XpDiffAt15 { get; set; }
+    public int BlueVoidgrubs { get; set; }
+    public int RedVoidgrubs { get; set; }
+    public int VoidgrubDiff => BlueVoidgrubs - RedVoidgrubs;
+    public int BlueHeralds { get; set; }
+    public int RedHeralds { get; set; }
+    public int HeraldDiff => BlueHeralds - RedHeralds;
 }
 

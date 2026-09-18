@@ -87,7 +87,13 @@ public class MatchRepository : IMatchRepository
         string[] teamColumns =
         {
             "ALTER TABLE TeamStats ADD COLUMN GoldAt15 INTEGER NOT NULL DEFAULT 0;",
-            "ALTER TABLE TeamStats ADD COLUMN KillsAt15 INTEGER NOT NULL DEFAULT 0;"
+            "ALTER TABLE TeamStats ADD COLUMN KillsAt15 INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE TeamStats ADD COLUMN CsAt15 INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE TeamStats ADD COLUMN XpAt15 INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE TeamStats ADD COLUMN VoidgrubKills INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE TeamStats ADD COLUMN RiftHeraldKills INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE TeamStats ADD COLUMN FirstVoidgrub INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE TeamStats ADD COLUMN FirstRiftHerald INTEGER NOT NULL DEFAULT 0;"
         };
 
         foreach (var sql in teamColumns)
@@ -157,6 +163,16 @@ public class MatchRepository : IMatchRepository
     {
         _context.Matches.RemoveRange(_context.Matches);
         await _context.SaveChangesAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<string>> GetDistinctParticipantPuuidsAsync(int limit = 50, CancellationToken ct = default)
+    {
+        return await _context.Participants
+            .Where(p => !string.IsNullOrEmpty(p.Puuid))
+            .Select(p => p.Puuid)
+            .Distinct()
+            .Take(limit)
+            .ToListAsync(ct);
     }
 }
 

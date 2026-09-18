@@ -15,11 +15,27 @@ public class MatchTimelineData
     public int KillsAt15Red { get; set; }
     public int KillDiffAt15 => KillsAt15Blue - KillsAt15Red;
 
+    public int CsAt15Blue { get; set; }
+    public int CsAt15Red { get; set; }
+    public int CsDiffAt15 => CsAt15Blue - CsAt15Red;
+
+    public int XpAt15Blue { get; set; }
+    public int XpAt15Red { get; set; }
+    public int XpDiffAt15 => XpAt15Blue - XpAt15Red;
+
     public int TowersAt15Blue { get; set; }
     public int TowersAt15Red { get; set; }
 
     public int DragonsAt15Blue { get; set; }
     public int DragonsAt15Red { get; set; }
+
+    public int VoidgrubsAt15Blue { get; set; }
+    public int VoidgrubsAt15Red { get; set; }
+    public int VoidgrubDiffAt15 => VoidgrubsAt15Blue - VoidgrubsAt15Red;
+
+    public int HeraldsAt15Blue { get; set; }
+    public int HeraldsAt15Red { get; set; }
+    public int HeraldDiffAt15 => HeraldsAt15Blue - HeraldsAt15Red;
 
     public bool BlueFirstBlood { get; set; }
     public bool BlueFirstTower { get; set; }
@@ -37,6 +53,12 @@ public class MatchTimelineData
             BlueFirstDragon = BlueFirstDragon,
             GoldDiffAt15 = GoldDiffAt15,
             KillDiffAt15 = KillDiffAt15,
+            CsDiffAt15 = CsDiffAt15,
+            XpDiffAt15 = XpDiffAt15,
+            BlueVoidgrubs = VoidgrubsAt15Blue,
+            RedVoidgrubs = VoidgrubsAt15Red,
+            BlueHeralds = HeraldsAt15Blue,
+            RedHeralds = HeraldsAt15Red,
             BlueTeamAvgWinRate = blueAvgWinRate,
             RedTeamAvgWinRate = redAvgWinRate,
             BlueTowerCount = TowersAt15Blue,

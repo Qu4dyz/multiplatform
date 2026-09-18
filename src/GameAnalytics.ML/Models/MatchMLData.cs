@@ -31,7 +31,19 @@ public class MatchInputData
     [LoadColumn(8)]
     public float DragonDiff { get; set; }
 
-    [LoadColumn(9), ColumnName("Label")]
+    [LoadColumn(9)]
+    public float CsDiff15 { get; set; }
+
+    [LoadColumn(10)]
+    public float XpDiff15 { get; set; }
+
+    [LoadColumn(11)]
+    public float VoidgrubDiff { get; set; }
+
+    [LoadColumn(12)]
+    public float HeraldDiff { get; set; }
+
+    [LoadColumn(13), ColumnName("Label")]
     public bool Label { get; set; }
 }
 

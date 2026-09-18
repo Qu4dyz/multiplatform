@@ -132,6 +132,10 @@ public class MatchPredictionEngine : IPredictionEngine
                 FirstDragon = features.BlueFirstDragon ? 1f : 0f,
                 GoldDiff15 = features.GoldDiffAt15,
                 KillDiff15 = features.KillDiffAt15,
+                CsDiff15 = features.CsDiffAt15,
+                XpDiff15 = features.XpDiffAt15,
+                VoidgrubDiff = features.VoidgrubDiff,
+                HeraldDiff = features.HeraldDiff,
                 BlueAvgWinRate = features.BlueTeamAvgWinRate,
                 RedAvgWinRate = features.RedTeamAvgWinRate,
                 TowerDiff = features.BlueTowerCount - features.RedTowerCount,
@@ -152,6 +156,13 @@ public class MatchPredictionEngine : IPredictionEngine
                 factors.Add(features.GoldDiffAt15 > 0
                     ? $"Перевага за золотом на 15 хв: +{features.GoldDiffAt15:N0} на користь Синіх"
                     : $"Відставання за золотом на 15 хв: {features.GoldDiffAt15:N0} на користь Червоних");
+            }
+
+            if (features.VoidgrubDiff != 0)
+            {
+                factors.Add(features.VoidgrubDiff > 0
+                    ? $"Контроль личинок безодні: +{features.VoidgrubDiff} на користь Синіх (прискорене знесення веж)"
+                    : $"Контроль личинок безодні: +{-features.VoidgrubDiff} на користь Червоних (прискорене знесення веж)");
             }
 
             if (features.BlueFirstTower)

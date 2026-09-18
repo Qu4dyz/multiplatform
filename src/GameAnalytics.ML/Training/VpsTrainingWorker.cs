@@ -59,6 +59,11 @@ public class VpsTrainingWorker
                     {
                         var m = _predictionEngine.CurrentModelMetrics;
                         log($"[VPS ML Trainer] Результати навчання: Точність (Accuracy) = {m.Accuracy:P1} | AUC = {m.AreaUnderRocCurve:F3} | F1-Score = {m.F1Score:F3}");
+                        if (m.FeatureImportance.Count > 0)
+                        {
+                            var topFeatures = string.Join(", ", m.FeatureImportance.Take(4).Select(f => $"{f.Key}: {f.Value:P0}"));
+                            log($"[VPS ML Trainer] Топ фактори перемоги (Feature Importance): {topFeatures}");
+                        }
                     }
                     log($"[VPS ML Trainer] Модель успішно експортована в директорію models/{_predictionEngine.ActiveAlgorithm.ToString().ToLower()}_model.zip.");
                 }

@@ -26,7 +26,7 @@ public class MatchAnalyticsService : IMatchAnalyticsService
 
     public async Task<IReadOnlyList<Match>> FetchAndSaveRecentMatchesAsync(string puuid, int count = 10, CancellationToken ct = default)
     {
-        var matchIds = await _apiClient.GetRecentMatchIdsByPuuidAsync(puuid, count, ct);
+        var matchIds = await _apiClient.GetRecentMatchIdsByPuuidAsync(puuid, count, queue: null, ct: ct);
         var fetchedMatches = new List<Match>();
 
         foreach (var id in matchIds)
