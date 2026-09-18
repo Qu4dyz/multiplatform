@@ -2,6 +2,7 @@ using GameAnalytics.Core.Entities;
 using GameAnalytics.Core.Enums;
 using GameAnalytics.Desktop.ViewModels;
 using GameAnalytics.Infrastructure.Services;
+using GameAnalytics.ML.Engine;
 using Xunit;
 
 namespace GameAnalytics.Tests;
@@ -293,6 +294,150 @@ public class DataLayerTests
         Assert.DoesNotContain(vm.TopRecentChampions, c => c.ChampionName == "Jinx");
         Assert.Contains(vm.TopRecentChampions, c => c.ChampionName == "Ahri");
         Assert.Contains(vm.TopRecentChampions, c => c.ChampionName == "Lux");
+    }
+
+    [Fact]
+    public void PlayerMomentumAnalyzer_WinStreak_IncreasesScoreAndSetsOnFire()
+    {
+        var matches = new List<Match>();
+        for (int i = 0; i < 4; i++)
+        {
+            matches.Add(new Match
+            {
+                MatchId = $"MATCH_{i}",
+                GameCreation = DateTime.UtcNow.AddHours(-i),
+                GameDurationSeconds = 1800,
+                Participants = new List<Participant>
+                {
+                    new()
+                    {
+                        Puuid = "target-puuid",
+                        SummonerName = "Qu4dyz",
+                        Win = true,
+                        Kills = 10,
+                        Deaths = 2,
+                        Assists = 8,
+                        ChampionName = "Ahri"
+                    }
+                }
+            });
+        }
+
+        var report = PlayerMomentumAnalyzer.Analyze(matches, "target-puuid");
+
+        Assert.True(report.MomentumScore >= 75);
+        Assert.Contains("вогні", report.StatusText);
+        Assert.True(report.IsWinStreak);
+        Assert.Equal(4, report.CurrentStreakCount);
+        Assert.True(report.NextGameWinProbability >= 65.0);
+        Assert.NotEmpty(report.AiAdvice);
+        Assert.Contains("Ahri", report.AiAdvice);
+    }
+
+    [Fact]
+    public void PlayerMomentumAnalyzer_LossStreak_HighDeaths_TriggersTiltAlert()
+    {
+        var matches = new List<Match>();
+        for (int i = 0; i < 3; i++)
+        {
+            matches.Add(new Match
+            {
+                MatchId = $"MATCH_{i}",
+                GameCreation = DateTime.UtcNow.AddHours(-i),
+                GameDurationSeconds = 1600,
+                Participants = new List<Participant>
+                {
+                    new()
+                    {
+                        Puuid = "target-puuid",
+                        SummonerName = "Qu4dyz",
+                        Win = false,
+                        Kills = 1,
+                        Deaths = 9,
+                        Assists = 2,
+                        ChampionName = "Yasuo"
+                    }
+                }
+            });
+        }
+
+        var report = PlayerMomentumAnalyzer.Analyze(matches, "target-puuid");
+
+        Assert.True(report.MomentumScore < 42);
+        Assert.Contains("Тільт", report.StatusText);
+        Assert.False(report.IsWinStreak);
+        Assert.Equal(3, report.CurrentStreakCount);
+        Assert.Contains("смертн", report.AiAdvice, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void PlayerMatchItemViewModel_MapsItems_AndTogglesAccordion()
+    {
+        var match = new Match
+        {
+            MatchId = "ITEM_TEST_01",
+            GameDurationSeconds = 1800,
+            QueueId = 420,
+            Participants = new List<Participant>()
+        };
+
+        // Add 5 blue and 5 red
+        for (int i = 0; i < 10; i++)
+        {
+            var isBlue = i < 5;
+            match.Participants.Add(new Participant
+            {
+                Puuid = $"puuid-{i}",
+                SummonerName = $"Player_{i}",
+                ChampionName = "Ahri",
+                ChampLevel = 14,
+                TeamSide = isBlue ? TeamSide.Blue : TeamSide.Red,
+                Position = Position.Middle,
+                Kills = 5,
+                Deaths = 2,
+                Assists = 4,
+                TotalDamageDealtToChampions = (i + 1) * 3000,
+                GoldEarned = 12000,
+                TotalMinionsKilled = 180,
+                Win = isBlue,
+                Item0 = 3078,
+                Item1 = 3006,
+                Item2 = 3031,
+                Item3 = 3072,
+                Item4 = 3026,
+                Item5 = 3153,
+                Item6 = 3340
+            });
+        }
+
+        var vm = PlayerMatchItemViewModel.FromMatch(match, "puuid-2");
+
+        // Assert items on player
+        Assert.Equal(6, vm.PlayerItems.Count);
+        Assert.Equal(3078, vm.ItemSlot0.ItemId);
+        Assert.True(vm.ItemSlot0.HasItem);
+        Assert.Equal(3340, vm.PlayerTrinket.ItemId);
+        Assert.True(vm.PlayerTrinket.HasItem);
+
+        // Assert detailed participants
+        Assert.Equal(5, vm.BlueTeamDetailed.Count);
+        Assert.Equal(5, vm.RedTeamDetailed.Count);
+
+        var playerDetailed = vm.BlueTeamDetailed.FirstOrDefault(p => p.IsCurrentPlayer);
+        Assert.NotNull(playerDetailed);
+        Assert.Equal(6, playerDetailed.Items.Count);
+        Assert.True(playerDetailed.DamagePercentOfMax > 0);
+
+        // Assert Accordion toggle
+        Assert.False(vm.IsExpanded);
+        Assert.Equal("▼ Деталі", vm.ExpandButtonText);
+
+        vm.ToggleExpand();
+        Assert.True(vm.IsExpanded);
+        Assert.Equal("▲ Згорнути", vm.ExpandButtonText);
+
+        vm.ToggleExpand();
+        Assert.False(vm.IsExpanded);
     }
 }
 

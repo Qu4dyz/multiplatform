@@ -6,6 +6,7 @@ using GameAnalytics.Core.Enums;
 using GameAnalytics.Core.Interfaces;
 using GameAnalytics.Desktop.Converters;
 using GameAnalytics.Infrastructure.Configuration;
+using GameAnalytics.ML.Engine;
 
 namespace GameAnalytics.Desktop.ViewModels;
 
@@ -111,6 +112,33 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
 
     [ObservableProperty]
     private bool _hasSessionData;
+
+    [ObservableProperty]
+    private int _momentumScore = 50;
+
+    [ObservableProperty]
+    private string _momentumScoreText = "50/100";
+
+    [ObservableProperty]
+    private string _momentumStatusText = "⚖️ Нейтральна форма";
+
+    [ObservableProperty]
+    private string _momentumStatusColor = "#A0A8B6";
+
+    [ObservableProperty]
+    private string _momentumStreakText = string.Empty;
+
+    [ObservableProperty]
+    private double _nextGameWinProbability = 50.0;
+
+    [ObservableProperty]
+    private string _nextGameWinChanceText = "50% Шанс успіху";
+
+    [ObservableProperty]
+    private string _aiAdviceText = string.Empty;
+
+    [ObservableProperty]
+    private bool _hasMomentumData;
 
     [ObservableProperty]
     private bool _isLoading;
@@ -231,7 +259,9 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
 
                 var matches = await _analyticsService.FetchAndSaveRecentMatchesAsync(profile.Puuid, _currentMatchCount);
 
-                // Preload profile icon and champion icons for instant zero-flicker rendering
+                UpdateMomentumAnalysis(matches, profile.Puuid);
+
+                // Preload profile icon, champion icons, and item icons for instant zero-flicker rendering
                 var iconsToPreload = new List<string> { profile.ProfileIconUrl };
                 foreach (var m in matches)
                 {
@@ -241,6 +271,13 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
                         {
                             iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/champion/{p.ChampionName}.png");
                         }
+                        if (p.Item0 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/item/{p.Item0}.png");
+                        if (p.Item1 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/item/{p.Item1}.png");
+                        if (p.Item2 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/item/{p.Item2}.png");
+                        if (p.Item3 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/item/{p.Item3}.png");
+                        if (p.Item4 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/item/{p.Item4}.png");
+                        if (p.Item5 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/item/{p.Item5}.png");
+                        if (p.Item6 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/item/{p.Item6}.png");
                     }
                 }
                 await BitmapAssetValueConverter.PreloadImagesAsync(iconsToPreload);
@@ -283,6 +320,8 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
 
             var matches = await _analyticsService.FetchAndSaveRecentMatchesAsync(Summoner.Puuid, _currentMatchCount);
 
+            UpdateMomentumAnalysis(matches, Summoner.Puuid);
+
             // Preload any newly fetched icons
             var iconsToPreload = new List<string>();
             foreach (var m in matches)
@@ -293,6 +332,13 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
                     {
                         iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/champion/{p.ChampionName}.png");
                     }
+                    if (p.Item0 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/item/{p.Item0}.png");
+                    if (p.Item1 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/item/{p.Item1}.png");
+                    if (p.Item2 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/item/{p.Item2}.png");
+                    if (p.Item3 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/item/{p.Item3}.png");
+                    if (p.Item4 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/item/{p.Item4}.png");
+                    if (p.Item5 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/item/{p.Item5}.png");
+                    if (p.Item6 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/item/{p.Item6}.png");
                 }
             }
             await BitmapAssetValueConverter.PreloadImagesAsync(iconsToPreload);
@@ -323,6 +369,26 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
         {
             IsLoadingMore = false;
         }
+    }
+
+    internal void UpdateMomentumAnalysis(IReadOnlyList<Match> matches, string puuidOrName)
+    {
+        if (matches == null || matches.Count == 0)
+        {
+            HasMomentumData = false;
+            return;
+        }
+
+        var report = PlayerMomentumAnalyzer.Analyze(matches, puuidOrName);
+        MomentumScore = report.MomentumScore;
+        MomentumScoreText = report.MomentumScoreText;
+        MomentumStatusText = report.StatusText;
+        MomentumStatusColor = report.StatusColor;
+        MomentumStreakText = report.StreakText;
+        NextGameWinProbability = report.NextGameWinProbability;
+        NextGameWinChanceText = report.NextGameWinChanceText;
+        AiAdviceText = report.AiAdvice;
+        HasMomentumData = true;
     }
 
     internal void ApplyQueueFilter()

@@ -35,6 +35,26 @@ public class MatchRepository : IMatchRepository
             _context.Database.ExecuteSqlRaw("ALTER TABLE Matches ADD COLUMN IsRemake INTEGER NOT NULL DEFAULT 0;");
         }
         catch { /* Column already exists */ }
+
+        string[] itemColumns =
+        {
+            "ALTER TABLE Participants ADD COLUMN Item0 INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN Item1 INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN Item2 INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN Item3 INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN Item4 INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN Item5 INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN Item6 INTEGER NOT NULL DEFAULT 0;"
+        };
+
+        foreach (var sql in itemColumns)
+        {
+            try
+            {
+                _context.Database.ExecuteSqlRaw(sql);
+            }
+            catch { /* Column already exists */ }
+        }
     }
 
     public async Task<IReadOnlyList<Match>> GetAllMatchesAsync(CancellationToken ct = default)

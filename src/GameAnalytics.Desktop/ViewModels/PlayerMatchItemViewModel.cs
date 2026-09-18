@@ -1,7 +1,53 @@
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using GameAnalytics.Core.Entities;
 using GameAnalytics.Core.Enums;
 
 namespace GameAnalytics.Desktop.ViewModels;
+
+public class ItemSlotViewModel
+{
+    public int ItemId { get; set; }
+    public bool HasItem => ItemId > 0;
+    public string IconUrl => HasItem ? $"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/item/{ItemId}.png" : string.Empty;
+}
+
+public class DetailedParticipantViewModel
+{
+    public string SummonerName { get; set; } = string.Empty;
+    public string ChampionName { get; set; } = string.Empty;
+    public string ChampionIconUrl => $"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/champion/{ChampionName}.png";
+    public int ChampLevel { get; set; } = 1;
+    public string ChampLevelText => $"{ChampLevel}";
+    public bool IsCurrentPlayer { get; set; }
+    public string PositionName { get; set; } = "MID";
+    public string PositionIcon { get; set; } = "⚡";
+
+    public int Kills { get; set; }
+    public int Deaths { get; set; }
+    public int Assists { get; set; }
+    public string KdaText => $"{Kills}/{Deaths}/{Assists}";
+    public string KdaRatioText => Deaths == 0 ? "Perfect" : $"{(Kills + Assists) / (double)Deaths:F2}:1";
+
+    public int DamageDealt { get; set; }
+    public string DamageText => $"{DamageDealt / 1000.0:F1}k";
+    public double DamagePercentOfMax { get; set; }
+    public double DamageBarWidth => Math.Max(4, Math.Round(DamagePercentOfMax * 0.7)); // Max 70px
+
+    public int GoldEarned { get; set; }
+    public string GoldText => $"{GoldEarned / 1000.0:F1}k";
+
+    public int MinionsKilled { get; set; }
+    public string CsText => $"{MinionsKilled}";
+
+    public List<ItemSlotViewModel> Items { get; set; } = new();
+    public ItemSlotViewModel Trinket { get; set; } = new();
+
+    public string NameColor => IsCurrentPlayer ? "#C8AA6E" : "#F0E6D2";
+    public string NameWeight => IsCurrentPlayer ? "Bold" : "Normal";
+    public string IndicatorText => IsCurrentPlayer ? "◆ " : "";
+    public string DisplayName => $"{IndicatorText}{SummonerName}";
+}
 
 public class MiniParticipantViewModel
 {
@@ -16,7 +62,7 @@ public class MiniParticipantViewModel
     public string NameWeight => IsCurrentPlayer ? "Bold" : "Normal";
 }
 
-public class PlayerMatchItemViewModel
+public partial class PlayerMatchItemViewModel : ObservableObject
 {
     public string MatchId { get; set; } = string.Empty;
     public bool IsRemake { get; set; }
@@ -60,8 +106,40 @@ public class PlayerMatchItemViewModel
     public double CsPerMinute { get; set; }
     public string CsText => $"{MinionsKilled} CS ({CsPerMinute:F1}/хв)";
 
+    // Items for current player
+    public List<ItemSlotViewModel> PlayerItems { get; set; } = new();
+    public ItemSlotViewModel PlayerTrinket { get; set; } = new();
+
+    private static readonly ItemSlotViewModel EmptySlot = new() { ItemId = 0 };
+    public ItemSlotViewModel ItemSlot0 => PlayerItems.ElementAtOrDefault(0) ?? EmptySlot;
+    public ItemSlotViewModel ItemSlot1 => PlayerItems.ElementAtOrDefault(1) ?? EmptySlot;
+    public ItemSlotViewModel ItemSlot2 => PlayerItems.ElementAtOrDefault(2) ?? EmptySlot;
+    public ItemSlotViewModel ItemSlot3 => PlayerItems.ElementAtOrDefault(3) ?? EmptySlot;
+    public ItemSlotViewModel ItemSlot4 => PlayerItems.ElementAtOrDefault(4) ?? EmptySlot;
+    public ItemSlotViewModel ItemSlot5 => PlayerItems.ElementAtOrDefault(5) ?? EmptySlot;
+
+    // Compact lists
     public List<MiniParticipantViewModel> BlueTeam { get; set; } = new();
     public List<MiniParticipantViewModel> RedTeam { get; set; } = new();
+
+    // Detailed lists for expanded view
+    public List<DetailedParticipantViewModel> BlueTeamDetailed { get; set; } = new();
+    public List<DetailedParticipantViewModel> RedTeamDetailed { get; set; } = new();
+
+    // Accordion Expansion state
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ExpandButtonText))]
+    [NotifyPropertyChangedFor(nameof(ExpandButtonColor))]
+    private bool _isExpanded;
+
+    public string ExpandButtonText => IsExpanded ? "▲ Згорнути" : "▼ Деталі";
+    public string ExpandButtonColor => IsExpanded ? "#C8AA6E" : "#8A93A5";
+
+    [RelayCommand]
+    public void ToggleExpand()
+    {
+        IsExpanded = !IsExpanded;
+    }
 
     public static PlayerMatchItemViewModel FromMatch(Match match, string searchedPuuidOrName, string fallbackName = "")
     {
@@ -127,29 +205,126 @@ public class PlayerMatchItemViewModel
             DamageDealt = player?.TotalDamageDealtToChampions ?? 0,
             GoldEarned = player?.GoldEarned ?? 0,
             MinionsKilled = player?.TotalMinionsKilled ?? 0,
-            CsPerMinute = Math.Round((player?.TotalMinionsKilled ?? 0) / Math.Max(1.0, durationMinutes), 1)
+            CsPerMinute = Math.Round((player?.TotalMinionsKilled ?? 0) / Math.Max(1.0, durationMinutes), 1),
+            PlayerItems = new List<ItemSlotViewModel>
+            {
+                new() { ItemId = player?.Item0 ?? 0 },
+                new() { ItemId = player?.Item1 ?? 0 },
+                new() { ItemId = player?.Item2 ?? 0 },
+                new() { ItemId = player?.Item3 ?? 0 },
+                new() { ItemId = player?.Item4 ?? 0 },
+                new() { ItemId = player?.Item5 ?? 0 }
+            },
+            PlayerTrinket = new ItemSlotViewModel { ItemId = player?.Item6 ?? 0 }
         };
 
-        // Populate Blue and Red mini participant lists
+        // Find max damage for relative damage bar width
+        var maxDamage = Math.Max(1, match.Participants.Count > 0 ? match.Participants.Max(p => p.TotalDamageDealtToChampions) : 1);
+
+        // Populate Blue and Red participants (both compact and detailed)
         foreach (var p in match.Participants.Where(x => x.TeamSide == TeamSide.Blue))
         {
+            var isCurrent = p == player;
+            var shortName = ExtractShortName(p.SummonerName);
+
             vm.BlueTeam.Add(new MiniParticipantViewModel
             {
-                SummonerName = ExtractShortName(p.SummonerName),
+                SummonerName = shortName,
                 ChampionName = p.ChampionName,
-                IsCurrentPlayer = p == player,
+                IsCurrentPlayer = isCurrent,
                 FormattedKda = $"{p.Kills}/{p.Deaths}/{p.Assists}"
+            });
+
+            var (pRoleName, pRoleIcon) = isAram
+                ? ("ARAM", "🎲")
+                : p.Position switch
+                {
+                    Position.Top => ("TOP", "🛡️"),
+                    Position.Jungle => ("JGL", "🌲"),
+                    Position.Middle => ("MID", "⚡"),
+                    Position.Bottom => ("BOT", "🏹"),
+                    Position.Utility => ("SUP", "✨"),
+                    _ => ("MID", "⚔️")
+                };
+
+            vm.BlueTeamDetailed.Add(new DetailedParticipantViewModel
+            {
+                SummonerName = shortName,
+                ChampionName = p.ChampionName,
+                ChampLevel = p.ChampLevel > 0 ? p.ChampLevel : 1,
+                IsCurrentPlayer = isCurrent,
+                PositionName = pRoleName,
+                PositionIcon = pRoleIcon,
+                Kills = p.Kills,
+                Deaths = p.Deaths,
+                Assists = p.Assists,
+                DamageDealt = p.TotalDamageDealtToChampions,
+                DamagePercentOfMax = Math.Round((double)p.TotalDamageDealtToChampions / maxDamage * 100, 1),
+                GoldEarned = p.GoldEarned,
+                MinionsKilled = p.TotalMinionsKilled,
+                Items = new List<ItemSlotViewModel>
+                {
+                    new() { ItemId = p.Item0 },
+                    new() { ItemId = p.Item1 },
+                    new() { ItemId = p.Item2 },
+                    new() { ItemId = p.Item3 },
+                    new() { ItemId = p.Item4 },
+                    new() { ItemId = p.Item5 }
+                },
+                Trinket = new ItemSlotViewModel { ItemId = p.Item6 }
             });
         }
 
         foreach (var p in match.Participants.Where(x => x.TeamSide == TeamSide.Red))
         {
+            var isCurrent = p == player;
+            var shortName = ExtractShortName(p.SummonerName);
+
             vm.RedTeam.Add(new MiniParticipantViewModel
             {
-                SummonerName = ExtractShortName(p.SummonerName),
+                SummonerName = shortName,
                 ChampionName = p.ChampionName,
-                IsCurrentPlayer = p == player,
+                IsCurrentPlayer = isCurrent,
                 FormattedKda = $"{p.Kills}/{p.Deaths}/{p.Assists}"
+            });
+
+            var (pRoleName, pRoleIcon) = isAram
+                ? ("ARAM", "🎲")
+                : p.Position switch
+                {
+                    Position.Top => ("TOP", "🛡️"),
+                    Position.Jungle => ("JGL", "🌲"),
+                    Position.Middle => ("MID", "⚡"),
+                    Position.Bottom => ("BOT", "🏹"),
+                    Position.Utility => ("SUP", "✨"),
+                    _ => ("MID", "⚔️")
+                };
+
+            vm.RedTeamDetailed.Add(new DetailedParticipantViewModel
+            {
+                SummonerName = shortName,
+                ChampionName = p.ChampionName,
+                ChampLevel = p.ChampLevel > 0 ? p.ChampLevel : 1,
+                IsCurrentPlayer = isCurrent,
+                PositionName = pRoleName,
+                PositionIcon = pRoleIcon,
+                Kills = p.Kills,
+                Deaths = p.Deaths,
+                Assists = p.Assists,
+                DamageDealt = p.TotalDamageDealtToChampions,
+                DamagePercentOfMax = Math.Round((double)p.TotalDamageDealtToChampions / maxDamage * 100, 1),
+                GoldEarned = p.GoldEarned,
+                MinionsKilled = p.TotalMinionsKilled,
+                Items = new List<ItemSlotViewModel>
+                {
+                    new() { ItemId = p.Item0 },
+                    new() { ItemId = p.Item1 },
+                    new() { ItemId = p.Item2 },
+                    new() { ItemId = p.Item3 },
+                    new() { ItemId = p.Item4 },
+                    new() { ItemId = p.Item5 }
+                },
+                Trinket = new ItemSlotViewModel { ItemId = p.Item6 }
             });
         }
 

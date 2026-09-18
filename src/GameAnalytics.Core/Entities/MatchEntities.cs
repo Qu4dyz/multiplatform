@@ -53,6 +53,15 @@ public class Participant
     public int TotalMinionsKilled { get; set; }
     public bool Win { get; set; }
 
+    // Items (6 inventory slots + 1 trinket/ward slot)
+    public int Item0 { get; set; }
+    public int Item1 { get; set; }
+    public int Item2 { get; set; }
+    public int Item3 { get; set; }
+    public int Item4 { get; set; }
+    public int Item5 { get; set; }
+    public int Item6 { get; set; }
+
     public double KdaRatio => Deaths == 0 ? (Kills + Assists) : Math.Round((double)(Kills + Assists) / Deaths, 2);
 }
 

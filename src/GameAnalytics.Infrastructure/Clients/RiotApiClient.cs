@@ -370,7 +370,14 @@ public class RiotApiClient : IRiotApiClient
                     TotalDamageDealtToChampions = p.TotalDamageDealtToChampions,
                     GoldEarned = p.GoldEarned,
                     TotalMinionsKilled = p.TotalMinionsKilled + p.NeutralMinionsKilled,
-                    Win = p.Win
+                    Win = p.Win,
+                    Item0 = p.Item0,
+                    Item1 = p.Item1,
+                    Item2 = p.Item2,
+                    Item3 = p.Item3,
+                    Item4 = p.Item4,
+                    Item5 = p.Item5,
+                    Item6 = p.Item6
                 });
             }
         }
@@ -581,7 +588,14 @@ public class RiotApiClient : IRiotApiClient
                 TotalDamageDealtToChampions = random.Next(12000, 38000),
                 GoldEarned = random.Next(8000, 17000),
                 TotalMinionsKilled = random.Next(120, 290),
-                Win = isBlue ? blueWin : !blueWin
+                Win = isBlue ? blueWin : !blueWin,
+                Item0 = 3078,
+                Item1 = 3006,
+                Item2 = 3031,
+                Item3 = 3072,
+                Item4 = 3026,
+                Item5 = 3153,
+                Item6 = 3340
             });
         }
 
@@ -763,5 +777,26 @@ public class RiotApiClient : IRiotApiClient
 
         [JsonPropertyName("teamEarlySurrendered")]
         public bool TeamEarlySurrendered { get; set; }
+
+        [JsonPropertyName("item0")]
+        public int Item0 { get; set; }
+
+        [JsonPropertyName("item1")]
+        public int Item1 { get; set; }
+
+        [JsonPropertyName("item2")]
+        public int Item2 { get; set; }
+
+        [JsonPropertyName("item3")]
+        public int Item3 { get; set; }
+
+        [JsonPropertyName("item4")]
+        public int Item4 { get; set; }
+
+        [JsonPropertyName("item5")]
+        public int Item5 { get; set; }
+
+        [JsonPropertyName("item6")]
+        public int Item6 { get; set; }
     }
 }
