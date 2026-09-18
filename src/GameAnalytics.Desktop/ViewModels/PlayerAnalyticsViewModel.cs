@@ -347,18 +347,24 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
                 }
                 await BitmapAssetValueConverter.PreloadImagesAsync(iconsToPreload);
 
+                await _analyticsService.TrackAndReconstructLpAsync(profile, matches);
+                var lpMap = await _analyticsService.GetPlayerMatchLpMapAsync(profile.Puuid);
+
                 _rawMatches = matches.ToList();
                 RecentMatches.Clear();
                 var currentTier = Summoner?.Tier ?? GameTier.Emerald;
                 foreach (var m in matches)
                 {
+                    int? overrideLp = lpMap.TryGetValue(m.MatchId, out var delta) ? delta : null;
                     RecentMatches.Add(PlayerMatchItemViewModel.FromMatch(
                         m, 
                         profile.Puuid, 
                         profile.GameName, 
                         SelectPlayerCommand, 
                         currentTier, 
-                        mId => _analyticsService.GetMatchTimelineAsync(mId)));
+                        mId => _analyticsService.GetMatchTimelineAsync(mId),
+                        overrideLp,
+                        profile.WinRate));
                 }
 
                 ApplyQueueFilter();
@@ -417,6 +423,9 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
             }
             await BitmapAssetValueConverter.PreloadImagesAsync(iconsToPreload);
 
+            await _analyticsService.TrackAndReconstructLpAsync(Summoner, matches);
+            var lpMap = await _analyticsService.GetPlayerMatchLpMapAsync(Summoner.Puuid);
+
             _rawMatches = matches.ToList();
             RecentMatches.Clear();
             var moreTier = Summoner?.Tier ?? GameTier.Emerald;
@@ -425,13 +434,16 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
             var currentFullName = Summoner?.FullName ?? "Player";
             foreach (var m in matches)
             {
+                int? overrideLp = lpMap.TryGetValue(m.MatchId, out var delta) ? delta : null;
                 RecentMatches.Add(PlayerMatchItemViewModel.FromMatch(
                     m, 
                     currentPuuid, 
                     currentGameName, 
                     SelectPlayerCommand, 
                     moreTier, 
-                    mId => _analyticsService.GetMatchTimelineAsync(mId)));
+                    mId => _analyticsService.GetMatchTimelineAsync(mId),
+                    overrideLp,
+                    Summoner?.WinRate ?? 50.0));
             }
 
             ApplyQueueFilter();

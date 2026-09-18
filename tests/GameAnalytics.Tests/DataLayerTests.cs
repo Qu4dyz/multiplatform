@@ -1,5 +1,6 @@
 using GameAnalytics.Core.Entities;
 using GameAnalytics.Core.Enums;
+using GameAnalytics.Core.Helpers;
 using GameAnalytics.Desktop.Converters;
 using GameAnalytics.Desktop.ViewModels;
 using GameAnalytics.Infrastructure.Configuration;
@@ -812,9 +813,14 @@ public class DataLayerTests
 
         // Ranked Loss
         var (lossDelta, lossText, lossBg, lossFg) = GlobalCoachingAnalyzer.CalculateLpDelta(rankedMatch, isVictory: false, isRemake: false, isMvp: false, isAce: false);
-        Assert.InRange(lossDelta, -20, -17);
-        Assert.StartsWith("-", lossText);
+        Assert.Equal(-20, lossDelta);
+        Assert.Equal("-20 LP", lossText);
         Assert.Equal("#E84057", lossFg);
+
+        // Exact override LP delta (-20 LP as in user request)
+        var (overrideDelta, overrideText, _, _) = GlobalCoachingAnalyzer.CalculateLpDelta(rankedMatch, isVictory: false, isRemake: false, isMvp: false, isAce: false, overrideLpDelta: -20);
+        Assert.Equal(-20, overrideDelta);
+        Assert.Equal("-20 LP", overrideText);
 
         // Ranked Loss with ACE mitigation
         var (aceDelta, _, _, _) = GlobalCoachingAnalyzer.CalculateLpDelta(rankedMatch, isVictory: false, isRemake: false, isMvp: false, isAce: true);
@@ -921,6 +927,37 @@ public class DataLayerTests
         Assert.True(vm.HasRankProgress);
         Assert.Equal(78, vm.NextTierProgressValue);
         Assert.Contains("78 / 100 LP до Emerald I", vm.NextTierProgressText);
+    }
+
+    [Fact]
+    public void LpTracking_TotalLpAndDeltaCalculation_AccuratelyTracksRankedProgression()
+    {
+        // 1. Total LP calculation
+        var emerald4_48 = LpCalculationHelper.CalculateTotalLp(GameTier.Emerald, "IV", 48);
+        var emerald4_68 = LpCalculationHelper.CalculateTotalLp(GameTier.Emerald, "IV", 68);
+        Assert.Equal(-20, emerald4_48 - emerald4_68);
+
+        // Cross-division promotion: Plat I 90 LP -> Emerald IV 10 LP
+        var plat1_90 = LpCalculationHelper.CalculateTotalLp(GameTier.Platinum, "I", 90);
+        var emerald4_10 = LpCalculationHelper.CalculateTotalLp(GameTier.Emerald, "IV", 10);
+        Assert.Equal(20, emerald4_10 - plat1_90);
+
+        // 2. Baseline Ranked Loss must be -20 LP (matching user request)
+        var rankedMatch = new Match { QueueId = 420 };
+        var (lossDelta, lossText, lossBg, lossFg) = GlobalCoachingAnalyzer.CalculateLpDelta(rankedMatch, isVictory: false, isRemake: false, isMvp: false, isAce: false);
+        Assert.Equal(-20, lossDelta);
+        Assert.Equal("-20 LP", lossText);
+        Assert.Equal("#E84057", lossFg);
+
+        // 3. Baseline Ranked Win must be +20 LP
+        var (winDelta, winText, _, _) = GlobalCoachingAnalyzer.CalculateLpDelta(rankedMatch, isVictory: true, isRemake: false, isMvp: false, isAce: false);
+        Assert.Equal(20, winDelta);
+        Assert.Equal("+20 LP", winText);
+
+        // 4. Exact override LP delta (-20 LP as in user request)
+        var (ovDelta, ovText, _, _) = GlobalCoachingAnalyzer.CalculateLpDelta(rankedMatch, isVictory: false, isRemake: false, isMvp: false, isAce: false, overrideLpDelta: -20);
+        Assert.Equal(-20, ovDelta);
+        Assert.Equal("-20 LP", ovText);
     }
 
     [Fact]

@@ -356,7 +356,9 @@ public partial class PlayerMatchItemViewModel : ObservableObject
         string fallbackName = "", 
         System.Windows.Input.ICommand? selectPlayerCommand = null,
         GameTier playerTier = GameTier.Emerald,
-        Func<string, Task<MatchTimelineData?>>? loadTimelineFunc = null)
+        Func<string, Task<MatchTimelineData?>>? loadTimelineFunc = null,
+        int? overrideLpDelta = null,
+        double playerWinRate = 50.0)
     {
         var cleanSearched = searchedPuuidOrName?.Trim() ?? string.Empty;
         var cleanFallback = fallbackName?.Trim() ?? string.Empty;
@@ -469,7 +471,7 @@ public partial class PlayerMatchItemViewModel : ObservableObject
         }
 
         // Calculate LP Delta (Ranked games)
-        var (lpDelta, lpText, lpBg, lpFg) = GlobalCoachingAnalyzer.CalculateLpDelta(match, isVictory, isRemake, playerIsMvp, playerIsAce);
+        var (lpDelta, lpText, lpBg, lpFg) = GlobalCoachingAnalyzer.CalculateLpDelta(match, isVictory, isRemake, playerIsMvp, playerIsAce, overrideLpDelta, playerWinRate);
         vm.LpDelta = lpDelta;
         vm.LpChangeText = lpText;
         vm.LpChangeBg = lpBg;

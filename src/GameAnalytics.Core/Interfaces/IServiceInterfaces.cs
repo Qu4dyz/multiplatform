@@ -19,6 +19,10 @@ public interface IMatchRepository
     Task<int> GetTotalMatchesCountAsync(CancellationToken ct = default);
     Task ClearAllMatchesAsync(CancellationToken ct = default);
     Task<IReadOnlyList<string>> GetDistinctParticipantPuuidsAsync(int limit = 50, CancellationToken ct = default);
+    Task<IReadOnlyDictionary<string, int>> GetPlayerMatchLpMapAsync(string puuid, CancellationToken ct = default);
+    Task SaveMatchLpRecordAsync(PlayerMatchLpRecord record, CancellationToken ct = default);
+    Task<PlayerLpSnapshot?> GetLpSnapshotAsync(string puuid, int queueId = 420, CancellationToken ct = default);
+    Task SaveLpSnapshotAsync(PlayerLpSnapshot snapshot, CancellationToken ct = default);
 }
 
 public interface IPredictionEngine
@@ -39,6 +43,8 @@ public interface IMatchAnalyticsService
 {
     Task<SummonerProfile?> FetchAndCacheSummonerAsync(string gameName, string tagLine, CancellationToken ct = default);
     Task<IReadOnlyList<Match>> FetchAndSaveRecentMatchesAsync(string puuid, int count = 10, CancellationToken ct = default);
+    Task<IReadOnlyDictionary<string, int>> GetPlayerMatchLpMapAsync(string puuid, CancellationToken ct = default);
+    Task TrackAndReconstructLpAsync(SummonerProfile profile, IReadOnlyList<Match> matches, CancellationToken ct = default);
     Task<IReadOnlyList<Match>> GetSavedMatchHistoryAsync(CancellationToken ct = default);
     Task<MatchTimelineData?> GetMatchTimelineAsync(string matchId, CancellationToken ct = default);
     Task<bool> RetrainModelOnSavedMatchesAsync(CancellationToken ct = default);

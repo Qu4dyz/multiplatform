@@ -307,7 +307,17 @@ public static class GlobalCoachingAnalyzer
         return (grade, color, tag);
     }
 
-    public static (int Delta, string Text, string Bg, string Fg) CalculateLpDelta(Match match, bool isVictory, bool isRemake, bool isMvp, bool isAce)
+    public static int CalculateTotalLp(GameTier tier, string? rank, int lp)
+        => GameAnalytics.Core.Helpers.LpCalculationHelper.CalculateTotalLp(tier, rank, lp);
+
+    public static (int Delta, string Text, string Bg, string Fg) CalculateLpDelta(
+        Match match, 
+        bool isVictory, 
+        bool isRemake, 
+        bool isMvp = false, 
+        bool isAce = false,
+        int? overrideLpDelta = null,
+        double winRate = 50.0)
     {
         var isRanked = match.QueueId == 420 || match.QueueId == 440 ||
                        match.QueueName.Contains("Ranked", StringComparison.OrdinalIgnoreCase);
@@ -322,18 +332,27 @@ public static class GlobalCoachingAnalyzer
             return (0, "0 LP", "#1C222B", "#A0A8B6");
         }
 
-        if (isVictory)
+        int delta;
+        if (overrideLpDelta.HasValue)
         {
-            // +20 to +24 LP
-            var gain = isMvp ? 24 : 22;
-            return (gain, $"+{gain} LP", "#0F2823", "#0AC8B9");
+            delta = overrideLpDelta.Value;
+        }
+        else if (isVictory)
+        {
+            // Standard LoL Ranked win baseline is +20 LP (+21 with high winrate or MVP)
+            delta = isMvp ? 21 : (winRate >= 54.0 ? 21 : 20);
         }
         else
         {
-            // -17 to -20 LP
-            var loss = isAce ? -17 : -19;
-            return (loss, $"{loss} LP", "#2A141A", "#E84057");
+            // Standard LoL Ranked loss baseline is -20 LP (-18 with ACE mitigation or high MMR)
+            delta = isAce ? -18 : (winRate >= 54.0 ? -19 : -20);
         }
+
+        var text = delta > 0 ? $"+{delta} LP" : $"{delta} LP";
+        var bg = delta > 0 ? "#0F2823" : (delta < 0 ? "#2A141A" : "#1C222B");
+        var fg = delta > 0 ? "#0AC8B9" : (delta < 0 ? "#E84057" : "#A0A8B6");
+
+        return (delta, text, bg, fg);
     }
 
     private static (string Grade, string Color) ScoreToGrade(int score) => score switch

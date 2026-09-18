@@ -8,6 +8,8 @@ public class GameAnalyticsDbContext : DbContext
     public DbSet<Match> Matches => Set<Match>();
     public DbSet<Participant> Participants => Set<Participant>();
     public DbSet<TeamStats> TeamStats => Set<TeamStats>();
+    public DbSet<PlayerLpSnapshot> PlayerLpSnapshots => Set<PlayerLpSnapshot>();
+    public DbSet<PlayerMatchLpRecord> PlayerMatchLpRecords => Set<PlayerMatchLpRecord>();
 
     private readonly string _dbPath;
 
@@ -78,6 +80,23 @@ public class GameAnalyticsDbContext : DbContext
         modelBuilder.Entity<TeamStats>(entity =>
         {
             entity.HasKey(t => t.Id);
+        });
+
+        modelBuilder.Entity<PlayerLpSnapshot>(entity =>
+        {
+            entity.HasKey(s => s.Id);
+            entity.HasIndex(s => new { s.Puuid, s.QueueId });
+            entity.Property(s => s.Puuid).IsRequired().HasMaxLength(128);
+            entity.Property(s => s.Rank).HasMaxLength(16);
+            entity.Property(s => s.LastMatchId).HasMaxLength(64);
+        });
+
+        modelBuilder.Entity<PlayerMatchLpRecord>(entity =>
+        {
+            entity.HasKey(r => r.Id);
+            entity.HasIndex(r => new { r.Puuid, r.MatchId });
+            entity.Property(r => r.Puuid).IsRequired().HasMaxLength(128);
+            entity.Property(r => r.MatchId).IsRequired().HasMaxLength(64);
         });
     }
 }
