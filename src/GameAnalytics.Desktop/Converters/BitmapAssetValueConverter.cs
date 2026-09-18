@@ -2,6 +2,8 @@ using System.Collections.Concurrent;
 using System.Globalization;
 using Avalonia.Data.Converters;
 using Avalonia.Media.Imaging;
+using Avalonia.Threading;
+using GameAnalytics.Core.Entities;
 
 namespace GameAnalytics.Desktop.Converters;
 
@@ -9,27 +11,96 @@ public class BitmapAssetValueConverter : IValueConverter
 {
     private static readonly HttpClient HttpClient = new();
     private static readonly ConcurrentDictionary<string, Bitmap?> Cache = new();
-    private static readonly string CacheDir = Path.Combine(AppContext.BaseDirectory, "cache", "icons");
 
     static BitmapAssetValueConverter()
     {
-        if (!Directory.Exists(CacheDir))
+        try
         {
-            Directory.CreateDirectory(CacheDir);
+            var baseCache = Path.Combine(AppContext.BaseDirectory, "cache", "icons");
+            if (Directory.Exists(baseCache))
+            {
+                // Purge legacy flat files directly under cache/icons from 14.x
+                foreach (var file in Directory.GetFiles(baseCache, "*.png"))
+                {
+                    try { File.Delete(file); } catch { }
+                }
+            }
         }
+        catch { }
+    }
+
+    public static string GetCacheDir()
+    {
+        var dir = Path.Combine(AppContext.BaseDirectory, "cache", "icons", GameConstants.DDragonVersion);
+        if (!Directory.Exists(dir))
+        {
+            Directory.CreateDirectory(dir);
+        }
+        return dir;
+    }
+
+    public static Bitmap? GetOrLoadBitmap(string? url, Action<Bitmap>? onLoaded = null)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return null;
+
+        if (Cache.TryGetValue(url, out var cached) && cached != null)
+        {
+            return cached;
+        }
+
+        var dir = GetCacheDir();
+        var fileName = Path.GetFileName(new Uri(url).LocalPath);
+        var localPath = Path.Combine(dir, fileName);
+
+        if (File.Exists(localPath))
+        {
+            try
+            {
+                using var stream = File.OpenRead(localPath);
+                var bmp = new Bitmap(stream);
+                Cache[url] = bmp;
+                return bmp;
+            }
+            catch { }
+        }
+
+        // Asynchronously load and notify UI thread
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var bytes = await HttpClient.GetByteArrayAsync(url);
+                await File.WriteAllBytesAsync(localPath, bytes);
+                using var memStream = new MemoryStream(bytes);
+                var bmp = new Bitmap(memStream);
+                Cache[url] = bmp;
+                if (onLoaded != null)
+                {
+                    Dispatcher.UIThread.Post(() => onLoaded(bmp));
+                }
+            }
+            catch
+            {
+                // Silently ignore failed network requests
+            }
+        });
+
+        return null;
     }
 
     public static async Task PreloadImagesAsync(IEnumerable<string> urls)
     {
         var distinctUrls = urls.Where(u => !string.IsNullOrWhiteSpace(u)).Distinct().ToList();
+        var dir = GetCacheDir();
+
         var tasks = distinctUrls.Select(async url =>
         {
-            if (Cache.ContainsKey(url)) return;
+            if (Cache.ContainsKey(url) && Cache[url] != null) return;
 
             try
             {
                 var fileName = Path.GetFileName(new Uri(url).LocalPath);
-                var localPath = Path.Combine(CacheDir, fileName);
+                var localPath = Path.Combine(dir, fileName);
 
                 if (File.Exists(localPath))
                 {
@@ -63,14 +134,15 @@ public class BitmapAssetValueConverter : IValueConverter
             return null;
         }
 
-        if (Cache.TryGetValue(url, out var cachedBitmap))
+        if (Cache.TryGetValue(url, out var cachedBitmap) && cachedBitmap != null)
         {
             return cachedBitmap;
         }
 
         // Try local disk cache
+        var dir = GetCacheDir();
         var fileName = Path.GetFileName(new Uri(url).LocalPath);
-        var localPath = Path.Combine(CacheDir, fileName);
+        var localPath = Path.Combine(dir, fileName);
 
         if (File.Exists(localPath))
         {

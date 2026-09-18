@@ -169,7 +169,10 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
     private bool _isLoading;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LoadMoreButtonText))]
     private bool _isLoadingMore;
+
+    public string LoadMoreButtonText => IsLoadingMore ? "ЗАВАНТАЖЕННЯ..." : "ЗАВАНТАЖИТИ ЩЕ 5 МАТЧІВ";
 
     [ObservableProperty]
     private bool _canLoadMore = true;
@@ -321,7 +324,8 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
                     {
                         if (!string.IsNullOrWhiteSpace(p.ChampionName))
                         {
-                            iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/champion/{p.ChampionName}.png");
+                            var cleanName = PlayerMatchItemViewModel.NormalizeChampionName(p.ChampionName);
+                            iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/champion/{cleanName}.png");
                         }
                         if (p.Item0 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/item/{p.Item0}.png");
                         if (p.Item1 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/item/{p.Item1}.png");
@@ -383,7 +387,8 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
                 {
                     if (!string.IsNullOrWhiteSpace(p.ChampionName))
                     {
-                        iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/champion/{p.ChampionName}.png");
+                        var cleanName = PlayerMatchItemViewModel.NormalizeChampionName(p.ChampionName);
+                        iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/champion/{cleanName}.png");
                     }
                     if (p.Item0 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/item/{p.Item0}.png");
                     if (p.Item1 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/item/{p.Item1}.png");

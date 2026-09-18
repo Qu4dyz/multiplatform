@@ -1,5 +1,6 @@
 using GameAnalytics.Core.Entities;
 using GameAnalytics.Core.Enums;
+using GameAnalytics.Desktop.Converters;
 using GameAnalytics.Desktop.ViewModels;
 using GameAnalytics.Infrastructure.Services;
 using GameAnalytics.ML.Engine;
@@ -1075,6 +1076,54 @@ public class DataLayerTests
         Assert.Equal(0, vm.ActiveDetailTab);
         Assert.True(vm.IsScoreboardTabActive);
         Assert.False(vm.IsTacticalTabActive);
+    }
+
+    [Fact]
+    public void NormalizeChampionName_HandlesEdgeCasesAndSpecialCharacters()
+    {
+        Assert.Equal("MonkeyKing", PlayerMatchItemViewModel.NormalizeChampionName("Wukong"));
+        Assert.Equal("MonkeyKing", PlayerMatchItemViewModel.NormalizeChampionName("wukong"));
+        Assert.Equal("Renata", PlayerMatchItemViewModel.NormalizeChampionName("Renata Glasc"));
+        Assert.Equal("Nunu", PlayerMatchItemViewModel.NormalizeChampionName("Nunu & Willump"));
+        Assert.Equal("KaiSa", PlayerMatchItemViewModel.NormalizeChampionName("Kai'Sa"));
+        Assert.Equal("KhaZix", PlayerMatchItemViewModel.NormalizeChampionName("Kha'Zix"));
+        Assert.Equal("DrMundo", PlayerMatchItemViewModel.NormalizeChampionName("Dr. Mundo"));
+        Assert.Equal("LeeSin", PlayerMatchItemViewModel.NormalizeChampionName("Lee Sin"));
+        Assert.Equal("Unknown", PlayerMatchItemViewModel.NormalizeChampionName(""));
+    }
+
+    [Fact]
+    public void PlayerAnalyticsViewModel_LoadMoreButtonText_ReflectsLoadingState()
+    {
+        var vm = new PlayerAnalyticsViewModel();
+        Assert.False(vm.IsLoadingMore);
+        Assert.Equal("ЗАВАНТАЖИТИ ЩЕ 5 МАТЧІВ", vm.LoadMoreButtonText);
+
+        vm.IsLoadingMore = true;
+        Assert.Equal("ЗАВАНТАЖЕННЯ...", vm.LoadMoreButtonText);
+
+        vm.IsLoadingMore = false;
+        Assert.Equal("ЗАВАНТАЖИТИ ЩЕ 5 МАТЧІВ", vm.LoadMoreButtonText);
+    }
+
+    [Fact]
+    public void BitmapAssetValueConverter_GetCacheDir_ContainsVersion()
+    {
+        var dir = BitmapAssetValueConverter.GetCacheDir();
+        Assert.Contains(GameConstants.DDragonVersion, dir);
+        Assert.True(Directory.Exists(dir));
+    }
+
+    [Fact]
+    public void MiniParticipantViewModel_ChampionIconUrl_NormalizesChampionName()
+    {
+        var mini = new MiniParticipantViewModel
+        {
+            SummonerName = "ProPlayer",
+            ChampionName = "Kai'Sa"
+        };
+        Assert.Equal("KaiSa", mini.NormalizedChampionName);
+        Assert.EndsWith("KaiSa.png", mini.ChampionIconUrl);
     }
 }
 

@@ -2,11 +2,12 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GameAnalytics.Core.Entities;
 using GameAnalytics.Core.Enums;
+using GameAnalytics.Desktop.Converters;
 using GameAnalytics.ML.Engine;
 
 namespace GameAnalytics.Desktop.ViewModels;
 
-public class ItemSlotViewModel
+public partial class ItemSlotViewModel : ObservableObject
 {
     private int _itemId;
     public int ItemId
@@ -23,15 +24,24 @@ public class ItemSlotViewModel
     }
     public bool HasItem => ItemId > 0;
     public string IconUrl => HasItem ? $"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/item/{ItemId}.png" : string.Empty;
+
+    [ObservableProperty]
+    private Avalonia.Media.Imaging.Bitmap? _itemIcon;
+
     public string ToolTipText { get; set; } = string.Empty;
 }
 
-public class DetailedParticipantViewModel
+public partial class DetailedParticipantViewModel : ObservableObject
 {
     public string SummonerName { get; set; } = string.Empty;
     public string FullRiotId { get; set; } = string.Empty;
     public string ChampionName { get; set; } = string.Empty;
-    public string ChampionIconUrl => $"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/champion/{ChampionName}.png";
+    public string NormalizedChampionName => PlayerMatchItemViewModel.NormalizeChampionName(ChampionName);
+    public string ChampionIconUrl => $"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/champion/{NormalizedChampionName}.png";
+
+    [ObservableProperty]
+    private Avalonia.Media.Imaging.Bitmap? _championIcon;
+
     public int ChampLevel { get; set; } = 1;
     public string ChampLevelText => $"{ChampLevel}";
     public bool IsCurrentPlayer { get; set; }
@@ -74,12 +84,17 @@ public class DetailedParticipantViewModel
     public System.Windows.Input.ICommand? SelectPlayerCommand { get; set; }
 }
 
-public class MiniParticipantViewModel
+public partial class MiniParticipantViewModel : ObservableObject
 {
     public string SummonerName { get; set; } = string.Empty;
     public string FullRiotId { get; set; } = string.Empty;
     public string ChampionName { get; set; } = string.Empty;
-    public string ChampionIconUrl => $"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/champion/{ChampionName}.png";
+    public string NormalizedChampionName => PlayerMatchItemViewModel.NormalizeChampionName(ChampionName);
+    public string ChampionIconUrl => $"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/champion/{NormalizedChampionName}.png";
+
+    [ObservableProperty]
+    private Avalonia.Media.Imaging.Bitmap? _championIcon;
+
     public bool IsCurrentPlayer { get; set; }
     public string FormattedKda { get; set; } = string.Empty;
     public string IndicatorText => IsCurrentPlayer ? "◆ " : "";
@@ -126,9 +141,14 @@ public partial class PlayerMatchItemViewModel : ObservableObject
     public string FormattedTimeAgo { get; set; } = string.Empty;
 
     public string ChampionName { get; set; } = string.Empty;
+    public string NormalizedChampionName => NormalizeChampionName(ChampionName);
     public int ChampLevel { get; set; } = 1;
     public string ChampLevelText => $"{ChampLevel}";
-    public string ChampionIconUrl => $"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/champion/{ChampionName}.png";
+    public string ChampionIconUrl => $"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/champion/{NormalizedChampionName}.png";
+
+    [ObservableProperty]
+    private Avalonia.Media.Imaging.Bitmap? _championIcon;
+
     public string PositionName { get; set; } = "MID";
     public string PositionIcon { get; set; } = "⚡";
 
@@ -346,6 +366,20 @@ public partial class PlayerMatchItemViewModel : ObservableObject
             vm.TacticalReport = MatchTacticalAnalyzer.AnalyzeMatchTactics(match, player);
         }
 
+        // Load main champion and item icons
+        vm.ChampionIcon = BitmapAssetValueConverter.GetOrLoadBitmap(vm.ChampionIconUrl, bmp => vm.ChampionIcon = bmp);
+        foreach (var itm in vm.PlayerItems)
+        {
+            if (itm.HasItem)
+            {
+                itm.ItemIcon = BitmapAssetValueConverter.GetOrLoadBitmap(itm.IconUrl, bmp => itm.ItemIcon = bmp);
+            }
+        }
+        if (vm.PlayerTrinket.HasItem)
+        {
+            vm.PlayerTrinket.ItemIcon = BitmapAssetValueConverter.GetOrLoadBitmap(vm.PlayerTrinket.IconUrl, bmp => vm.PlayerTrinket.ItemIcon = bmp);
+        }
+
         // Populate Blue and Red participants (both compact and detailed)
         foreach (var p in match.Participants.Where(x => x.TeamSide == TeamSide.Blue))
         {
@@ -353,7 +387,7 @@ public partial class PlayerMatchItemViewModel : ObservableObject
             var shortName = ExtractShortName(p.SummonerName);
             var fullRiotId = string.IsNullOrWhiteSpace(p.SummonerName) ? shortName : p.SummonerName;
 
-            vm.BlueTeam.Add(new MiniParticipantViewModel
+            var mini = new MiniParticipantViewModel
             {
                 SummonerName = shortName,
                 FullRiotId = fullRiotId,
@@ -361,7 +395,9 @@ public partial class PlayerMatchItemViewModel : ObservableObject
                 IsCurrentPlayer = isCurrent,
                 FormattedKda = $"{p.Kills}/{p.Deaths}/{p.Assists}",
                 SelectPlayerCommand = selectPlayerCommand
-            });
+            };
+            mini.ChampionIcon = BitmapAssetValueConverter.GetOrLoadBitmap(mini.ChampionIconUrl, bmp => mini.ChampionIcon = bmp);
+            vm.BlueTeam.Add(mini);
 
             var (pRoleName, pRoleIcon) = isAram
                 ? ("ARAM", "🎲")
@@ -382,7 +418,7 @@ public partial class PlayerMatchItemViewModel : ObservableObject
 
             var (pGrade, pGradeColor, _) = GlobalCoachingAnalyzer.EvaluateSingleMatch(match, p, p.Win, isRemake);
 
-            vm.BlueTeamDetailed.Add(new DetailedParticipantViewModel
+            var detailed = new DetailedParticipantViewModel
             {
                 SummonerName = shortName,
                 FullRiotId = fullRiotId,
@@ -413,7 +449,14 @@ public partial class PlayerMatchItemViewModel : ObservableObject
                 },
                 Trinket = new ItemSlotViewModel { ItemId = p.Item6 },
                 SelectPlayerCommand = selectPlayerCommand
-            });
+            };
+            detailed.ChampionIcon = BitmapAssetValueConverter.GetOrLoadBitmap(detailed.ChampionIconUrl, bmp => detailed.ChampionIcon = bmp);
+            foreach (var itm in detailed.Items)
+            {
+                if (itm.HasItem) itm.ItemIcon = BitmapAssetValueConverter.GetOrLoadBitmap(itm.IconUrl, bmp => itm.ItemIcon = bmp);
+            }
+            if (detailed.Trinket.HasItem) detailed.Trinket.ItemIcon = BitmapAssetValueConverter.GetOrLoadBitmap(detailed.Trinket.IconUrl, bmp => detailed.Trinket.ItemIcon = bmp);
+            vm.BlueTeamDetailed.Add(detailed);
         }
 
         foreach (var p in match.Participants.Where(x => x.TeamSide == TeamSide.Red))
@@ -422,7 +465,7 @@ public partial class PlayerMatchItemViewModel : ObservableObject
             var shortName = ExtractShortName(p.SummonerName);
             var fullRiotId = string.IsNullOrWhiteSpace(p.SummonerName) ? shortName : p.SummonerName;
 
-            vm.RedTeam.Add(new MiniParticipantViewModel
+            var mini = new MiniParticipantViewModel
             {
                 SummonerName = shortName,
                 FullRiotId = fullRiotId,
@@ -430,7 +473,9 @@ public partial class PlayerMatchItemViewModel : ObservableObject
                 IsCurrentPlayer = isCurrent,
                 FormattedKda = $"{p.Kills}/{p.Deaths}/{p.Assists}",
                 SelectPlayerCommand = selectPlayerCommand
-            });
+            };
+            mini.ChampionIcon = BitmapAssetValueConverter.GetOrLoadBitmap(mini.ChampionIconUrl, bmp => mini.ChampionIcon = bmp);
+            vm.RedTeam.Add(mini);
 
             var (pRoleName, pRoleIcon) = isAram
                 ? ("ARAM", "🎲")
@@ -451,7 +496,7 @@ public partial class PlayerMatchItemViewModel : ObservableObject
 
             var (pGrade, pGradeColor, _) = GlobalCoachingAnalyzer.EvaluateSingleMatch(match, p, p.Win, isRemake);
 
-            vm.RedTeamDetailed.Add(new DetailedParticipantViewModel
+            var detailed = new DetailedParticipantViewModel
             {
                 SummonerName = shortName,
                 FullRiotId = fullRiotId,
@@ -482,10 +527,30 @@ public partial class PlayerMatchItemViewModel : ObservableObject
                 },
                 Trinket = new ItemSlotViewModel { ItemId = p.Item6 },
                 SelectPlayerCommand = selectPlayerCommand
-            });
+            };
+            detailed.ChampionIcon = BitmapAssetValueConverter.GetOrLoadBitmap(detailed.ChampionIconUrl, bmp => detailed.ChampionIcon = bmp);
+            foreach (var itm in detailed.Items)
+            {
+                if (itm.HasItem) itm.ItemIcon = BitmapAssetValueConverter.GetOrLoadBitmap(itm.IconUrl, bmp => itm.ItemIcon = bmp);
+            }
+            if (detailed.Trinket.HasItem) detailed.Trinket.ItemIcon = BitmapAssetValueConverter.GetOrLoadBitmap(detailed.Trinket.IconUrl, bmp => detailed.Trinket.ItemIcon = bmp);
+            vm.RedTeamDetailed.Add(detailed);
         }
 
         return vm;
+    }
+
+    public static string NormalizeChampionName(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "Unknown";
+        var clean = name.Replace(" ", "").Replace("'", "").Replace(".", "").Trim();
+        return clean.ToLowerInvariant() switch
+        {
+            "wukong" => "MonkeyKing",
+            "renataglasc" => "Renata",
+            "nunu&willump" or "nunuwillump" => "Nunu",
+            _ => clean
+        };
     }
 
     private static string ExtractShortName(string fullName)

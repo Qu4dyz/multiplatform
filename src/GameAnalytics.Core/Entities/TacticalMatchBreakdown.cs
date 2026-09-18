@@ -45,3 +45,4 @@ public class MatchTacticalReport
     public List<TacticalTimelineEvent> TimelineEvents { get; set; } = new();
     public List<MatchGapItem> GapAnalysis { get; set; } = new();
 }
+
