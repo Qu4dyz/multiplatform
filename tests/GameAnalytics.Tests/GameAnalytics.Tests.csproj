@@ -11,6 +11,7 @@
     <ProjectReference Include="..\..\src\GameAnalytics.Core\GameAnalytics.Core.csproj" />
     <ProjectReference Include="..\..\src\GameAnalytics.Infrastructure\GameAnalytics.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\GameAnalytics.ML\GameAnalytics.ML.csproj" />
+    <ProjectReference Include="..\..\src\GameAnalytics.Desktop\GameAnalytics.Desktop.csproj" />
   </ItemGroup>
 
   <ItemGroup>

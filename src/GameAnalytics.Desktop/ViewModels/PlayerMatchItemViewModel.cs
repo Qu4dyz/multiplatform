@@ -19,12 +19,13 @@ public class MiniParticipantViewModel
 public class PlayerMatchItemViewModel
 {
     public string MatchId { get; set; } = string.Empty;
+    public bool IsRemake { get; set; }
     public bool IsVictory { get; set; }
-    public string ResultText => IsVictory ? "ПЕРЕМОГА" : "ПОРАЗКА";
-    public string ResultColor => IsVictory ? "#5383E8" : "#E84057";
-    public string ResultBgColor => IsVictory ? "#16243A" : "#2C1822";
-    public string ResultBorderColor => IsVictory ? "#283852" : "#4D222E";
-    public string AccentBarColor => IsVictory ? "#5383E8" : "#E84057";
+    public string ResultText => IsRemake ? "РЕМЕЙК" : (IsVictory ? "ПЕРЕМОГА" : "ПОРАЗКА");
+    public string ResultColor => IsRemake ? "#A0A8B6" : (IsVictory ? "#5383E8" : "#E84057");
+    public string ResultBgColor => IsRemake ? "#1C222B" : (IsVictory ? "#16243A" : "#2C1822");
+    public string ResultBorderColor => IsRemake ? "#363E4D" : (IsVictory ? "#283852" : "#4D222E");
+    public string AccentBarColor => IsRemake ? "#758092" : (IsVictory ? "#5383E8" : "#E84057");
 
     public string GameModeText { get; set; } = "Normal Draft";
     public string FormattedDuration { get; set; } = string.Empty;
@@ -75,18 +76,23 @@ public class PlayerMatchItemViewModel
         // If not matched, default to 4th player (sample)
         player ??= match.Participants.ElementAtOrDefault(3) ?? match.Participants.FirstOrDefault();
 
-        var isVictory = player?.Win ?? (match.WinningTeam == TeamSide.Blue);
+        var isRemake = match.IsRemake || (match.GameDurationSeconds > 0 && match.GameDurationSeconds < 300);
+        var isVictory = !isRemake && (player?.Win ?? (match.WinningTeam == TeamSide.Blue));
         var durationMinutes = match.GameDurationSeconds > 0 ? match.GameDurationSeconds / 60.0 : 25.0;
 
-        var (posName, posIcon) = (player?.Position ?? Position.Middle) switch
-        {
-            Position.Top => ("TOP", "🛡️"),
-            Position.Jungle => ("JGL", "🌲"),
-            Position.Middle => ("MID", "⚡"),
-            Position.Bottom => ("BOT", "🏹"),
-            Position.Utility => ("SUP", "✨"),
-            _ => ("MID", "⚔️")
-        };
+        var isAram = match.QueueId == 450 || match.QueueName.Equals("ARAM", StringComparison.OrdinalIgnoreCase);
+
+        var (posName, posIcon) = isAram
+            ? ("ARAM", "🎲")
+            : (player?.Position ?? Position.Middle) switch
+            {
+                Position.Top => ("TOP", "🛡️"),
+                Position.Jungle => ("JGL", "🌲"),
+                Position.Middle => ("MID", "⚡"),
+                Position.Bottom => ("BOT", "🏹"),
+                Position.Utility => ("SUP", "✨"),
+                _ => ("MID", "⚔️")
+            };
 
         var timeDiff = DateTime.UtcNow - match.GameCreation;
         var timeAgo = timeDiff.TotalDays >= 1
@@ -104,6 +110,7 @@ public class PlayerMatchItemViewModel
         var vm = new PlayerMatchItemViewModel
         {
             MatchId = match.MatchId,
+            IsRemake = isRemake,
             IsVictory = isVictory,
             GameModeText = match.QueueName,
             FormattedDuration = match.FormattedDuration,

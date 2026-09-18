@@ -29,6 +29,12 @@ public class MatchRepository : IMatchRepository
             _context.Database.ExecuteSqlRaw("ALTER TABLE Participants ADD COLUMN ChampLevel INTEGER NOT NULL DEFAULT 1;");
         }
         catch { /* Column already exists */ }
+
+        try
+        {
+            _context.Database.ExecuteSqlRaw("ALTER TABLE Matches ADD COLUMN IsRemake INTEGER NOT NULL DEFAULT 0;");
+        }
+        catch { /* Column already exists */ }
     }
 
     public async Task<IReadOnlyList<Match>> GetAllMatchesAsync(CancellationToken ct = default)

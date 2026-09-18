@@ -33,4 +33,8 @@
     <ProjectReference Include="..\GameAnalytics.Infrastructure\GameAnalytics.Infrastructure.csproj" />
     <ProjectReference Include="..\GameAnalytics.ML\GameAnalytics.ML.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="GameAnalytics.Tests" />
+  </ItemGroup>
 </Project>

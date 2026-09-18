@@ -15,7 +15,8 @@ public class RecentChampionStatViewModel
     public string ChampionIconUrl => $"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/champion/{ChampionName}.png";
     public int GamesCount { get; set; }
     public int WinsCount { get; set; }
-    public double WinRate => GamesCount > 0 ? Math.Round((double)WinsCount / GamesCount * 100, 1) : 0;
+    public double CustomWinRate { get; set; } = -1;
+    public double WinRate => CustomWinRate >= 0 ? CustomWinRate : (GamesCount > 0 ? Math.Round((double)WinsCount / GamesCount * 100, 1) : 0);
     public double AvgKda { get; set; }
     public string WinRateText => $"{WinRate:F0}% ({WinsCount}W {GamesCount - WinsCount}L)";
     public string WinRateColor => WinRate >= 60 ? "#0AC8B9" : (WinRate >= 50 ? "#5383E8" : "#E84057");
@@ -124,6 +125,14 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
     private string _statusMessage = "Введіть Riot ID (наприклад, Qu4dyz #qu4) та оберіть сервер";
 
     private int _currentMatchCount = 10;
+
+    // Internal constructor for unit testing
+    internal PlayerAnalyticsViewModel()
+    {
+        _analyticsService = null!;
+        _options = new RiotApiOptions();
+        _selectedRegion = AvailableRegions[0];
+    }
 
     public PlayerAnalyticsViewModel(IMatchAnalyticsService analyticsService, RiotApiOptions options)
     {
@@ -243,7 +252,6 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
                 }
 
                 ApplyQueueFilter();
-                CalculateSessionSummary();
 
                 StatusMessage = $"Завантажено {RecentMatches.Count} матчів для {profile.FullName} ({SelectedRegion.Code}).";
             }
@@ -296,7 +304,6 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
             }
 
             ApplyQueueFilter();
-            CalculateSessionSummary();
 
             if (matches.Count < _currentMatchCount)
             {
@@ -318,11 +325,12 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
         }
     }
 
-    private void ApplyQueueFilter()
+    internal void ApplyQueueFilter()
     {
         if (RecentMatches.Count == 0)
         {
             FilteredRecentMatches.Clear();
+            CalculateSessionSummary(FilteredRecentMatches);
             return;
         }
 
@@ -346,11 +354,14 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
         {
             FilteredRecentMatches.Add(m);
         }
+
+        CalculateSessionSummary(FilteredRecentMatches);
     }
 
-    private void CalculateSessionSummary()
+    internal void CalculateSessionSummary(IEnumerable<PlayerMatchItemViewModel> matchesList)
     {
-        if (RecentMatches.Count == 0)
+        var list = matchesList.ToList();
+        if (list.Count == 0)
         {
             HasSessionData = false;
             TopRecentChampions.Clear();
@@ -358,36 +369,45 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
         }
 
         HasSessionData = true;
-        SessionTotalGames = RecentMatches.Count;
-        SessionWins = RecentMatches.Count(m => m.IsVictory);
-        SessionLosses = RecentMatches.Count(m => !m.IsVictory);
-        SessionWinRate = SessionTotalGames > 0 ? Math.Round((double)SessionWins / SessionTotalGames * 100, 1) : 0;
-        SessionRecordText = $"{SessionTotalGames} ігор: {SessionWins}W - {SessionLosses}L";
 
-        var avgK = RecentMatches.Average(m => m.Kills);
-        var avgD = RecentMatches.Average(m => m.Deaths);
-        var avgA = RecentMatches.Average(m => m.Assists);
+        var regularMatches = list.Where(m => !m.IsRemake).ToList();
+        var remakeCount = list.Count(m => m.IsRemake);
+
+        SessionTotalGames = list.Count;
+        SessionWins = regularMatches.Count(m => m.IsVictory);
+        SessionLosses = regularMatches.Count(m => !m.IsVictory);
+        SessionWinRate = regularMatches.Count > 0 ? Math.Round((double)SessionWins / regularMatches.Count * 100, 1) : 0;
+
+        SessionRecordText = remakeCount > 0
+            ? $"{SessionTotalGames} ігор: {SessionWins}W - {SessionLosses}L ({remakeCount} ремейк)"
+            : $"{SessionTotalGames} ігор: {SessionWins}W - {SessionLosses}L";
+
+        var avgK = list.Average(m => m.Kills);
+        var avgD = list.Average(m => m.Deaths);
+        var avgA = list.Average(m => m.Assists);
         AvgKdaNumbers = $"{avgK:F1} / {avgD:F1} / {avgA:F1}";
 
         var avgRatio = avgD > 0 ? (avgK + avgA) / avgD : (avgK + avgA);
         SessionKdaRatioText = $"{avgRatio:F2}:1 KDA";
         SessionKdaRatioColor = (avgRatio >= 5.0 || avgD == 0) ? "#E6B328" : (avgRatio >= 3.0 ? "#0AC8B9" : "#F0E6D2");
 
-        var avgKp = (int)Math.Round(RecentMatches.Average(m => m.KillParticipationPercent));
+        var avgKp = (int)Math.Round(list.Average(m => m.KillParticipationPercent));
         AvgKpText = $"P/Kill {avgKp}%";
 
-        // Top 3 most played champions in recent session
+        // Top 3 most played champions in THIS filtered subset
         TopRecentChampions.Clear();
-        var champGroups = RecentMatches
+        var champGroups = list
             .GroupBy(m => m.ChampionName)
             .OrderByDescending(g => g.Count())
-            .ThenByDescending(g => g.Count(m => m.IsVictory))
+            .ThenByDescending(g => g.Count(m => m.IsVictory && !m.IsRemake))
             .Take(3);
 
         foreach (var g in champGroups)
         {
             var champGames = g.Count();
-            var champWins = g.Count(m => m.IsVictory);
+            var champWins = g.Count(m => m.IsVictory && !m.IsRemake);
+            var champDecided = g.Count(m => !m.IsRemake);
+            var champWinRate = champDecided > 0 ? Math.Round((double)champWins / champDecided * 100, 1) : 0;
             var champAvgD = g.Average(m => m.Deaths);
             var champKda = champAvgD > 0
                 ? (g.Average(m => m.Kills) + g.Average(m => m.Assists)) / champAvgD
@@ -398,21 +418,30 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
                 ChampionName = g.Key,
                 GamesCount = champGames,
                 WinsCount = champWins,
+                CustomWinRate = champWinRate,
                 AvgKda = Math.Round(champKda, 2)
             });
         }
 
-        // Preferred role
-        var topRole = RecentMatches
-            .GroupBy(m => m.PositionName)
-            .OrderByDescending(g => g.Count())
-            .FirstOrDefault();
-
-        if (topRole != null)
+        // Preferred role in THIS filtered subset (ignore ARAM for lane distribution unless only ARAM games exist)
+        var nonAramGames = list.Where(m => m.PositionName != "ARAM").ToList();
+        if (nonAramGames.Count > 0)
         {
-            var pct = (int)Math.Round((double)topRole.Count() / SessionTotalGames * 100);
-            var icon = topRole.FirstOrDefault()?.PositionIcon ?? "⚡";
-            PreferredRoleText = $"{topRole.Key} {icon} ({pct}%)";
+            var topRole = nonAramGames
+                .GroupBy(m => m.PositionName)
+                .OrderByDescending(g => g.Count())
+                .FirstOrDefault();
+
+            if (topRole != null)
+            {
+                var pct = (int)Math.Round((double)topRole.Count() / nonAramGames.Count * 100);
+                var icon = topRole.FirstOrDefault()?.PositionIcon ?? "⚡";
+                PreferredRoleText = $"{topRole.Key} {icon} ({pct}%)";
+            }
+        }
+        else
+        {
+            PreferredRoleText = "ARAM 🎲 (100%)";
         }
     }
 

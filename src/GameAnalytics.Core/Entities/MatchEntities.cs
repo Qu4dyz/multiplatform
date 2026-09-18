@@ -11,6 +11,7 @@ public class Match
     public int GameDurationSeconds { get; set; }
     public string GameVersion { get; set; } = string.Empty;
     public TeamSide WinningTeam { get; set; }
+    public bool IsRemake { get; set; }
 
     public List<Participant> Participants { get; set; } = new();
     public List<TeamStats> Teams { get; set; } = new();

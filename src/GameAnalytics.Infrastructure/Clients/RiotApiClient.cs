@@ -302,10 +302,14 @@ public class RiotApiClient : IRiotApiClient
         var redTeamDto = info.Teams?.FirstOrDefault(t => t.TeamId == 200);
         var blueWin = blueTeamDto?.Win ?? false;
 
+        var isRemake = (info.GameDuration > 0 && info.GameDuration < 300) ||
+                       (info.Participants?.Any(p => p.GameEndedInEarlySurrender || p.TeamEarlySurrendered) ?? false);
+
         var match = new Match
         {
             MatchId = matchId,
             QueueId = info.QueueId,
+            IsRemake = isRemake,
             GameCreation = DateTimeOffset.FromUnixTimeMilliseconds(info.GameCreation).UtcDateTime,
             GameDurationSeconds = info.GameDuration,
             GameVersion = info.GameVersion ?? "14.18.1",
@@ -753,5 +757,11 @@ public class RiotApiClient : IRiotApiClient
 
         [JsonPropertyName("win")]
         public bool Win { get; set; }
+
+        [JsonPropertyName("gameEndedInEarlySurrender")]
+        public bool GameEndedInEarlySurrender { get; set; }
+
+        [JsonPropertyName("teamEarlySurrendered")]
+        public bool TeamEarlySurrendered { get; set; }
     }
 }
