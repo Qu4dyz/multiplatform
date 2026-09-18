@@ -1,0 +1,17 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# C# and XAML sources
+*.cs text eol=lf
+*.axaml text eol=lf
+*.json text eol=lf
+*.csproj text eol=lf
+*.sln text eol=crlf
+*.md text eol=lf
+*.yml text eol=lf
+
+# Binary files
+*.ico binary
+*.png binary
+*.zip binary
+*.db binary
