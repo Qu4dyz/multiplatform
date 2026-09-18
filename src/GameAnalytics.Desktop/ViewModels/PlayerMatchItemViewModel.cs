@@ -130,7 +130,7 @@ public partial class PlayerMatchItemViewModel : ObservableObject
     public string LpChangeText { get; set; } = string.Empty;
     public string LpChangeBg { get; set; } = "Transparent";
     public string LpChangeFg { get; set; } = "#8A93A5";
-    public bool HasLpChange => !string.IsNullOrEmpty(LpChangeText) && LpChangeText != "—";
+    public bool HasLpChange => !string.IsNullOrEmpty(LpChangeText) && LpChangeText != "-";
 
     // JungleKingdom Match Grade & Coaching Tag
     public string MatchGrade { get; set; } = "B";

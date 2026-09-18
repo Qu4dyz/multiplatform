@@ -172,7 +172,7 @@ public static class PlayerMomentumAnalyzer
 
         if (finalScore >= 75)
         {
-            report.AiAdvice = $"Чудовий бойовий темп! Ви тримаєте KDA {recentKda:F1} та активну серію перемог. Модель прогнозує високий шанс успіху ({predictedProb:F0}%) — ідеальний момент для рейтингової черги на {topChamp}.";
+            report.AiAdvice = $"Чудовий бойовий темп! Ви тримаєте KDA {recentKda:F1} та активну серію перемог. Модель прогнозує високий шанс успіху ({predictedProb:F0}%). Гарний момент для рейтингової черги на {topChamp}.";
         }
         else if (finalScore < 42)
         {

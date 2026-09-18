@@ -250,7 +250,7 @@ public static class GlobalCoachingAnalyzer
                 $"🗺️ Акцентуйте увагу на ранньому контролі драконів та личинок Безодні для посилення снігового кому команди."
         };
 
-        report.CoachAdvice = $"Коучинг-висновок: {advice} Найсильніша сторона — {strongest.PillarName} ({strongest.Grade}).";
+        report.CoachAdvice = $"Коучинг-висновок: {advice} Найсильніша сторона: {strongest.PillarName} ({strongest.Grade}).";
 
         return report;
     }
@@ -259,7 +259,7 @@ public static class GlobalCoachingAnalyzer
     {
         if (isRemake)
         {
-            return ("—", "#8A93A5", "Ремейк");
+            return ("-", "#8A93A5", "Ремейк");
         }
 
         var kda = player.KdaRatio;
@@ -314,7 +314,7 @@ public static class GlobalCoachingAnalyzer
 
         if (!isRanked)
         {
-            return (0, "—", "Transparent", "#8A93A5");
+            return (0, "-", "Transparent", "#8A93A5");
         }
 
         if (isRemake)

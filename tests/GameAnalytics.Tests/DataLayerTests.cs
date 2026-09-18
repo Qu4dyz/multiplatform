@@ -827,7 +827,7 @@ public class DataLayerTests
         // Normal queue
         var (normDelta, normText, _, _) = GlobalCoachingAnalyzer.CalculateLpDelta(normalMatch, isVictory: true, isRemake: false, isMvp: false, isAce: false);
         Assert.Equal(0, normDelta);
-        Assert.Equal("—", normText);
+        Assert.Equal("-", normText);
     }
 
     [Fact]
@@ -906,7 +906,7 @@ public class DataLayerTests
             new() { MatchId = "1", GameModeText = "Ranked Solo", IsVictory = true, IsRemake = false, LpDelta = 22, LpChangeText = "+22 LP", ChampionName = "Ahri", Kills = 8, Deaths = 2, Assists = 5 },
             new() { MatchId = "2", GameModeText = "Ranked Solo", IsVictory = true, IsRemake = false, LpDelta = 24, LpChangeText = "+24 LP", ChampionName = "Ahri", Kills = 10, Deaths = 1, Assists = 7 },
             new() { MatchId = "3", GameModeText = "Ranked Solo", IsVictory = false, IsRemake = false, LpDelta = -19, LpChangeText = "-19 LP", ChampionName = "Zed", Kills = 3, Deaths = 6, Assists = 2 },
-            new() { MatchId = "4", GameModeText = "Normal Draft", IsVictory = true, IsRemake = false, LpDelta = 0, LpChangeText = "—", ChampionName = "Lux", Kills = 4, Deaths = 3, Assists = 10 }
+            new() { MatchId = "4", GameModeText = "Normal Draft", IsVictory = true, IsRemake = false, LpDelta = 0, LpChangeText = "-", ChampionName = "Lux", Kills = 4, Deaths = 3, Assists = 10 }
         };
 
         vm.CalculateSessionSummary(matches);

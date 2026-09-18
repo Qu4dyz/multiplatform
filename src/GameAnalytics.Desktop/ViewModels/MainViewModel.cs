@@ -20,7 +20,7 @@ public partial class MainViewModel : ViewModelBase
     private int _selectedTabIndex;
 
     [ObservableProperty]
-    private string _appTitle = "GameAnalytics v1.0 — Кросплатформна ML-система аналізу LoL";
+    private string _appTitle = "GameAnalytics v1.0 | League of Legends Match Analytics & Prediction";
 
     [ObservableProperty]
     private string _osInfo;

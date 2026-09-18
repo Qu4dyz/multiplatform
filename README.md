@@ -1,73 +1,107 @@
-# GameAnalytics — Мультиплатформна система аналізу та прогнозування результатів у змагальних іграх
+# GameAnalytics
 
 [![Multiplatform CI Build and Test](https://github.com/Qu4dyz/multiplatform/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/Qu4dyz/multiplatform/actions/workflows/build-and-test.yml)
 [![.NET 9](https://img.shields.io/badge/.NET-9.0-purple.svg)](https://dotnet.microsoft.com/)
 [![Avalonia UI](https://img.shields.io/badge/GUI-Avalonia%20UI%2011-blue.svg)](https://avaloniaui.net/)
 [![ML.NET](https://img.shields.io/badge/ML-ML.NET%204.0%2F5.0-orange.svg)](https://dotnet.microsoft.com/apps/machinelearning-ai/ml-dotnet)
-[![Tests](https://img.shields.io/badge/Tests-15%20Passing-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/Tests-46%20Passing-brightgreen.svg)](tests/GameAnalytics.Tests)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20(Ubuntu%2FDebian)-green.svg)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Курсовий проєкт з навчальної дисципліни **«Мультиплатформне програмування»**.  
-**Автор:** [@Qu4dyz](https://github.com/Qu4dyz)  
-**Предметна область:** Аналіз соревновальних рейтингових матчів (League of Legends через Riot Games API), збір внутрішньоігрової статистики (склади команд, показники чемпіонів, об'єкти карти, перевага за золотом) та прогнозування ймовірності перемоги методами машинного навчання.
+GameAnalytics is a cross-platform desktop application built with .NET 9 and Avalonia UI 11 for League of Legends post-match review, player performance coaching, draft synergy evaluation, and machine learning outcome prediction.
+
+Designed for performance and compliance, GameAnalytics operates exclusively on post-match data and public API endpoints without reading game process memory or interfering with the live game client.
 
 ---
 
-## 🎯 Мета та завдання проєкту
+## Key Features
 
-Головна мета — розробка високопродуктивної, повністю кросплатформеної системи на базі сучасного стеку .NET, яка забезпечує:
-1. **Аналітику гравців:** Отримання актуальної інформації про обліковий запис гравця, його ранг, KDA, популярних чемпіонів та відсоток перемог (Win Rate).
-2. **Інтерактивний 5v5 драфт чемпіонів:** Вибір сетапів для кожної позиції (Top, Jungle, Mid, Bot, Support) з автоматичним розрахунком командних вінрейтів та синергії.
-3. **ML-прогнозування результату (ML.NET):** Розрахунок ймовірності перемоги на основі драфту та метрик 15-ї хвилини матчу (перша кров, вежа, дракон, різниця за золотом і вбивствами) трьома алгоритмами бінарної класифікації (`FastTree`, `FastForest`, `SdcaLogisticRegression`).
-4. **Бенчмаркінг моделей машинного навчання:** Порівняльний аналіз швидкодії та точності класифікаторів (AUC-ROC, Accuracy, F1-Score, час тренування) у реальному часі.
-5. **Історію та кешування матчів:** Локальне зберігання звітів та метрик у реляційній базі даних **SQLite** за допомогою **Entity Framework Core**.
-6. **Уніфікований нативний інтерфейс:** Однаковий сучасний графічний інтерфейс у фірмовій темній стилістиці (League Dark/Hextech Theme) під ОС **Windows** та **Linux (Ubuntu/Debian)** без зміни жодного рядка коду.
+1. **Summoner Profile & Match History Review (`PlayerAnalyticsView`)**
+   - Lookup accounts by Riot ID (e.g. `Qu4dyz#EUW`, `Faker#KR1`) across all Riot regions.
+   - Ranked Solo/Duo and Flex tier, LP, win rate, and streak tracking.
+   - Per-match breakdown with champion stats, KDA, CS/min, damage share, gold share, vision score, and item builds.
+   - Interactive item tooltips displaying item names, gold costs, and full in-game stat breakdowns via DataDragon.
+   - Match grading system (MVP, ACE, S/A/B/C/D) evaluating player contribution relative to team totals.
+   - Minute-by-minute timeline breakdown identifying key objectives, farm phases, and critical team fights.
+
+2. **Draft Arena & Machine Learning Prediction (`DraftPredictionView`)**
+   - 5v5 team draft sandbox (Top, Jungle, Mid, Bot, Support) for Blue and Red teams.
+   - Champion catalog with DataDragon icons, role filtering, and search.
+   - Win probability estimation powered by ML.NET using binary classification models (`FastTree`, `FastForest`, `SdcaLogisticRegression`).
+   - 15-minute game state simulation (Gold Diff, Kill Diff, Dragon/Tower control, First Blood).
+   - Real-time feature importance attribution explaining prediction drivers.
+   - Model benchmark tool for comparing model accuracy, AUC-ROC, and inference latency.
+
+3. **Performance Momentum & Coaching Engine**
+   - Recent form analysis computing player momentum index from recent games.
+   - Tilt detection and stamina indicators based on loss streaks and match spacing.
+   - Actionable, constructive recommendations on vision control, objective timing, and lane farming.
+
+4. **Local Database & Offline Capability**
+   - SQLite relational storage via Entity Framework Core 9 for caching fetched matches and player profiles.
+   - Offline / Demo mode allowing full interface exploration without active network calls or API keys.
 
 ---
 
-## 🛠 Технологічний стек
+## Riot Games API Integration
 
-| Компонент | Технологія / Бібліотека | Опис |
+GameAnalytics integrates with the official Riot Games API following all developer guidelines and terms of service.
+
+### Endpoints Used
+
+| API Group | Endpoint | Purpose |
 | :--- | :--- | :--- |
-| **Мова та платформа** | **C# 13 / .NET 9** | Сучасне ядро з найвищою продуктивністю та повною кросплатформеністю |
-| **Графічний інтерфейс (GUI)** | **Avalonia UI 11** | Кросплатформенний UI фреймворк на базі XAML з нативним апаратним рендерингом |
-| **Архітектурний патерн** | **MVVM (Model-View-ViewModel)** | Реалізовано за допомогою `CommunityToolkit.Mvvm` (Source Generators) |
-| **Машинне навчання (ML)** | **ML.NET (FastTree, FastForest, SDCA)** | Бінарна класифікація, калібрування ймовірностей (Platt Calibrator), чутливість ознак |
-| **База даних & ORM** | **SQLite + Entity Framework Core 9** | Локальне реляційне кешування, зв'язки сутностей (1:N), швидкі транзакції |
-| **Мережевий шар** | **HttpClient + System.Text.Json** | Riot Games API (v4/v5, Data Dragon CDN), обробка рейт-лімітів (429 Sliding Window) |
-| **CI/CD** | **GitHub Actions Matrix** | Автоматична компіляція та виконання тестів на `ubuntu-latest` і `windows-latest` |
+| **ACCOUNT-V1** | `/riot/account/v1/accounts/by-riot-id/{gameName}/{tagLine}` | Resolve Riot ID to encrypted PUUID |
+| **SUMMONER-V4** | `/lol/summoner/v4/summoners/by-puuid/{encryptedPUUID}` | Fetch summoner level, profile icon ID, and revision date |
+| **LEAGUE-V4** | `/lol/league/v4/entries/by-puuid/{encryptedPUUID}` | Retrieve ranked solo/duo and flex stats, tiers, and LP |
+| **MATCH-V5** | `/lol/match/v5/matches/by-puuid/{puuid}/ids` | Query recent ranked and normal match history list |
+| **MATCH-V5** | `/lol/match/v5/matches/{matchId}` | Retrieve full post-game participant statistics and team metrics |
+| **MATCH-V5** | `/lol/match/v5/matches/{matchId}/timeline` | Retrieve minute-by-minute timeline frames for objective review |
+| **DataDragon** | `https://ddragon.leagueoflegends.com/cdn/{version}/...` | Fetch champion metadata, item definitions, and spell assets (v16.18.1) |
+
+### Rate Limiting & Resilience
+
+- **Sliding-Window Token Bucket (`RiotRateLimiter`):** Enforces local request limits matching Riot API tiers (defaulting to 20 requests per 1 second and 100 requests per 2 minutes for development keys, configurable for production keys).
+- **HTTP 429 Handling:** Automatically parses `Retry-After` response headers and applies jittered exponential backoff to ensure requests are queued gracefully rather than rejected.
+- **Local Cache First:** Matches fetched from the Riot API are cached in SQLite so identical matches are never re-requested.
+
+### Policy Compliance & Anti-Cheat
+
+- **No Live Memory Access:** GameAnalytics does not read game process memory, inspect network packets, hook DirectX, or inject code into the League of Legends client. It is fully compatible with Riot Vanguard.
+- **Post-Game & Pre-Game Only:** All match analytics evaluate completed matches or user-configured draft setups. No real-time competitive advantage is provided during active games.
+- **No Toxicity / Shaming:** Performance tags and metrics focus solely on constructive self-improvement and objective team comparisons.
+- **Secure Key Storage:** API keys are never embedded in compiled binaries or version control. Keys are stored locally in client application settings.
 
 ---
 
-## 🏗 Архітектура рішення (.NET Solution)
+## Architecture
 
-Проєкт побудовано за принципами чистої модульної архітектури (**Clean Architecture**):
+GameAnalytics follows Clean Architecture principles:
 
 ```
 GameAnalytics/
 ├── .github/
-│   ├── workflows/
-│   │   └── build-and-test.yml     # Multiplatform GitHub Actions CI Matrix (Linux + Windows)
-│   └── ISSUE_TEMPLATE/            # Шаблони баг-репортів та запитів на фічі
+│   └── workflows/
+│       └── build-and-test.yml     # Multiplatform GitHub Actions CI (Linux + Windows)
 ├── src/
-│   ├── GameAnalytics.Core/         # Доменний шар: сутності (Match, Participant), перерахування, інтерфейси
-│   ├── GameAnalytics.Infrastructure/ # Інфраструктура: EF Core (SQLite DbContext), Riot API клієнт, DDragon CDN
-│   ├── GameAnalytics.ML/          # Машинне навчання: фічі (MatchInputFeatures), бенчмаркінг, пайплайни ML.NET
-│   └── GameAnalytics.Desktop/     # Презентаційний шар: Avalonia UI (Views, ViewModels, Converters)
+│   ├── GameAnalytics.Core/         # Domain entities (Match, Participant), enums, interfaces
+│   ├── GameAnalytics.Infrastructure/ # EF Core 9 SQLite context, Riot API client, DataDragon CDN
+│   ├── GameAnalytics.ML/          # ML.NET pipelines (FastTree, FastForest, SDCA), coaching analyzers
+│   └── GameAnalytics.Desktop/     # Avalonia UI 11 presentation layer, MVVM ViewModels, Converters
 ├── tests/
-│   └── GameAnalytics.Tests/       # Модульне тестування (xUnit, 15 тестів для ML, EF Core, Repositories)
-├── README.md                      # Детальна документація проєкту
-└── GameAnalytics.sln              # Файл Solution
+│   └── GameAnalytics.Tests/       # xUnit test suite (46 tests covering data layer, ML, viewmodels)
+├── README.md
+└── GameAnalytics.sln
 ```
 
-### Граф залежностей проєктів:
+### Dependency Graph
+
 ```mermaid
 flowchart TD
     Desktop["src/GameAnalytics.Desktop\n(Avalonia UI 11 / MVVM)"]
-    Core["src/GameAnalytics.Core\n(Entities & Interfaces)"]
-    Infra["src/GameAnalytics.Infrastructure\n(EF Core 9 SQLite & Riot Client)"]
-    ML["src/GameAnalytics.ML\n(ML.NET Prediction & Benchmark)"]
+    Core["src/GameAnalytics.Core\n(Domain Models & Interfaces)"]
+    Infra["src/GameAnalytics.Infrastructure\n(EF Core SQLite & Riot API Client)"]
+    ML["src/GameAnalytics.ML\n(ML.NET Prediction & Coaching)"]
     Tests["tests/GameAnalytics.Tests\n(xUnit Test Suite)"]
 
     Desktop --> Core
@@ -78,92 +112,74 @@ flowchart TD
     Tests --> Core
     Tests --> Infra
     Tests --> ML
+    Tests --> Desktop
 ```
 
 ---
 
-## 🖥 Розділи графічного інтерфейсу (Avalonia UI)
+## Technology Stack
 
-1. **🔍 Аналітика гравця (`PlayerAnalyticsView`):**
-   - Пошук за Riot ID (наприклад `Qu4dyz#EUW` або `Faker#KR1`).
-   - Відображення аватара, рівня, рангу (Solo/Duo Tier: Challenger, Master, Diamond тощо).
-   - Загальний вінрейт, KDA, статистика останніх рейтингових матчів.
-2. **🧠 Аналіз драфту та ML-передбачення (`DraftPredictionView`):**
-   - Інтерактивна 5v5 арена драфту (Top, Jungle, Mid, Bot, Support) для Синьої та Червоної команд.
-   - Каталог чемпіонів з іконками Data Dragon CDN, фільтрацією за ролями (Fighter, Mage, Assassin, Tank тощо) та пошуком.
-   - Налаштування показників 15-ї хвилини гри (слайдери Gold Diff, Kill Diff, вежі, дракони, First Blood/Tower).
-   - Динамічний вибір алгоритму класифікації (`FastTree`, `FastForest`, `SdcaLogisticRegression`).
-   - Візуалізація прогнозів: відсоткова шкала перемоги, перелік ключових факторів чутливості (Feature Importance).
-   - Вбудований бенчмарк для порівняння точності (Accuracy, AUC-ROC) на 2 000+ вибірок.
-3. **📊 Історія матчів (`MatchHistoryView`):**
-   - Перегляд збережених у локальній базі даних SQLite матчів.
-   - Детальна статистика кожного учасника (K/D/A, CS, золото, урон, статус перемоги).
-4. **⚙️ Налаштування та сервер (`SettingsView`):**
-   - Конфігурація Riot API ключа та вибір регіону сервера (`eun1`, `euw1`, `na1`, `kr`).
-   - Перемикання між Live API та демонстраційним режимом (Mock Mode).
-   - Моніторинг розміру файлу локальної бази даних SQLite з можливістю очищення.
-   - Відображення статусу поточної ОС клієнта та підключеного віддаленого **Linux VPS** (`45.77.53.46`, Ubuntu 24.04 LTS).
+| Layer | Technology | Purpose |
+| :--- | :--- | :--- |
+| **Runtime** | .NET 9.0 (C# 13) | Cross-platform, high-performance managed runtime |
+| **User Interface** | Avalonia UI 11.2 | XAML-based cross-platform GUI with hardware-accelerated Skia rendering |
+| **MVVM Architecture** | CommunityToolkit.Mvvm 8.4 | Observable properties, relay commands, and messaging source generators |
+| **Machine Learning** | ML.NET 4.0 | Binary classification, probability calibration, and feature attribution |
+| **Database & Cache** | SQLite + EF Core 9.0 | Local relational storage with automated migrations and entity mapping |
+| **HTTP & Serialization** | System.Net.Http + System.Text.Json | Asynchronous HTTP client with rate-limiting handlers and stream parsing |
+| **Testing** | xUnit + Coverlet | Unit testing across domain, infrastructure, and ML pipelines (46 tests) |
 
 ---
 
-## 💻 Підтримувані платформи та системні вимоги
+## Getting Started
 
-### 1. Windows (10 / 11 x64 / arm64)
-- Встановлений **.NET 9 SDK** (або новіший).
-- Графічний адаптер із підтримкою DirectX 11 / OpenGL.
+### Prerequisites
 
-### 2. Linux (Ubuntu 22.04 / 24.04 LTS, Debian 11 / 12 x64)
-Застосунок успішно розгорнуто та верифіковано на **Ubuntu 24.04 LTS (x86_64)**.
-Для запуску графічної підсистеми Avalonia потрібні системні бібліотеки:
+- [.NET 9.0 SDK](https://dotnet.microsoft.com/download/dotnet/9.0) or higher.
+- Compatible OS: Windows 10/11 (x64/arm64) or Linux (Ubuntu 22.04+, Debian 12+, Fedora 38+).
+
+On Linux, install required Avalonia rendering dependencies:
 ```bash
 sudo apt update
 sudo apt install -y libx11-6 libx11-xcb1 libxcursor1 libxi6 libxrandr2 \
                     libfontconfig1 libice6 libsm6 libgl1-mesa-glx libc6
 ```
 
----
+### Build & Run
 
-## 🚀 Інструкція зі збирання, тестування та запуску
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/Qu4dyz/multiplatform.git
+   cd multiplatform
+   ```
 
-### Крок 1. Клонування репозиторію
-```bash
-git clone https://github.com/Qu4dyz/multiplatform.git
-cd multiplatform
-```
+2. **Restore dependencies & build:**
+   ```bash
+   dotnet restore
+   dotnet build GameAnalytics.sln -c Release
+   ```
 
-### Крок 2. Відновлення пакетів та компіляція
-```bash
-# Відновити всі NuGet-залежності
-dotnet restore
+3. **Run unit tests:**
+   ```bash
+   dotnet test GameAnalytics.sln
+   ```
 
-# Зібрати проєкт у конфігурації Release
-dotnet build GameAnalytics.sln -c Release
-```
-
-### Крок 3. Запуск модульних тестів
-```bash
-# Запуск 15 тестів (DataLayer, MLBenchmark, PredictionEngine, Repositories)
-dotnet test GameAnalytics.sln
-```
-
-### Крок 4. Запуск десктопного застосунку
-```bash
-# Запуск кросплатформеного GUI-клієнта (Windows або Linux)
-dotnet run --project src/GameAnalytics.Desktop
-```
+4. **Launch the desktop application:**
+   ```bash
+   dotnet run --project src/GameAnalytics.Desktop
+   ```
 
 ---
 
-## ⚙️ Конфігурація Riot Games API
+## Configuration
 
-Для доступу до живих даних Riot Games (EUW, EUNE тощо):
-1. Отримайте персональний Development API Key на порталі [Riot Developer Portal](https://developer.riotgames.com/).
-2. Введіть його у вкладці **⚙️ Налаштування** всередині застосунку або у файлі `src/GameAnalytics.Desktop/appsettings.json`:
+To use live data, configure your Riot API key in `appsettings.json` or directly in the application's **Settings** tab:
+
 ```json
 {
   "RiotApi": {
-    "ApiKey": "RGAPI-XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX",
-    "Region": "eun1",
+    "ApiKey": "RGAPI-YOUR-KEY-HERE",
+    "PlatformRegion": "euw1",
     "RoutingRegion": "europe"
   },
   "Database": {
@@ -171,5 +187,17 @@ dotnet run --project src/GameAnalytics.Desktop
   }
 }
 ```
-> [!NOTE]
-> Якщо API-ключ не вказано, система автоматично працює в **автономному режимі (Mock/Demo Mode)**, що дозволяє повноцінно проводити захист курсового проєкту без залежності від інтернету та лімітів публічного API.
+
+If no API key is provided, GameAnalytics runs in offline demonstration mode using local sample datasets.
+
+---
+
+## Legal Disclaimer
+
+GameAnalytics isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or managing Riot Games properties. Riot Games, and all associated properties are trademarks or registered trademarks of Riot Games, Inc.
+
+---
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.

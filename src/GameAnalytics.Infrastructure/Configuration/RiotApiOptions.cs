@@ -35,17 +35,17 @@ public class RiotApiOptions
 
     public static readonly IReadOnlyList<ServerRegionInfo> AvailableRegions = new[]
     {
-        new ServerRegionInfo { Code = "EUW", DisplayName = "🇪🇺 EUW — Europe West", PlatformId = "euw1", RoutingRegion = "europe", DefaultTag = "EUW" },
-        new ServerRegionInfo { Code = "EUNE", DisplayName = "🇪🇺 EUNE — Europe Nordic & East", PlatformId = "eun1", RoutingRegion = "europe", DefaultTag = "EUNE" },
-        new ServerRegionInfo { Code = "NA", DisplayName = "🇺🇸 NA — North America", PlatformId = "na1", RoutingRegion = "americas", DefaultTag = "NA1" },
-        new ServerRegionInfo { Code = "KR", DisplayName = "🇰🇷 KR — Korea", PlatformId = "kr", RoutingRegion = "asia", DefaultTag = "KR1" },
-        new ServerRegionInfo { Code = "TR", DisplayName = "🇹🇷 TR — Turkey", PlatformId = "tr1", RoutingRegion = "europe", DefaultTag = "TR1" },
-        new ServerRegionInfo { Code = "RU", DisplayName = "🇷🇺 RU — Russia", PlatformId = "ru", RoutingRegion = "europe", DefaultTag = "RU1" },
-        new ServerRegionInfo { Code = "OCE", DisplayName = "🇦🇺 OCE — Oceania", PlatformId = "oc1", RoutingRegion = "sea", DefaultTag = "OCE" },
-        new ServerRegionInfo { Code = "BR", DisplayName = "🇧🇷 BR — Brazil", PlatformId = "br1", RoutingRegion = "americas", DefaultTag = "BR1" },
-        new ServerRegionInfo { Code = "LAN", DisplayName = "🇲🇽 LAN — Latin America North", PlatformId = "la1", RoutingRegion = "americas", DefaultTag = "LAN" },
-        new ServerRegionInfo { Code = "LAS", DisplayName = "🇨🇱 LAS — Latin America South", PlatformId = "la2", RoutingRegion = "americas", DefaultTag = "LAS" },
-        new ServerRegionInfo { Code = "JP", DisplayName = "🇯🇵 JP — Japan", PlatformId = "jp1", RoutingRegion = "asia", DefaultTag = "JP1" }
+        new ServerRegionInfo { Code = "EUW", DisplayName = "🇪🇺 EUW - Europe West", PlatformId = "euw1", RoutingRegion = "europe", DefaultTag = "EUW" },
+        new ServerRegionInfo { Code = "EUNE", DisplayName = "🇪🇺 EUNE - Europe Nordic & East", PlatformId = "eun1", RoutingRegion = "europe", DefaultTag = "EUNE" },
+        new ServerRegionInfo { Code = "NA", DisplayName = "🇺🇸 NA - North America", PlatformId = "na1", RoutingRegion = "americas", DefaultTag = "NA1" },
+        new ServerRegionInfo { Code = "KR", DisplayName = "🇰🇷 KR - Korea", PlatformId = "kr", RoutingRegion = "asia", DefaultTag = "KR1" },
+        new ServerRegionInfo { Code = "TR", DisplayName = "🇹🇷 TR - Turkey", PlatformId = "tr1", RoutingRegion = "europe", DefaultTag = "TR1" },
+        new ServerRegionInfo { Code = "RU", DisplayName = "🇷🇺 RU - Russia", PlatformId = "ru", RoutingRegion = "europe", DefaultTag = "RU1" },
+        new ServerRegionInfo { Code = "OCE", DisplayName = "🇦🇺 OCE - Oceania", PlatformId = "oc1", RoutingRegion = "sea", DefaultTag = "OCE" },
+        new ServerRegionInfo { Code = "BR", DisplayName = "🇧🇷 BR - Brazil", PlatformId = "br1", RoutingRegion = "americas", DefaultTag = "BR1" },
+        new ServerRegionInfo { Code = "LAN", DisplayName = "🇲🇽 LAN - Latin America North", PlatformId = "la1", RoutingRegion = "americas", DefaultTag = "LAN" },
+        new ServerRegionInfo { Code = "LAS", DisplayName = "🇨🇱 LAS - Latin America South", PlatformId = "la2", RoutingRegion = "americas", DefaultTag = "LAS" },
+        new ServerRegionInfo { Code = "JP", DisplayName = "🇯🇵 JP - Japan", PlatformId = "jp1", RoutingRegion = "asia", DefaultTag = "JP1" }
     };
 
     public void SetRegionByCode(string code)

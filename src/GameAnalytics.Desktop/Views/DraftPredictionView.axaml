@@ -384,11 +384,11 @@
                                    Foreground="#F0E6D2" />
 
                         <CheckBox IsChecked="{Binding BlueFirstBlood}"
-                                  Content="🩸 Перша кров (First Blood) — Синя команда" />
+                                  Content="🩸 Перша кров (First Blood): Синя команда" />
                         <CheckBox IsChecked="{Binding BlueFirstTower}"
-                                  Content="🏰 Перша вежа (First Tower) — Синя команда" />
+                                  Content="🏰 Перша вежа (First Tower): Синя команда" />
                         <CheckBox IsChecked="{Binding BlueFirstDragon}"
-                                  Content="🐉 Перший дракон (First Dragon) — Синя команда" />
+                                  Content="🐉 Перший дракон (First Dragon): Синя команда" />
 
                         <Separator Background="#2F3640" Height="1" />
 
