@@ -54,6 +54,11 @@ public partial class App : Application
         services.AddHttpClient<IDataDragonService, DataDragonService>();
         // Riot API configuration loaded from appsettings.json
         var configPath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
+        if (!File.Exists(configPath))
+        {
+            var projectConfig = Path.Combine(Directory.GetCurrentDirectory(), "src", "GameAnalytics.Desktop", "appsettings.json");
+            if (File.Exists(projectConfig)) configPath = projectConfig;
+        }
         var riotOptions = RiotApiOptions.LoadFromFile(configPath);
         services.AddSingleton(riotOptions);
 

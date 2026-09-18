@@ -17,7 +17,7 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
     private string _gameName = "Qu4dyz";
 
     [ObservableProperty]
-    private string _tagLine = "EUW";
+    private string _tagLine = "qu4";
 
     [ObservableProperty]
     private ServerRegionInfo _selectedRegion;
@@ -51,7 +51,7 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
     private bool _isLoading;
 
     [ObservableProperty]
-    private string _statusMessage = "Введіть Riot ID (наприклад, Qu4dyz #EUW) та оберіть сервер";
+    private string _statusMessage = "Введіть Riot ID (наприклад, Qu4dyz #qu4) та оберіть сервер";
 
     public PlayerAnalyticsViewModel(IMatchAnalyticsService analyticsService, RiotApiOptions options)
     {
@@ -72,10 +72,6 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
         if (value != null)
         {
             _options.SetRegionByCode(value.PlatformId);
-            if (string.IsNullOrWhiteSpace(TagLine) || AvailableRegions.Any(r => r.DefaultTag.Equals(TagLine, StringComparison.OrdinalIgnoreCase)))
-            {
-                TagLine = value.DefaultTag;
-            }
         }
     }
 
