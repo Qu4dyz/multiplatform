@@ -1,0 +1,138 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:GameAnalytics.Desktop.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="700"
+             x:Class="GameAnalytics.Desktop.Views.SettingsView"
+             x:DataType="vm:SettingsViewModel">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="24" Spacing="20">
+            <!-- Header -->
+            <Border Background="#1E2328" CornerRadius="8" Padding="20" BorderBrush="#3C3C41" BorderThickness="1">
+                <StackPanel Spacing="6">
+                    <TextBlock Text="⚙️ НАЛАШТУВАННЯ СИСТЕМИ ТА МУЛЬТИПЛАТФОРМНОГО СЕРВЕРА"
+                               FontWeight="Bold"
+                               FontSize="14"
+                               Foreground="#C8AA6E"
+                               LetterSpacing="1.2" />
+                    <TextBlock Text="Керування конфігурацією Riot Games API, локальною базою даних SQLite та параметрами Linux VPS"
+                               FontSize="12"
+                               Foreground="#A09B8C" />
+                </StackPanel>
+            </Border>
+
+            <!-- API Configuration Card -->
+            <Border Background="#1E2328" CornerRadius="8" Padding="20" BorderBrush="#3C3C41" BorderThickness="1">
+                <StackPanel Spacing="16">
+                    <TextBlock Text="RIOT GAMES API КОНФІГУРАЦІЯ"
+                               FontWeight="Bold"
+                               FontSize="13"
+                               Foreground="#F0E6D2" />
+
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="Riot Games Development API Key:" FontSize="12" Foreground="#A09B8C" />
+                        <TextBox Text="{Binding ApiKey}"
+                                 PlaceholderText="RGAPI-XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+                                 Height="36"
+                                 FontSize="13"
+                                 PasswordChar="●" />
+                    </StackPanel>
+
+                    <Grid ColumnDefinitions="*, *" RowDefinitions="Auto">
+                        <StackPanel Grid.Column="0" Margin="0,0,10,0" Spacing="4">
+                            <TextBlock Text="Платформа / Регіон сервера:" FontSize="12" Foreground="#A09B8C" />
+                            <TextBox Text="{Binding PlatformRegion}"
+                                     PlaceholderText="eun1, euw1, na1, kr"
+                                     Height="36" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Margin="10,0,0,0" Spacing="4">
+                            <TextBlock Text="Маршрутизація (Routing Region):" FontSize="12" Foreground="#A09B8C" />
+                            <TextBox Text="{Binding RoutingRegion}"
+                                     PlaceholderText="europe, americas, asia"
+                                     Height="36" />
+                        </StackPanel>
+                    </Grid>
+
+                    <CheckBox IsChecked="{Binding UseMockFallback}"
+                              Content="Автоматичний Mock / Demo режим (якщо API ключ не вказано або закінчився термін його дії)" />
+
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <Button Command="{Binding SaveSettingsCommand}"
+                                Content="💾 Зберегти налаштування"
+                                Height="36"
+                                Padding="16,0"
+                                Background="#0AC8B9"
+                                Foreground="#010A13"
+                                FontWeight="SemiBold"
+                                Cursor="Hand" />
+
+                        <Button Command="{Binding TestConnectionCommand}"
+                                Content="🔌 Перевірити з'єднання з API"
+                                Height="36"
+                                Padding="16,0"
+                                Background="#2F3640"
+                                Foreground="White"
+                                FontWeight="SemiBold"
+                                Cursor="Hand" />
+                    </StackPanel>
+
+                    <TextBlock Text="{Binding StatusMessage}"
+                               FontSize="12"
+                               Foreground="#C8AA6E" />
+                </StackPanel>
+            </Border>
+
+            <!-- Database & Cache Card -->
+            <Border Background="#1E2328" CornerRadius="8" Padding="20" BorderBrush="#3C3C41" BorderThickness="1">
+                <StackPanel Spacing="14">
+                    <TextBlock Text="ЛОКАЛЬНА БАЗА ДАНИХ ТА СХОВИЩЕ (SQLITE)"
+                               FontWeight="Bold"
+                               FontSize="13"
+                               Foreground="#F0E6D2" />
+
+                    <Grid ColumnDefinitions="140, *" RowDefinitions="Auto, Auto">
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Шлях до файлу БД:" FontSize="12" Foreground="#A09B8C" Margin="0,0,0,6" />
+                        <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding DatabasePath}" FontSize="12" Foreground="#F0E6D2" TextWrapping="Wrap" />
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Розмір бази:" FontSize="12" Foreground="#A09B8C" />
+                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding DatabaseSizeText}" FontSize="12" Foreground="#0AC8B9" FontWeight="SemiBold" />
+                    </Grid>
+
+                    <Button Command="{Binding ClearDatabaseCommand}"
+                            Content="🗑 Очистити локальну базу даних"
+                            Height="36"
+                            Padding="14,0"
+                            Background="#3C3C41"
+                            Foreground="#E84057"
+                            FontWeight="SemiBold"
+                            HorizontalAlignment="Left"
+                            Cursor="Hand" />
+                </StackPanel>
+            </Border>
+
+            <!-- Platform & Cloud VPS Info Card -->
+            <Border Background="#1E2328" CornerRadius="8" Padding="20" BorderBrush="#3C3C41" BorderThickness="1">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="МУЛЬТИПЛАТФОРМНИЙ СТАТУС ТА СЕРВЕР"
+                               FontWeight="Bold"
+                               FontSize="13"
+                               Foreground="#F0E6D2" />
+
+                    <Grid ColumnDefinitions="160, *" RowDefinitions="Auto, Auto, Auto">
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Поточна ОС клієнта:" FontSize="12" Foreground="#A09B8C" Margin="0,0,0,6" />
+                        <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding OsDescription}" FontSize="12" Foreground="#F0E6D2" />
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Версія .NET Core:" FontSize="12" Foreground="#A09B8C" Margin="0,0,0,6" />
+                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding DotnetVersion, StringFormat='.NET {0}'}" FontSize="12" Foreground="#0AC8B9" FontWeight="Bold" />
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Віддалений Linux VPS:" FontSize="12" Foreground="#A09B8C" />
+                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding VpsHostInfo}" FontSize="12" Foreground="#C8AA6E" FontWeight="SemiBold" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

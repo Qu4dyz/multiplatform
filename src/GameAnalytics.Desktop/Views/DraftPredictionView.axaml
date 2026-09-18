@@ -3,329 +3,653 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:GameAnalytics.Desktop.ViewModels"
-             mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="700"
+             xmlns:entities="using:GameAnalytics.Core.Entities"
+             xmlns:conv="using:GameAnalytics.Desktop.Converters"
+             mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="950"
              x:Class="GameAnalytics.Desktop.Views.DraftPredictionView"
-             x:DataType="vm:DraftPredictionViewModel">
+             x:DataType="vm:DraftPredictionViewModel"
+             x:Name="RootControl">
+
+    <UserControl.Resources>
+        <conv:BitmapAssetValueConverter x:Key="BitmapAssetConverter" />
+    </UserControl.Resources>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <Grid Margin="24" ColumnDefinitions="*, *" RowDefinitions="Auto">
-            <!-- Left Column: Input Features & Parameters -->
-            <Border Grid.Column="0"
-                    Background="#1E2328"
+        <StackPanel Margin="24" Spacing="20">
+
+            <!-- SECTION 1: 5v5 DRAFT BOARD & CHAMPION PICKER -->
+            <Border Background="#1E2328"
                     CornerRadius="8"
                     Padding="20"
-                    Margin="0,0,12,0"
                     BorderBrush="#3C3C41"
                     BorderThickness="1">
                 <StackPanel Spacing="16">
-                    <TextBlock Text="ВХІДНІ МЕТРИКИ ДЛЯ МОДЕЛІ ML.NET"
-                               FontWeight="Bold"
-                               FontSize="14"
-                               Foreground="#C8AA6E"
-                               LetterSpacing="1.2" />
-
-                    <!-- Quick Preset Buttons -->
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <Button Content="Баланс (50/50)"
-                                Command="{Binding ResetToBalancedCommand}"
-                                FontSize="12"
-                                Background="#2F3640"
-                                Padding="10,6" />
-                        <Button Content="Перевага Синіх"
-                                Command="{Binding SetBlueAdvantagePresetCommand}"
-                                FontSize="12"
-                                Background="#0397AB"
-                                Foreground="White"
-                                Padding="10,6" />
-                        <Button Content="Перевага Червоних"
-                                Command="{Binding SetRedAdvantagePresetCommand}"
-                                FontSize="12"
-                                Background="#E84057"
-                                Foreground="White"
-                                Padding="10,6" />
-                    </StackPanel>
-
-                    <Separator Background="#2F3640" Height="1" />
-
-                    <!-- Key Objective Checkboxes -->
-                    <TextBlock Text="Ключові об'єкти ранньої стадії:"
-                               FontWeight="SemiBold"
-                               FontSize="13"
-                               Foreground="#F0E6D2" />
-
-                    <CheckBox IsChecked="{Binding BlueFirstBlood}"
-                              Content="🩸 Перша кров (First Blood) — Синя команда" />
-                    <CheckBox IsChecked="{Binding BlueFirstTower}"
-                              Content="🏰 Перша вежа (First Tower) — Синя команда" />
-                    <CheckBox IsChecked="{Binding BlueFirstDragon}"
-                              Content="🐉 Перший дракон (First Dragon) — Синя команда" />
-
-                    <Separator Background="#2F3640" Height="1" />
-
-                    <!-- Gold Diff Slider -->
-                    <StackPanel Spacing="4">
-                        <Grid ColumnDefinitions="*, Auto">
-                            <TextBlock Text="Різниця за золотом на 15 хв (Gold Diff):"
-                                       FontSize="13"
-                                       Foreground="#F0E6D2" />
-                            <TextBlock Grid.Column="1"
-                                       Text="{Binding GoldDiffAt15, StringFormat='{}{0:+0;-#;0} gold'}"
+                    <!-- Section Header -->
+                    <Grid ColumnDefinitions="*, Auto">
+                        <StackPanel Grid.Column="0" Spacing="4">
+                            <TextBlock Text="⚔️ 5v5 ДРАФТ ЧЕМПІОНІВ ТА ОЦІНКА СИНЕРГІЇ"
                                        FontWeight="Bold"
-                                       Foreground="#C8AA6E" />
-                        </Grid>
-                        <Slider Minimum="-6000" Maximum="6000"
-                                Value="{Binding GoldDiffAt15}"
-                                SmallChange="250" LargeChange="1000" />
-                    </StackPanel>
+                                       FontSize="14"
+                                       Foreground="#C8AA6E"
+                                       LetterSpacing="1.2" />
+                            <TextBlock Text="Оберіть позицію та призначте чемпіона для кожної команди. Вінрейти та синергії оновлюються автоматично."
+                                       FontSize="12"
+                                       Foreground="#A09B8C" />
+                        </StackPanel>
 
-                    <!-- Kill Diff Slider -->
-                    <StackPanel Spacing="4">
-                        <Grid ColumnDefinitions="*, Auto">
-                            <TextBlock Text="Різниця у вбивствах на 15 хв (Kill Diff):"
-                                       FontSize="13"
-                                       Foreground="#F0E6D2" />
-                            <TextBlock Grid.Column="1"
-                                       Text="{Binding KillDiffAt15, StringFormat='{}{0:+0;-#;0} kills'}"
-                                       FontWeight="Bold"
-                                       Foreground="#0AC8B9" />
-                        </Grid>
-                        <Slider Minimum="-15" Maximum="15"
-                                Value="{Binding KillDiffAt15}"
-                                SmallChange="1" LargeChange="3" />
-                    </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <Border Background="#091428" CornerRadius="4" Padding="8,4" BorderBrush="#0AC8B9" BorderThickness="1">
+                                <TextBlock Text="{Binding PatchVersion, StringFormat='Патч DDragon: v{0}'}"
+                                           FontSize="11"
+                                           Foreground="#0AC8B9" />
+                            </Border>
+                            <Button Content="🔄 Скинути драфт"
+                                    Command="{Binding ResetDraftCommand}"
+                                    FontSize="11"
+                                    Background="#2F3640"
+                                    Foreground="#F0E6D2"
+                                    Padding="10,6"
+                                    Cursor="Hand" />
+                        </StackPanel>
+                    </Grid>
 
-                    <!-- WinRate Sliders -->
-                    <StackPanel Spacing="4">
-                        <Grid ColumnDefinitions="*, Auto">
-                            <TextBlock Text="Середній вінрейт піків Синіх:"
-                                       FontSize="13"
-                                       Foreground="#F0E6D2" />
-                            <TextBlock Grid.Column="1"
-                                       Text="{Binding BlueTeamAvgWinRate, StringFormat='{}{0:F1}%'}"
-                                       FontWeight="Bold"
-                                       Foreground="#0397AB" />
-                        </Grid>
-                        <Slider Minimum="40" Maximum="60"
-                                Value="{Binding BlueTeamAvgWinRate}" />
-                    </StackPanel>
-
-                    <StackPanel Spacing="4">
-                        <Grid ColumnDefinitions="*, Auto">
-                            <TextBlock Text="Середній вінрейт піків Червоних:"
-                                       FontSize="13"
-                                       Foreground="#F0E6D2" />
-                            <TextBlock Grid.Column="1"
-                                       Text="{Binding RedTeamAvgWinRate, StringFormat='{}{0:F1}%'}"
-                                       FontWeight="Bold"
-                                       Foreground="#E84057" />
-                        </Grid>
-                        <Slider Minimum="40" Maximum="60"
-                                Value="{Binding RedTeamAvgWinRate}" />
-                    </StackPanel>
-
-                    <!-- Run Prediction Button -->
-                    <Button Command="{Binding CalculatePredictionCommand}"
-                            Content="⚡ РОЗРАХУВАТИ ЙМОВІРНІСТЬ ПЕРЕМОГИ (ML.NET)"
-                            Height="44"
-                            Background="#C8AA6E"
-                            Foreground="#010A13"
-                            FontWeight="Bold"
-                            FontSize="13"
-                            HorizontalAlignment="Stretch"
-                            HorizontalContentAlignment="Center"
-                            VerticalContentAlignment="Center"
-                            Cursor="Hand" />
-                </StackPanel>
-            </Border>
-
-            <!-- Right Column: ML Prediction Result Card -->
-            <Border Grid.Column="1"
-                    Background="#1E2328"
-                    CornerRadius="8"
-                    Padding="20"
-                    Margin="12,0,0,0"
-                    BorderBrush="#C8AA6E"
-                    BorderThickness="1">
-                <StackPanel Spacing="18">
-                    <TextBlock Text="РЕЗУЛЬТАТ ПРОГНОЗУВАННЯ ТА ОЦІНКА"
-                               FontWeight="Bold"
-                               FontSize="14"
-                               Foreground="#C8AA6E"
-                               LetterSpacing="1.2" />
-
-                    <!-- Big Chances Board -->
-                    <Grid ColumnDefinitions="*, Auto, *" Margin="0,10">
-                        <!-- Blue Side -->
+                    <!-- 5v5 Slots Arena (Blue vs Red) -->
+                    <Grid ColumnDefinitions="*, 1.4*, *">
+                        <!-- Blue Team Slots (5 rows) -->
                         <Border Grid.Column="0"
                                 Background="#0A1428"
-                                CornerRadius="8"
-                                Padding="16"
+                                CornerRadius="6"
+                                Padding="12"
                                 BorderBrush="#0397AB"
-                                BorderThickness="2">
-                            <StackPanel HorizontalAlignment="Center" Spacing="6">
-                                <TextBlock Text="СИНЯ КОМАНДА"
-                                           FontSize="12"
-                                           FontWeight="Bold"
-                                           Foreground="#0AC8B9" />
-                                <TextBlock Text="{Binding Prediction.FormattedBluePercent}"
-                                           FontSize="32"
-                                           FontWeight="Bold"
-                                           Foreground="#5383E8"
-                                           HorizontalAlignment="Center" />
-                                <TextBlock Text="Ймовірність перемоги"
-                                           FontSize="11"
-                                           Foreground="#A09B8C" />
+                                BorderThickness="1.5">
+                            <StackPanel Spacing="10">
+                                <Grid ColumnDefinitions="*, Auto">
+                                    <TextBlock Text="СИНЯ КОМАНДА"
+                                               FontWeight="Bold"
+                                               FontSize="12"
+                                               Foreground="#0AC8B9" />
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding BlueTeamAvgWinRate, StringFormat='{}{0:F1}% WR'}"
+                                               FontWeight="Bold"
+                                               FontSize="12"
+                                               Foreground="#0397AB" />
+                                </Grid>
+
+                                <ItemsControl ItemsSource="{Binding BlueDraftSlots}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:DraftSlotViewModel">
+                                            <Button Command="{Binding #RootControl.((vm:DraftPredictionViewModel)DataContext).SelectSlotCommand}"
+                                                    CommandParameter="{Binding}"
+                                                    HorizontalAlignment="Stretch"
+                                                    HorizontalContentAlignment="Stretch"
+                                                    Padding="6"
+                                                    Margin="0,0,0,6"
+                                                    Background="#1E2328"
+                                                    BorderBrush="#0397AB"
+                                                    BorderThickness="1"
+                                                    CornerRadius="4"
+                                                    Cursor="Hand">
+                                                <Grid ColumnDefinitions="32, 40, *, Auto">
+                                                    <!-- Role Icon -->
+                                                    <TextBlock Grid.Column="0"
+                                                               Text="{Binding PositionIcon}"
+                                                               FontSize="16"
+                                                               VerticalAlignment="Center"
+                                                               HorizontalAlignment="Center" />
+
+                                                    <!-- Champion Icon Image -->
+                                                    <Border Grid.Column="1"
+                                                            Width="34" Height="34"
+                                                            CornerRadius="4"
+                                                            ClipToBounds="True"
+                                                            Background="#091428"
+                                                            Margin="4,0">
+                                                        <Image Source="{Binding ChampionIconUrl, Converter={StaticResource BitmapAssetConverter}}"
+                                                               Width="34" Height="34"
+                                                               Stretch="UniformToFill" />
+                                                    </Border>
+
+                                                    <!-- Champion Name & Role -->
+                                                    <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="2">
+                                                        <TextBlock Text="{Binding ChampionDisplayName}"
+                                                                   FontWeight="SemiBold"
+                                                                   FontSize="12"
+                                                                   Foreground="#F0E6D2" />
+                                                        <TextBlock Text="{Binding PositionName}"
+                                                                   FontSize="10"
+                                                                   Foreground="#A09B8C" />
+                                                    </StackPanel>
+
+                                                    <!-- Individual Win Rate -->
+                                                    <TextBlock Grid.Column="3"
+                                                               Text="{Binding WinRateText}"
+                                                               FontSize="11"
+                                                               FontWeight="Bold"
+                                                               Foreground="#0AC8B9"
+                                                               VerticalAlignment="Center"
+                                                               Margin="4,0" />
+                                                </Grid>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
                             </StackPanel>
                         </Border>
 
-                        <TextBlock Grid.Column="1"
-                                   Text="VS"
-                                   FontSize="20"
-                                   FontWeight="Bold"
-                                   Foreground="#A09B8C"
-                                   VerticalAlignment="Center"
-                                   Margin="16,0" />
+                        <!-- Center: Champion Picker Console -->
+                        <Border Grid.Column="1"
+                                Background="#121820"
+                                CornerRadius="6"
+                                Padding="14"
+                                Margin="12,0"
+                                BorderBrush="#3C3C41"
+                                BorderThickness="1">
+                            <StackPanel Spacing="10">
+                                <!-- Active Slot Indicator -->
+                                <Border Background="#091428" CornerRadius="4" Padding="8,6" BorderBrush="#C8AA6E" BorderThickness="1">
+                                    <Grid ColumnDefinitions="Auto, *">
+                                        <TextBlock Text="🎯 Вибір для: "
+                                                   FontSize="11"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="#C8AA6E" />
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{Binding ActiveSlot.ChampionDisplayName, FallbackValue='Оберіть слот'}"
+                                                   FontSize="11"
+                                                   FontWeight="Bold"
+                                                   Foreground="#F0E6D2" />
+                                    </Grid>
+                                </Border>
 
-                        <!-- Red Side -->
+                                <!-- Search and Role Filter -->
+                                <TextBox Text="{Binding SearchQuery}"
+                                         PlaceholderText="🔍 Пошук чемпіона за ім'ям..."
+                                         Height="32"
+                                         FontSize="12" />
+
+                                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <Button Content="Всі"
+                                                Command="{Binding FilterByRoleCommand}" CommandParameter="All"
+                                                FontSize="11" Padding="8,4" Background="#2F3640" Foreground="White" />
+                                        <Button Content="Боєць"
+                                                Command="{Binding FilterByRoleCommand}" CommandParameter="Fighter"
+                                                FontSize="11" Padding="8,4" Background="#2F3640" Foreground="#F0E6D2" />
+                                        <Button Content="Маг"
+                                                Command="{Binding FilterByRoleCommand}" CommandParameter="Mage"
+                                                FontSize="11" Padding="8,4" Background="#2F3640" Foreground="#F0E6D2" />
+                                        <Button Content="Вбивця"
+                                                Command="{Binding FilterByRoleCommand}" CommandParameter="Assassin"
+                                                FontSize="11" Padding="8,4" Background="#2F3640" Foreground="#F0E6D2" />
+                                        <Button Content="Стрілець"
+                                                Command="{Binding FilterByRoleCommand}" CommandParameter="Marksman"
+                                                FontSize="11" Padding="8,4" Background="#2F3640" Foreground="#F0E6D2" />
+                                        <Button Content="Танк"
+                                                Command="{Binding FilterByRoleCommand}" CommandParameter="Tank"
+                                                FontSize="11" Padding="8,4" Background="#2F3640" Foreground="#F0E6D2" />
+                                        <Button Content="Підтримка"
+                                                Command="{Binding FilterByRoleCommand}" CommandParameter="Support"
+                                                FontSize="11" Padding="8,4" Background="#2F3640" Foreground="#F0E6D2" />
+                                    </StackPanel>
+                                </ScrollViewer>
+
+                                <!-- Champion Grid / List -->
+                                <Border Background="#091428"
+                                        CornerRadius="4"
+                                        Padding="6"
+                                        Height="220">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                        <ItemsControl ItemsSource="{Binding FilteredChampions}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <WrapPanel Orientation="Horizontal" />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="entities:ChampionInfo">
+                                                    <Button Command="{Binding #RootControl.((vm:DraftPredictionViewModel)DataContext).PickChampionCommand}"
+                                                            CommandParameter="{Binding}"
+                                                            Margin="3"
+                                                            Padding="4"
+                                                            Width="68" Height="68"
+                                                            Background="#1E2328"
+                                                            BorderBrush="#3C3C41"
+                                                            BorderThickness="1"
+                                                            CornerRadius="4"
+                                                            ToolTip.Tip="{Binding Name}"
+                                                            Cursor="Hand">
+                                                        <StackPanel HorizontalAlignment="Center" Spacing="2">
+                                                            <Border Width="38" Height="38"
+                                                                    CornerRadius="4"
+                                                                    ClipToBounds="True"
+                                                                    Background="#0A1428">
+                                                                <Image Source="{Binding IconUrl, Converter={StaticResource BitmapAssetConverter}}"
+                                                                       Width="38" Height="38"
+                                                                       Stretch="UniformToFill" />
+                                                            </Border>
+                                                            <TextBlock Text="{Binding Name}"
+                                                                       FontSize="9"
+                                                                       TextTrimming="CharacterEllipsis"
+                                                                       HorizontalAlignment="Center"
+                                                                       Foreground="#F0E6D2" />
+                                                        </StackPanel>
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Red Team Slots (5 rows) -->
                         <Border Grid.Column="2"
                                 Background="#0A1428"
-                                CornerRadius="8"
-                                Padding="16"
+                                CornerRadius="6"
+                                Padding="12"
                                 BorderBrush="#E84057"
-                                BorderThickness="2">
-                            <StackPanel HorizontalAlignment="Center" Spacing="6">
-                                <TextBlock Text="ЧЕРВОНА КОМАНДА"
-                                           FontSize="12"
-                                           FontWeight="Bold"
-                                           Foreground="#E84057" />
-                                <TextBlock Text="{Binding Prediction.FormattedRedPercent}"
-                                           FontSize="32"
-                                           FontWeight="Bold"
-                                           Foreground="#E84057"
-                                           HorizontalAlignment="Center" />
-                                <TextBlock Text="Ймовірність перемоги"
-                                           FontSize="11"
-                                           Foreground="#A09B8C" />
+                                BorderThickness="1.5">
+                            <StackPanel Spacing="10">
+                                <Grid ColumnDefinitions="*, Auto">
+                                    <TextBlock Text="ЧЕРВОНА КОМАНДА"
+                                               FontWeight="Bold"
+                                               FontSize="12"
+                                               Foreground="#E84057" />
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding RedTeamAvgWinRate, StringFormat='{}{0:F1}% WR'}"
+                                               FontWeight="Bold"
+                                               FontSize="12"
+                                               Foreground="#E84057" />
+                                </Grid>
+
+                                <ItemsControl ItemsSource="{Binding RedDraftSlots}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:DraftSlotViewModel">
+                                            <Button Command="{Binding #RootControl.((vm:DraftPredictionViewModel)DataContext).SelectSlotCommand}"
+                                                    CommandParameter="{Binding}"
+                                                    HorizontalAlignment="Stretch"
+                                                    HorizontalContentAlignment="Stretch"
+                                                    Padding="6"
+                                                    Margin="0,0,0,6"
+                                                    Background="#1E2328"
+                                                    BorderBrush="#E84057"
+                                                    BorderThickness="1"
+                                                    CornerRadius="4"
+                                                    Cursor="Hand">
+                                                <Grid ColumnDefinitions="32, 40, *, Auto">
+                                                    <!-- Role Icon -->
+                                                    <TextBlock Grid.Column="0"
+                                                               Text="{Binding PositionIcon}"
+                                                               FontSize="16"
+                                                               VerticalAlignment="Center"
+                                                               HorizontalAlignment="Center" />
+
+                                                    <!-- Champion Icon Image -->
+                                                    <Border Grid.Column="1"
+                                                            Width="34" Height="34"
+                                                            CornerRadius="4"
+                                                            ClipToBounds="True"
+                                                            Background="#091428"
+                                                            Margin="4,0">
+                                                        <Image Source="{Binding ChampionIconUrl, Converter={StaticResource BitmapAssetConverter}}"
+                                                               Width="34" Height="34"
+                                                               Stretch="UniformToFill" />
+                                                    </Border>
+
+                                                    <!-- Champion Name & Role -->
+                                                    <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="2">
+                                                        <TextBlock Text="{Binding ChampionDisplayName}"
+                                                                   FontWeight="SemiBold"
+                                                                   FontSize="12"
+                                                                   Foreground="#F0E6D2" />
+                                                        <TextBlock Text="{Binding PositionName}"
+                                                                   FontSize="10"
+                                                                   Foreground="#A09B8C" />
+                                                    </StackPanel>
+
+                                                    <!-- Individual Win Rate -->
+                                                    <TextBlock Grid.Column="3"
+                                                               Text="{Binding WinRateText}"
+                                                               FontSize="11"
+                                                               FontWeight="Bold"
+                                                               Foreground="#E84057"
+                                                               VerticalAlignment="Center"
+                                                               Margin="4,0" />
+                                                </Grid>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
                             </StackPanel>
                         </Border>
                     </Grid>
-
-                    <!-- Prediction Banner -->
-                    <Border Background="#091428"
-                            CornerRadius="6"
-                            Padding="16"
-                            BorderBrush="#2F3640"
-                            BorderThickness="1">
-                        <StackPanel Spacing="6">
-                            <TextBlock Text="ПРОГНОЗОВАНИЙ ПЕРЕМОЖЕЦЬ:"
-                                       FontSize="12"
-                                       Foreground="#A09B8C" />
-                            <TextBlock Text="{Binding Prediction.PredictedWinner, StringFormat='Перемога: {0} Team'}"
-                                       FontSize="20"
-                                       FontWeight="Bold"
-                                       Foreground="#0AC8B9" />
-                            <ProgressBar Value="{Binding Prediction.BlueWinProbability}"
-                                         Minimum="0"
-                                         Maximum="1"
-                                         Height="10"
-                                         Foreground="#0397AB"
-                                         Background="#E84057" />
-                        </StackPanel>
-                    </Border>
-
-                    <!-- Key Influencing Factors -->
-                    <TextBlock Text="ФАКТОРИ ВПЛИВУ (ML FEATURE IMPORTANCE):"
-                               FontWeight="Bold"
-                               FontSize="12"
-                               Foreground="#C8AA6E" />
-
-                    <ItemsControl ItemsSource="{Binding Prediction.KeyFactors}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Border Background="#091428"
-                                        CornerRadius="4"
-                                        Padding="10,8"
-                                        Margin="0,0,0,6"
-                                        BorderBrush="#2F3640"
-                                        BorderThickness="1">
-                                    <TextBlock Text="{Binding StringFormat='• {0}'}"
-                                               FontSize="12"
-                                               Foreground="#F0E6D2"
-                                               TextWrapping="Wrap" />
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-
-                    <Separator Background="#2F3640" Height="1" />
-
-                    <!-- Benchmark Section -->
-                    <Button Command="{Binding RunBenchmarkCommand}"
-                            Content="🔬 Запустити бенчмарк алгоритмів (ML.NET)"
-                            Height="38"
-                            Background="#0397AB"
-                            Foreground="White"
-                            FontWeight="Bold"
-                            FontSize="12"
-                            HorizontalAlignment="Stretch"
-                            HorizontalContentAlignment="Center"
-                            VerticalContentAlignment="Center"
-                            Cursor="Hand" />
-
-                    <Border Background="#091428"
-                            CornerRadius="6"
-                            Padding="12"
-                            BorderBrush="#C8AA6E"
-                            BorderThickness="1"
-                            IsVisible="{Binding BenchmarkReport, Converter={x:Static ObjectConverters.IsNotNull}}">
-                        <StackPanel Spacing="10">
-                            <TextBlock Text="ПОРІВНЯННЯ АЛГОРИТМІВ КЛАСИФІКАЦІЇ"
-                                       FontWeight="Bold"
-                                       FontSize="11"
-                                       Foreground="#C8AA6E" />
-
-                            <TextBlock Text="{Binding BenchmarkReport.BestModelByAuc, StringFormat='Кращий за AUC-ROC: {0}'}"
-                                       FontSize="12"
-                                       FontWeight="SemiBold"
-                                       Foreground="#0AC8B9" />
-
-                            <ItemsControl ItemsSource="{Binding BenchmarkReport.Models}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Background="#1E2328"
-                                                CornerRadius="4"
-                                                Padding="8,6"
-                                                Margin="0,0,0,6">
-                                            <Grid ColumnDefinitions="*, Auto, Auto, Auto">
-                                                <TextBlock Grid.Column="0"
-                                                           Text="{Binding AlgorithmName}"
-                                                           FontSize="11"
-                                                           FontWeight="Bold"
-                                                           Foreground="#F0E6D2" />
-                                                <TextBlock Grid.Column="1"
-                                                           Text="{Binding FormattedAccuracy, StringFormat='Acc: {0}'}"
-                                                           FontSize="11"
-                                                           Foreground="#0AC8B9"
-                                                           Margin="8,0" />
-                                                <TextBlock Grid.Column="2"
-                                                           Text="{Binding FormattedAuc, StringFormat='AUC: {0}'}"
-                                                           FontSize="11"
-                                                           Foreground="#C8AA6E"
-                                                           Margin="8,0" />
-                                                <TextBlock Grid.Column="3"
-                                                           Text="{Binding TrainingDurationMs, StringFormat='{}{0}ms'}"
-                                                           FontSize="11"
-                                                           Foreground="#A09B8C" />
-                                            </Grid>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-                    </Border>
                 </StackPanel>
             </Border>
-        </Grid>
+
+            <!-- SECTION 2: EARLY GAME METRICS & ML MODEL RESULTS -->
+            <Grid ColumnDefinitions="*, *" RowDefinitions="Auto">
+                <!-- Left Column: Input Features & Parameters -->
+                <Border Grid.Column="0"
+                        Background="#1E2328"
+                        CornerRadius="8"
+                        Padding="20"
+                        Margin="0,0,10,0"
+                        BorderBrush="#3C3C41"
+                        BorderThickness="1">
+                    <StackPanel Spacing="14">
+                        <TextBlock Text="ВХІДНІ МЕТРИКИ ТА АЛГОРИТМ ML.NET"
+                                   FontWeight="Bold"
+                                   FontSize="14"
+                                   Foreground="#C8AA6E"
+                                   LetterSpacing="1.2" />
+
+                        <!-- Algorithm Selector -->
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="Активний алгоритм машинного навчання:" FontSize="12" Foreground="#A09B8C" />
+                            <ComboBox ItemsSource="{Binding AvailableAlgorithms}"
+                                      SelectedItem="{Binding SelectedAlgorithm}"
+                                      HorizontalAlignment="Stretch"
+                                      Height="34" />
+                        </StackPanel>
+
+                        <!-- Quick Preset Buttons -->
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Content="Баланс (50/50)"
+                                    Command="{Binding ResetToBalancedCommand}"
+                                    FontSize="12"
+                                    Background="#2F3640"
+                                    Padding="10,6"
+                                    Cursor="Hand" />
+                            <Button Content="Перевага Синіх"
+                                    Command="{Binding SetBlueAdvantagePresetCommand}"
+                                    FontSize="12"
+                                    Background="#0397AB"
+                                    Foreground="White"
+                                    Padding="10,6"
+                                    Cursor="Hand" />
+                            <Button Content="Перевага Червоних"
+                                    Command="{Binding SetRedAdvantagePresetCommand}"
+                                    FontSize="12"
+                                    Background="#E84057"
+                                    Foreground="White"
+                                    Padding="10,6"
+                                    Cursor="Hand" />
+                        </StackPanel>
+
+                        <Separator Background="#2F3640" Height="1" />
+
+                        <!-- Key Objective Checkboxes -->
+                        <TextBlock Text="Ключові об'єкти ранньої стадії (ранні прапорці):"
+                                   FontWeight="SemiBold"
+                                   FontSize="13"
+                                   Foreground="#F0E6D2" />
+
+                        <CheckBox IsChecked="{Binding BlueFirstBlood}"
+                                  Content="🩸 Перша кров (First Blood) — Синя команда" />
+                        <CheckBox IsChecked="{Binding BlueFirstTower}"
+                                  Content="🏰 Перша вежа (First Tower) — Синя команда" />
+                        <CheckBox IsChecked="{Binding BlueFirstDragon}"
+                                  Content="🐉 Перший дракон (First Dragon) — Синя команда" />
+
+                        <Separator Background="#2F3640" Height="1" />
+
+                        <!-- Gold Diff Slider -->
+                        <StackPanel Spacing="4">
+                            <Grid ColumnDefinitions="*, Auto">
+                                <TextBlock Text="Різниця за золотом на 15 хв (Gold Diff):"
+                                           FontSize="13"
+                                           Foreground="#F0E6D2" />
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding GoldDiffAt15, StringFormat='{}{0:+0;-#;0} gold'}"
+                                           FontWeight="Bold"
+                                           Foreground="#C8AA6E" />
+                            </Grid>
+                            <Slider Minimum="-6000" Maximum="6000"
+                                    Value="{Binding GoldDiffAt15}"
+                                    SmallChange="250" LargeChange="1000" />
+                        </StackPanel>
+
+                        <!-- Kill Diff Slider -->
+                        <StackPanel Spacing="4">
+                            <Grid ColumnDefinitions="*, Auto">
+                                <TextBlock Text="Різниця у вбивствах на 15 хв (Kill Diff):"
+                                           FontSize="13"
+                                           Foreground="#F0E6D2" />
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding KillDiffAt15, StringFormat='{}{0:+0;-#;0} kills'}"
+                                           FontWeight="Bold"
+                                           Foreground="#0AC8B9" />
+                            </Grid>
+                            <Slider Minimum="-15" Maximum="15"
+                                    Value="{Binding KillDiffAt15}"
+                                    SmallChange="1" LargeChange="3" />
+                        </StackPanel>
+
+                        <!-- Towers and Dragons Sliders -->
+                        <Grid ColumnDefinitions="*, *" RowDefinitions="Auto, Auto">
+                            <StackPanel Grid.Column="0" Margin="0,0,6,0" Spacing="4">
+                                <TextBlock Text="{Binding BlueTowerCount, StringFormat='Вежі Синіх: {0}'}" FontSize="12" Foreground="#0397AB" />
+                                <Slider Minimum="0" Maximum="5" Value="{Binding BlueTowerCount}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="6,0,0,0" Spacing="4">
+                                <TextBlock Text="{Binding RedTowerCount, StringFormat='Вежі Червоних: {0}'}" FontSize="12" Foreground="#E84057" />
+                                <Slider Minimum="0" Maximum="5" Value="{Binding RedTowerCount}" />
+                            </StackPanel>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="*, *" RowDefinitions="Auto, Auto">
+                            <StackPanel Grid.Column="0" Margin="0,0,6,0" Spacing="4">
+                                <TextBlock Text="{Binding BlueDragonCount, StringFormat='Дракони Синіх: {0}'}" FontSize="12" Foreground="#0397AB" />
+                                <Slider Minimum="0" Maximum="4" Value="{Binding BlueDragonCount}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="6,0,0,0" Spacing="4">
+                                <TextBlock Text="{Binding RedDragonCount, StringFormat='Дракони Червоних: {0}'}" FontSize="12" Foreground="#E84057" />
+                                <Slider Minimum="0" Maximum="4" Value="{Binding RedDragonCount}" />
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Run Prediction Button -->
+                        <Button Command="{Binding CalculatePredictionCommand}"
+                                Content="⚡ РОЗРАХУВАТИ ЙМОВІРНІСТЬ ПЕРЕМОГИ (ML.NET)"
+                                Height="44"
+                                Background="#C8AA6E"
+                                Foreground="#010A13"
+                                FontWeight="Bold"
+                                FontSize="13"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center"
+                                VerticalContentAlignment="Center"
+                                Cursor="Hand" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Right Column: ML Prediction Result Card -->
+                <Border Grid.Column="1"
+                        Background="#1E2328"
+                        CornerRadius="8"
+                        Padding="20"
+                        Margin="10,0,0,0"
+                        BorderBrush="#C8AA6E"
+                        BorderThickness="1">
+                    <StackPanel Spacing="16">
+                        <TextBlock Text="РЕЗУЛЬТАТ ПРОГНОЗУВАННЯ ТА ОЦІНКА"
+                                   FontWeight="Bold"
+                                   FontSize="14"
+                                   Foreground="#C8AA6E"
+                                   LetterSpacing="1.2" />
+
+                        <!-- Big Chances Board -->
+                        <Grid ColumnDefinitions="*, Auto, *" Margin="0,6">
+                            <!-- Blue Side -->
+                            <Border Grid.Column="0"
+                                    Background="#0A1428"
+                                    CornerRadius="8"
+                                    Padding="16"
+                                    BorderBrush="#0397AB"
+                                    BorderThickness="2">
+                                <StackPanel HorizontalAlignment="Center" Spacing="6">
+                                    <TextBlock Text="СИНЯ КОМАНДА"
+                                               FontSize="12"
+                                               FontWeight="Bold"
+                                               Foreground="#0AC8B9" />
+                                    <TextBlock Text="{Binding Prediction.FormattedBluePercent}"
+                                               FontSize="32"
+                                               FontWeight="Bold"
+                                               Foreground="#5383E8"
+                                               HorizontalAlignment="Center" />
+                                    <TextBlock Text="Ймовірність перемоги"
+                                               FontSize="11"
+                                               Foreground="#A09B8C" />
+                                </StackPanel>
+                            </Border>
+
+                            <TextBlock Grid.Column="1"
+                                       Text="VS"
+                                       FontSize="20"
+                                       FontWeight="Bold"
+                                       Foreground="#A09B8C"
+                                       VerticalAlignment="Center"
+                                       Margin="14,0" />
+
+                            <!-- Red Side -->
+                            <Border Grid.Column="2"
+                                    Background="#0A1428"
+                                    CornerRadius="8"
+                                    Padding="16"
+                                    BorderBrush="#E84057"
+                                    BorderThickness="2">
+                                <StackPanel HorizontalAlignment="Center" Spacing="6">
+                                    <TextBlock Text="ЧЕРВОНА КОМАНДА"
+                                               FontSize="12"
+                                               FontWeight="Bold"
+                                               Foreground="#E84057" />
+                                    <TextBlock Text="{Binding Prediction.FormattedRedPercent}"
+                                               FontSize="32"
+                                               FontWeight="Bold"
+                                               Foreground="#E84057"
+                                               HorizontalAlignment="Center" />
+                                    <TextBlock Text="Ймовірність перемоги"
+                                               FontSize="11"
+                                               Foreground="#A09B8C" />
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+
+                        <!-- Prediction Banner -->
+                        <Border Background="#091428"
+                                CornerRadius="6"
+                                Padding="14"
+                                BorderBrush="#2F3640"
+                                BorderThickness="1">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="ПРОГНОЗОВАНИЙ ПЕРЕМОЖЕЦЬ:"
+                                           FontSize="12"
+                                           Foreground="#A09B8C" />
+                                <TextBlock Text="{Binding Prediction.PredictedWinner, StringFormat='Перемога: {0} Team'}"
+                                           FontSize="18"
+                                           FontWeight="Bold"
+                                           Foreground="#0AC8B9" />
+                                <ProgressBar Value="{Binding Prediction.BlueWinProbability}"
+                                             Minimum="0"
+                                             Maximum="1"
+                                             Height="10"
+                                             Foreground="#0397AB"
+                                             Background="#E84057" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Key Influencing Factors -->
+                        <TextBlock Text="ФАКТОРИ ВПЛИВУ (ML FEATURE SENSITIVITY):"
+                                   FontWeight="Bold"
+                                   FontSize="12"
+                                   Foreground="#C8AA6E" />
+
+                        <ItemsControl ItemsSource="{Binding Prediction.KeyFactors}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="#091428"
+                                            CornerRadius="4"
+                                            Padding="10,6"
+                                            Margin="0,0,0,6"
+                                            BorderBrush="#2F3640"
+                                            BorderThickness="1">
+                                        <TextBlock Text="{Binding StringFormat='• {0}'}"
+                                                   FontSize="12"
+                                                   Foreground="#F0E6D2"
+                                                   TextWrapping="Wrap" />
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <Separator Background="#2F3640" Height="1" />
+
+                        <!-- Benchmark Section -->
+                        <Button Command="{Binding RunBenchmarkCommand}"
+                                Content="🔬 Запустити бенчмарк 3-х алгоритмів (ML.NET)"
+                                Height="38"
+                                Background="#0397AB"
+                                Foreground="White"
+                                FontWeight="Bold"
+                                FontSize="12"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center"
+                                VerticalContentAlignment="Center"
+                                Cursor="Hand" />
+
+                        <Border Background="#091428"
+                                CornerRadius="6"
+                                Padding="12"
+                                BorderBrush="#C8AA6E"
+                                BorderThickness="1"
+                                IsVisible="{Binding BenchmarkReport, Converter={x:Static ObjectConverters.IsNotNull}}">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="ПОРІВНЯННЯ АЛГОРИТМІВ КЛАСИФІКАЦІЇ"
+                                           FontWeight="Bold"
+                                           FontSize="11"
+                                           Foreground="#C8AA6E" />
+
+                                <TextBlock Text="{Binding BenchmarkReport.BestModelByAuc, StringFormat='Кращий за AUC-ROC: {0}'}"
+                                           FontSize="12"
+                                           FontWeight="SemiBold"
+                                           Foreground="#0AC8B9" />
+
+                                <ItemsControl ItemsSource="{Binding BenchmarkReport.Models}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="#1E2328"
+                                                    CornerRadius="4"
+                                                    Padding="8,6"
+                                                    Margin="0,0,0,6">
+                                                <Grid ColumnDefinitions="*, Auto, Auto, Auto">
+                                                    <TextBlock Grid.Column="0"
+                                                               Text="{Binding AlgorithmName}"
+                                                               FontSize="11"
+                                                               FontWeight="Bold"
+                                                               Foreground="#F0E6D2" />
+                                                    <TextBlock Grid.Column="1"
+                                                               Text="{Binding FormattedAccuracy, StringFormat='Acc: {0}'}"
+                                                               FontSize="11"
+                                                               Foreground="#0AC8B9"
+                                                               Margin="8,0" />
+                                                    <TextBlock Grid.Column="2"
+                                                               Text="{Binding FormattedAuc, StringFormat='AUC: {0}'}"
+                                                               FontSize="11"
+                                                               Foreground="#C8AA6E"
+                                                               Margin="8,0" />
+                                                    <TextBlock Grid.Column="3"
+                                                               Text="{Binding TrainingDurationMs, StringFormat='{}{0}ms'}"
+                                                               FontSize="11"
+                                                               Foreground="#A09B8C" />
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </StackPanel>
     </ScrollViewer>
 </UserControl>
-

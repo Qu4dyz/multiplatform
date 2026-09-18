@@ -70,6 +70,7 @@ public partial class App : Application
         services.AddTransient<PlayerAnalyticsViewModel>();
         services.AddTransient<DraftPredictionViewModel>();
         services.AddTransient<MatchHistoryViewModel>();
+        services.AddTransient<SettingsViewModel>();
         services.AddSingleton<MainViewModel>();
     }
 }

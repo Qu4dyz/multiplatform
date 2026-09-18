@@ -95,6 +95,11 @@
             <TabItem Header="📊 Історія матчів">
                 <views:MatchHistoryView DataContext="{Binding MatchHistory}" />
             </TabItem>
+
+            <!-- Tab 4: System & VPS Settings -->
+            <TabItem Header="⚙️ Налаштування">
+                <views:SettingsView DataContext="{Binding Settings}" />
+            </TabItem>
         </TabControl>
 
         <!-- Bottom Status Bar -->

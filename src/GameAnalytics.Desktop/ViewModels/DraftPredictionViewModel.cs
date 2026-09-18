@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GameAnalytics.Core.Entities;
@@ -10,16 +11,32 @@ public partial class DraftPredictionViewModel : ViewModelBase
 {
     private readonly IMatchAnalyticsService _analyticsService;
     private readonly IDataDragonService _dataDragonService;
+    private List<ChampionInfo> _allChampions = new();
+
+    // 5v5 Draft Slots
+    [ObservableProperty]
+    private ObservableCollection<DraftSlotViewModel> _blueDraftSlots = new();
 
     [ObservableProperty]
-    private System.Collections.ObjectModel.ObservableCollection<ChampionInfo> _availableChampions = new();
+    private ObservableCollection<DraftSlotViewModel> _redDraftSlots = new();
 
     [ObservableProperty]
-    private ChampionInfo? _selectedChampion;
+    private DraftSlotViewModel? _activeSlot;
+
+    // Champion Picker state
+    [ObservableProperty]
+    private ObservableCollection<ChampionInfo> _filteredChampions = new();
+
+    [ObservableProperty]
+    private string _searchQuery = string.Empty;
+
+    [ObservableProperty]
+    private string _selectedRoleFilter = "All";
 
     [ObservableProperty]
     private string _patchVersion = "14.18.1";
 
+    // In-game early metrics
     [ObservableProperty]
     private bool _blueFirstBlood = true;
 
@@ -36,10 +53,10 @@ public partial class DraftPredictionViewModel : ViewModelBase
     private int _killDiffAt15 = 4;
 
     [ObservableProperty]
-    private float _blueTeamAvgWinRate = 53.2f;
+    private float _blueTeamAvgWinRate = 52.4f;
 
     [ObservableProperty]
-    private float _redTeamAvgWinRate = 48.8f;
+    private float _redTeamAvgWinRate = 49.6f;
 
     [ObservableProperty]
     private int _blueTowerCount = 2;
@@ -53,6 +70,7 @@ public partial class DraftPredictionViewModel : ViewModelBase
     [ObservableProperty]
     private int _redDragonCount = 0;
 
+    // Prediction results & ML engine
     [ObservableProperty]
     private PredictionResult? _prediction;
 
@@ -61,6 +79,8 @@ public partial class DraftPredictionViewModel : ViewModelBase
 
     [ObservableProperty]
     private MLAlgorithmType _selectedAlgorithm = MLAlgorithmType.FastTree;
+
+    public MLAlgorithmType[] AvailableAlgorithms => Enum.GetValues<MLAlgorithmType>();
 
     [ObservableProperty]
     private ModelBenchmarkReport? _benchmarkReport;
@@ -72,7 +92,164 @@ public partial class DraftPredictionViewModel : ViewModelBase
     {
         _analyticsService = analyticsService;
         _dataDragonService = dataDragonService;
+
+        InitializeSlots();
         _ = LoadChampionsAsync();
+        CalculatePrediction();
+    }
+
+    private void InitializeSlots()
+    {
+        var positions = new[] { Position.Top, Position.Jungle, Position.Middle, Position.Bottom, Position.Utility };
+
+        BlueDraftSlots.Clear();
+        foreach (var pos in positions)
+        {
+            BlueDraftSlots.Add(new DraftSlotViewModel(pos, TeamSide.Blue));
+        }
+
+        RedDraftSlots.Clear();
+        foreach (var pos in positions)
+        {
+            RedDraftSlots.Add(new DraftSlotViewModel(pos, TeamSide.Red));
+        }
+
+        ActiveSlot = BlueDraftSlots[0];
+    }
+
+    private async Task LoadChampionsAsync()
+    {
+        try
+        {
+            PatchVersion = await _dataDragonService.GetLatestGameVersionAsync();
+            _allChampions = (await _dataDragonService.GetAllChampionsAsync()).ToList();
+
+            // Preset default champions for visual appeal
+            SetInitialDraftPreset();
+
+            ApplyChampionFilter();
+            RecalculateWinRatesFromDraft();
+        }
+        catch
+        {
+            // Fallback handled
+        }
+    }
+
+    private void SetInitialDraftPreset()
+    {
+        if (_allChampions.Count < 10) return;
+
+        var aatrox = _allChampions.FirstOrDefault(c => c.Name == "Aatrox");
+        var leesin = _allChampions.FirstOrDefault(c => c.Name == "Lee Sin");
+        var ahri = _allChampions.FirstOrDefault(c => c.Name == "Ahri");
+        var jinx = _allChampions.FirstOrDefault(c => c.Name == "Jinx");
+        var thresh = _allChampions.FirstOrDefault(c => c.Name == "Thresh");
+
+        var ornn = _allChampions.FirstOrDefault(c => c.Name == "Ornn");
+        var sejuani = _allChampions.FirstOrDefault(c => c.Name == "Sejuani");
+        var syndra = _allChampions.FirstOrDefault(c => c.Name == "Syndra");
+        var kaisa = _allChampions.FirstOrDefault(c => c.Name == "Kai'Sa");
+        var nautilus = _allChampions.FirstOrDefault(c => c.Name == "Nautilus");
+
+        if (aatrox != null) BlueDraftSlots[0].Champion = aatrox;
+        if (leesin != null) BlueDraftSlots[1].Champion = leesin;
+        if (ahri != null) BlueDraftSlots[2].Champion = ahri;
+        if (jinx != null) BlueDraftSlots[3].Champion = jinx;
+        if (thresh != null) BlueDraftSlots[4].Champion = thresh;
+
+        if (ornn != null) RedDraftSlots[0].Champion = ornn;
+        if (sejuani != null) RedDraftSlots[1].Champion = sejuani;
+        if (syndra != null) RedDraftSlots[2].Champion = syndra;
+        if (kaisa != null) RedDraftSlots[3].Champion = kaisa;
+        if (nautilus != null) RedDraftSlots[4].Champion = nautilus;
+    }
+
+    partial void OnSearchQueryChanged(string value) => ApplyChampionFilter();
+
+    [RelayCommand]
+    public void SelectSlot(DraftSlotViewModel slot)
+    {
+        ActiveSlot = slot;
+    }
+
+    [RelayCommand]
+    public void PickChampion(ChampionInfo champion)
+    {
+        if (ActiveSlot != null)
+        {
+            ActiveSlot.Champion = champion;
+            RecalculateWinRatesFromDraft();
+
+            // Advance to next slot
+            AdvanceToNextSlot();
+        }
+    }
+
+    private void AdvanceToNextSlot()
+    {
+        var allSlots = BlueDraftSlots.Concat(RedDraftSlots).ToList();
+        var currentIndex = allSlots.IndexOf(ActiveSlot!);
+        if (currentIndex >= 0 && currentIndex < allSlots.Count - 1)
+        {
+            ActiveSlot = allSlots[currentIndex + 1];
+        }
+    }
+
+    [RelayCommand]
+    public void FilterByRole(string role)
+    {
+        SelectedRoleFilter = role;
+        ApplyChampionFilter();
+    }
+
+    private void ApplyChampionFilter()
+    {
+        var list = _allChampions.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(SelectedRoleFilter) && SelectedRoleFilter != "All")
+        {
+            list = list.Where(c => c.Roles.Any(r => r.Equals(SelectedRoleFilter, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        if (!string.IsNullOrWhiteSpace(SearchQuery))
+        {
+            list = list.Where(c => c.Name.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase));
+        }
+
+        FilteredChampions.Clear();
+        foreach (var champ in list)
+        {
+            FilteredChampions.Add(champ);
+        }
+    }
+
+    private void RecalculateWinRatesFromDraft()
+    {
+        var blueChamps = BlueDraftSlots.Where(s => s.Champion != null).Select(s => s.Champion!.WinRate).ToList();
+        var redChamps = RedDraftSlots.Where(s => s.Champion != null).Select(s => s.Champion!.WinRate).ToList();
+
+        if (blueChamps.Count > 0)
+        {
+            BlueTeamAvgWinRate = (float)Math.Round(blueChamps.Average(), 1);
+        }
+
+        if (redChamps.Count > 0)
+        {
+            RedTeamAvgWinRate = (float)Math.Round(redChamps.Average(), 1);
+        }
+
+        CalculatePrediction();
+    }
+
+    [RelayCommand]
+    public void ResetDraft()
+    {
+        foreach (var slot in BlueDraftSlots) slot.Champion = null;
+        foreach (var slot in RedDraftSlots) slot.Champion = null;
+        BlueTeamAvgWinRate = 50.0f;
+        RedTeamAvgWinRate = 50.0f;
+        ActiveSlot = BlueDraftSlots[0];
         CalculatePrediction();
     }
 
@@ -93,24 +270,6 @@ public partial class DraftPredictionViewModel : ViewModelBase
         finally
         {
             IsBenchmarking = false;
-        }
-    }
-
-    private async Task LoadChampionsAsync()
-    {
-        try
-        {
-            PatchVersion = await _dataDragonService.GetLatestGameVersionAsync();
-            var list = await _dataDragonService.GetAllChampionsAsync();
-            AvailableChampions.Clear();
-            foreach (var champ in list)
-            {
-                AvailableChampions.Add(champ);
-            }
-        }
-        catch
-        {
-            // Handled via fallback
         }
     }
 
@@ -144,8 +303,6 @@ public partial class DraftPredictionViewModel : ViewModelBase
         BlueFirstDragon = false;
         GoldDiffAt15 = 0;
         KillDiffAt15 = 0;
-        BlueTeamAvgWinRate = 50.0f;
-        RedTeamAvgWinRate = 50.0f;
         BlueTowerCount = 0;
         RedTowerCount = 0;
         BlueDragonCount = 0;
@@ -161,8 +318,6 @@ public partial class DraftPredictionViewModel : ViewModelBase
         BlueFirstDragon = true;
         GoldDiffAt15 = 3500;
         KillDiffAt15 = 6;
-        BlueTeamAvgWinRate = 54.0f;
-        RedTeamAvgWinRate = 48.0f;
         BlueTowerCount = 3;
         RedTowerCount = 0;
         BlueDragonCount = 2;
@@ -178,8 +333,6 @@ public partial class DraftPredictionViewModel : ViewModelBase
         BlueFirstDragon = false;
         GoldDiffAt15 = -3500;
         KillDiffAt15 = -5;
-        BlueTeamAvgWinRate = 47.5f;
-        RedTeamAvgWinRate = 53.5f;
         BlueTowerCount = 0;
         RedTowerCount = 3;
         BlueDragonCount = 0;
@@ -187,4 +340,3 @@ public partial class DraftPredictionViewModel : ViewModelBase
         CalculatePrediction();
     }
 }
-

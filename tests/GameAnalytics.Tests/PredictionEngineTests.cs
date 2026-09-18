@@ -83,5 +83,32 @@ public class PredictionEngineTests
         // Assert
         Assert.InRange(result.BlueWinProbability + result.RedWinProbability, 0.999, 1.001);
     }
+
+    [Theory]
+    [InlineData(MLAlgorithmType.FastTree)]
+    [InlineData(MLAlgorithmType.FastForest)]
+    [InlineData(MLAlgorithmType.SdcaLogisticRegression)]
+    public void PredictMatchOutcome_AllAlgorithms_ProduceValidResults(MLAlgorithmType algorithmType)
+    {
+        // Arrange
+        var engine = new MatchPredictionEngine();
+        engine.SetActiveAlgorithm(algorithmType);
+
+        var features = new MatchInputFeatures
+        {
+            BlueFirstBlood = true,
+            GoldDiffAt15 = 1500,
+            KillDiffAt15 = 3
+        };
+
+        // Act
+        var result = engine.PredictMatchOutcome(features);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.InRange(result.BlueWinProbability, 0.0, 1.0);
+        Assert.InRange(result.RedWinProbability, 0.0, 1.0);
+        Assert.InRange(result.BlueWinProbability + result.RedWinProbability, 0.999, 1.001);
+    }
 }
 
