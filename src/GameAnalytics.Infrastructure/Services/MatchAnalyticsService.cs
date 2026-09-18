@@ -32,7 +32,9 @@ public class MatchAnalyticsService : IMatchAnalyticsService
         foreach (var id in matchIds)
         {
             var existing = await _matchRepository.GetMatchByMatchIdAsync(id, ct);
-            if (existing != null)
+            var hasItemData = existing != null && existing.Participants.Any(p => p.Item0 > 0 || p.Item1 > 0 || p.Item2 > 0 || p.Item6 > 0);
+
+            if (existing != null && hasItemData)
             {
                 fetchedMatches.Add(existing);
                 continue;
@@ -41,8 +43,12 @@ public class MatchAnalyticsService : IMatchAnalyticsService
             var match = await _apiClient.GetMatchDetailsAsync(id, ct);
             if (match != null)
             {
-                await _matchRepository.SaveMatchAsync(match, ct);
+                await _matchRepository.UpsertMatchAsync(match, ct);
                 fetchedMatches.Add(match);
+            }
+            else if (existing != null)
+            {
+                fetchedMatches.Add(existing);
             }
         }
 

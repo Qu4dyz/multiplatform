@@ -88,6 +88,23 @@ public class MatchRepository : IMatchRepository
         await _context.SaveChangesAsync(ct);
     }
 
+    public async Task UpsertMatchAsync(Match match, CancellationToken ct = default)
+    {
+        var existing = await _context.Matches
+            .Include(m => m.Participants)
+            .Include(m => m.Teams)
+            .FirstOrDefaultAsync(m => m.MatchId == match.MatchId, ct);
+
+        if (existing != null)
+        {
+            _context.Matches.Remove(existing);
+            await _context.SaveChangesAsync(ct);
+        }
+
+        await _context.Matches.AddAsync(match, ct);
+        await _context.SaveChangesAsync(ct);
+    }
+
     public async Task<int> GetTotalMatchesCountAsync(CancellationToken ct = default)
     {
         return await _context.Matches.CountAsync(ct);

@@ -15,6 +15,7 @@ public interface IMatchRepository
     Task<IReadOnlyList<Match>> GetAllMatchesAsync(CancellationToken ct = default);
     Task<Match?> GetMatchByMatchIdAsync(string matchId, CancellationToken ct = default);
     Task SaveMatchAsync(Match match, CancellationToken ct = default);
+    Task UpsertMatchAsync(Match match, CancellationToken ct = default);
     Task<int> GetTotalMatchesCountAsync(CancellationToken ct = default);
     Task ClearAllMatchesAsync(CancellationToken ct = default);
 }
