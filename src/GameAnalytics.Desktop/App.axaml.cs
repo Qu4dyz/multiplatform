@@ -52,13 +52,10 @@ public partial class App : Application
         services.AddSingleton<RiotRateLimiter>();
         services.AddHttpClient<IRiotApiClient, RiotApiClient>();
         services.AddHttpClient<IDataDragonService, DataDragonService>();
-        services.AddSingleton(new RiotApiOptions
-        {
-            ApiKey = string.Empty, // Defaults to Mock Mode for testing & offline defense
-            PlatformRegion = "eun1",
-            RoutingRegion = "europe",
-            UseMockFallback = true
-        });
+        // Riot API configuration loaded from appsettings.json
+        var configPath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
+        var riotOptions = RiotApiOptions.LoadFromFile(configPath);
+        services.AddSingleton(riotOptions);
 
         // ML Engine
         services.AddSingleton<IPredictionEngine, MatchPredictionEngine>();

@@ -1,5 +1,7 @@
+using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GameAnalytics.Core.Enums;
 using GameAnalytics.Core.Interfaces;
 using GameAnalytics.Infrastructure.Configuration;
 
@@ -15,10 +17,14 @@ public partial class SettingsViewModel : ViewModelBase
     private string _apiKey = string.Empty;
 
     [ObservableProperty]
-    private string _platformRegion = "eun1";
+    private ServerRegionInfo _selectedRegion;
+
+    public IReadOnlyList<ServerRegionInfo> AvailableRegions => RiotApiOptions.AvailableRegions;
 
     [ObservableProperty]
-    private string _routingRegion = "europe";
+    private GameTier _selectedDemoTier;
+
+    public GameTier[] AvailableTiers => Enum.GetValues<GameTier>();
 
     [ObservableProperty]
     private bool _useMockFallback = true;
@@ -51,8 +57,9 @@ public partial class SettingsViewModel : ViewModelBase
         _matchRepository = matchRepository;
 
         ApiKey = options.ApiKey;
-        PlatformRegion = options.PlatformRegion;
-        RoutingRegion = options.RoutingRegion;
+        SelectedRegion = AvailableRegions.FirstOrDefault(r => r.PlatformId.Equals(options.PlatformRegion, StringComparison.OrdinalIgnoreCase))
+                         ?? AvailableRegions[0];
+        SelectedDemoTier = options.DemoTier;
         UseMockFallback = options.UseMockFallback;
 
         DatabasePath = Path.Combine(AppContext.BaseDirectory, "game_analytics.db");
@@ -62,36 +69,76 @@ public partial class SettingsViewModel : ViewModelBase
         DotnetVersion = Environment.Version.ToString();
     }
 
+    partial void OnSelectedRegionChanged(ServerRegionInfo value)
+    {
+        if (value != null)
+        {
+            _options.SetRegionByCode(value.PlatformId);
+        }
+    }
+
+    partial void OnSelectedDemoTierChanged(GameTier value)
+    {
+        _options.DemoTier = value;
+    }
+
     [RelayCommand]
     public void SaveSettings()
     {
         _options.ApiKey = ApiKey.Trim();
-        _options.PlatformRegion = PlatformRegion;
-        _options.RoutingRegion = RoutingRegion;
+        _options.PlatformRegion = SelectedRegion.PlatformId;
+        _options.RoutingRegion = SelectedRegion.RoutingRegion;
         _options.UseMockFallback = UseMockFallback;
+        _options.DemoTier = SelectedDemoTier;
 
-        StatusMessage = "Налаштування успішно збережено та активовано в системі.";
+        var configPath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
+        _options.SaveToFile(configPath);
+
+        StatusMessage = "Налаштування успішно збережено у appsettings.json та активовано в системі.";
+    }
+
+    [RelayCommand]
+    public void OpenRiotPortal()
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "https://developer.riotgames.com/",
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Не вдалося відкрити браузер: {ex.Message}";
+        }
     }
 
     [RelayCommand]
     public async Task TestConnectionAsync()
     {
-        StatusMessage = "Перевірка зв'язку з Riot Games API...";
+        if (!_options.HasValidApiKey)
+        {
+            StatusMessage = "Увага: Riot API Key не вказано або має недійсний формат. Система працює в автономному демо-режимі.";
+            return;
+        }
+
+        StatusMessage = $"Перевірка зв'язку з Riot Games API на сервері {SelectedRegion.Code} ({SelectedRegion.RoutingRegion})...";
         try
         {
-            var profile = await _apiClient.GetSummonerByRiotIdAsync("Qu4dyz", "EUW");
+            var profile = await _apiClient.GetSummonerByRiotIdAsync("Qu4dyz", SelectedRegion.DefaultTag);
             if (profile != null)
             {
-                StatusMessage = $"Підключення успішне! Отримано тестовий профіль {profile.FullName} (Ранг: {profile.Tier}).";
+                StatusMessage = $"✅ Зв'язок з Riot API встановлено! Отримано дані гравця: {profile.FullName}, Рівень: {profile.SummonerLevel}, Ранг: {profile.Tier} {profile.Rank}.";
             }
             else
             {
-                StatusMessage = "API повернув порожню відповідь. Перевірте валідність Riot API ключа.";
+                StatusMessage = "⚠️ Відповідь Riot API: акаунт не знайдено, або ключ закінчився (403). Оновіть ключ на developer.riotgames.com.";
             }
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Помилка перевірки: {ex.Message}";
+            StatusMessage = $"❌ Помилка підключення до API: {ex.Message}";
         }
     }
 
@@ -116,4 +163,3 @@ public partial class SettingsViewModel : ViewModelBase
         }
     }
 }
-
