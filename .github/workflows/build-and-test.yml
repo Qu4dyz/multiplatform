@@ -1,0 +1,49 @@
+name: Multiplatform CI Build and Test
+
+on:
+  push:
+    branches: [ main, 'feature/**' ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Build & Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 9 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Install Linux Graphical & Font Dependencies (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libx11-6 libx11-xcb1 libxcursor1 libxi6 libxrandr2 libfontconfig1 libice6 libsm6 libc6
+
+      - name: Restore NuGet packages
+        run: dotnet restore GameAnalytics.sln
+
+      - name: Build solution (Release)
+        run: dotnet build GameAnalytics.sln --configuration Release --no-restore
+
+      - name: Run Unit Tests with Code Coverage
+        run: dotnet test GameAnalytics.sln --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage"
+
+      - name: Upload Test Coverage Artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: code-coverage-${{ matrix.os }}
+          path: '**/TestResults/**/coverage.cobertura.xml'
+          if-no-files-found: ignore
