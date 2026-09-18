@@ -53,6 +53,7 @@ public partial class App : Application
         services.AddSingleton<RiotRateLimiter>();
         services.AddHttpClient<IRiotApiClient, RiotApiClient>();
         services.AddHttpClient<IDataDragonService, DataDragonService>();
+        services.AddHttpClient<IVpsSyncService, VpsSyncService>();
         // Riot API configuration loaded from appsettings.json
         var configPath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
         if (!File.Exists(configPath))
