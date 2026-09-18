@@ -15,10 +15,13 @@ public partial class ItemSlotViewModel : ObservableObject
         get => _itemId;
         set
         {
-            _itemId = value;
-            if (string.IsNullOrEmpty(ToolTipText) && value > 0)
+            if (_itemId != value)
             {
-                ToolTipText = GameConstants.GetItemTooltip(value);
+                _itemId = value;
+                OnPropertyChanged(nameof(ItemId));
+                OnPropertyChanged(nameof(HasItem));
+                OnPropertyChanged(nameof(IconUrl));
+                OnPropertyChanged(nameof(ToolTipText));
             }
         }
     }
@@ -28,7 +31,7 @@ public partial class ItemSlotViewModel : ObservableObject
     [ObservableProperty]
     private Avalonia.Media.Imaging.Bitmap? _itemIcon;
 
-    public string ToolTipText { get; set; } = string.Empty;
+    public string ToolTipText => ItemId > 0 ? GameConstants.GetItemTooltip(ItemId) : string.Empty;
 }
 
 public partial class DetailedParticipantViewModel : ObservableObject
@@ -540,17 +543,42 @@ public partial class PlayerMatchItemViewModel : ObservableObject
         return vm;
     }
 
+    private static readonly Dictionary<string, string> CanonicalChampionNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["wukong"] = "MonkeyKing",
+        ["renataglasc"] = "Renata",
+        ["nunu&willump"] = "Nunu",
+        ["nunuwillump"] = "Nunu",
+        ["kaisa"] = "Kaisa",
+        ["khazix"] = "Khazix",
+        ["chogath"] = "Chogath",
+        ["leblanc"] = "Leblanc",
+        ["belveth"] = "Belveth",
+        ["velkoz"] = "Velkoz",
+        ["fiddlesticks"] = "Fiddlesticks",
+        ["drmundo"] = "DrMundo",
+        ["jarvaniv"] = "JarvanIV",
+        ["masteryi"] = "MasterYi",
+        ["missfortune"] = "MissFortune",
+        ["tahmkench"] = "TahmKench",
+        ["twistedfate"] = "TwistedFate",
+        ["xinzhao"] = "XinZhao",
+        ["aurelionsol"] = "AurelionSol",
+        ["leesin"] = "LeeSin",
+        ["ksante"] = "KSante",
+        ["kogmaw"] = "KogMaw",
+        ["reksai"] = "RekSai"
+    };
+
     public static string NormalizeChampionName(string? name)
     {
         if (string.IsNullOrWhiteSpace(name)) return "Unknown";
         var clean = name.Replace(" ", "").Replace("'", "").Replace(".", "").Trim();
-        return clean.ToLowerInvariant() switch
+        if (CanonicalChampionNames.TryGetValue(clean, out var canonical))
         {
-            "wukong" => "MonkeyKing",
-            "renataglasc" => "Renata",
-            "nunu&willump" or "nunuwillump" => "Nunu",
-            _ => clean
-        };
+            return canonical;
+        }
+        return clean;
     }
 
     private static string ExtractShortName(string fullName)

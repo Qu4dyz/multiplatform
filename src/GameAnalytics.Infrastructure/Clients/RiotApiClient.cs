@@ -528,7 +528,7 @@ public class RiotApiClient : IRiotApiClient
             MatchId = matchId,
             GameCreation = DateTime.UtcNow.AddMinutes(-random.Next(100, 10000)),
             GameDurationSeconds = duration,
-            GameVersion = "14.18.1",
+            GameVersion = GameConstants.DDragonVersion,
             WinningTeam = blueWin ? TeamSide.Blue : TeamSide.Red
         };
 

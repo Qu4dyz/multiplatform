@@ -1085,8 +1085,11 @@ public class DataLayerTests
         Assert.Equal("MonkeyKing", PlayerMatchItemViewModel.NormalizeChampionName("wukong"));
         Assert.Equal("Renata", PlayerMatchItemViewModel.NormalizeChampionName("Renata Glasc"));
         Assert.Equal("Nunu", PlayerMatchItemViewModel.NormalizeChampionName("Nunu & Willump"));
-        Assert.Equal("KaiSa", PlayerMatchItemViewModel.NormalizeChampionName("Kai'Sa"));
-        Assert.Equal("KhaZix", PlayerMatchItemViewModel.NormalizeChampionName("Kha'Zix"));
+        Assert.Equal("Kaisa", PlayerMatchItemViewModel.NormalizeChampionName("Kai'Sa"));
+        Assert.Equal("Khazix", PlayerMatchItemViewModel.NormalizeChampionName("Kha'Zix"));
+        Assert.Equal("Chogath", PlayerMatchItemViewModel.NormalizeChampionName("Cho'Gath"));
+        Assert.Equal("Leblanc", PlayerMatchItemViewModel.NormalizeChampionName("LeBlanc"));
+        Assert.Equal("Fiddlesticks", PlayerMatchItemViewModel.NormalizeChampionName("FiddleSticks"));
         Assert.Equal("DrMundo", PlayerMatchItemViewModel.NormalizeChampionName("Dr. Mundo"));
         Assert.Equal("LeeSin", PlayerMatchItemViewModel.NormalizeChampionName("Lee Sin"));
         Assert.Equal("Unknown", PlayerMatchItemViewModel.NormalizeChampionName(""));
@@ -1115,6 +1118,19 @@ public class DataLayerTests
     }
 
     [Fact]
+    public void BitmapAssetValueConverter_GetLocalPathForUrl_IncludesCategory()
+    {
+        var itemPath = BitmapAssetValueConverter.GetLocalPathForUrl("https://ddragon.leagueoflegends.com/cdn/16.18.1/img/item/3172.png");
+        Assert.Contains("item_3172.png", itemPath);
+
+        var champPath = BitmapAssetValueConverter.GetLocalPathForUrl("https://ddragon.leagueoflegends.com/cdn/16.18.1/img/champion/Yone.png");
+        Assert.Contains("champion_Yone.png", champPath);
+
+        var profilePath = BitmapAssetValueConverter.GetLocalPathForUrl("https://ddragon.leagueoflegends.com/cdn/16.18.1/img/profileicon/588.png");
+        Assert.Contains("profileicon_588.png", profilePath);
+    }
+
+    [Fact]
     public void MiniParticipantViewModel_ChampionIconUrl_NormalizesChampionName()
     {
         var mini = new MiniParticipantViewModel
@@ -1122,8 +1138,20 @@ public class DataLayerTests
             SummonerName = "ProPlayer",
             ChampionName = "Kai'Sa"
         };
-        Assert.Equal("KaiSa", mini.NormalizedChampionName);
-        Assert.EndsWith("KaiSa.png", mini.ChampionIconUrl);
+        Assert.Equal("Kaisa", mini.NormalizedChampionName);
+        Assert.EndsWith("Kaisa.png", mini.ChampionIconUrl);
+    }
+
+    [Fact]
+    public void ItemSlotViewModel_ToolTipText_IsDynamicAndContainsDetails()
+    {
+        var slot = new ItemSlotViewModel { ItemId = 3172 };
+        Assert.True(slot.HasItem);
+        Assert.Contains("Gunmetal Greaves", slot.ToolTipText);
+        Assert.Contains("1100 Gold", slot.ToolTipText);
+
+        slot.ItemId = 3006;
+        Assert.Contains("Berserker's Greaves", slot.ToolTipText);
     }
 }
 

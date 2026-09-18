@@ -47,6 +47,9 @@
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Padding" Value="0" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="Height" Value="18" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="VerticalAlignment" Value="Center" />
             <Setter Property="HorizontalAlignment" Value="Left" />
@@ -219,7 +222,7 @@
                                 Background="#091428"
                                 BorderBrush="{Binding TierBadgeColor}"
                                 BorderThickness="3">
-                            <Image Source="{Binding Summoner.ProfileIconUrl, Converter={StaticResource BitmapAssetConverter}}"
+                            <Image Source="{Binding ProfileIconBitmap}"
                                    Width="88" Height="88"
                                    Stretch="UniformToFill" />
                         </Border>
@@ -457,7 +460,7 @@
                                                 Background="#091428"
                                                 BorderBrush="#252D3D"
                                                 BorderThickness="1.5">
-                                            <Image Source="{Binding ChampionIconUrl, Converter={StaticResource BitmapAssetConverter}}"
+                                            <Image Source="{Binding ChampionIcon}"
                                                    Width="30" Height="30"
                                                    Stretch="UniformToFill" />
                                         </Border>
@@ -840,7 +843,7 @@
                                 <!-- Card Vertical Content (Compact Row + Accordion Details) -->
                                 <StackPanel Grid.Column="1">
                                      <!-- Top Main Row -->
-                                     <Grid ColumnDefinitions="125, 140, 175, 125, 135, *, 85" Margin="14,12">
+                                     <Grid ColumnDefinitions="135, 140, 175, 125, 135, *, 85" Margin="14,12">
                                          <!-- Col 0: Match Outcome & Time -->
                                          <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
                                              <TextBlock Text="{Binding GameModeText}"
@@ -1062,7 +1065,7 @@
                                                                        Foreground="{Binding NameColor}"
                                                                        FontWeight="{Binding NameWeight}"
                                                                        TextTrimming="CharacterEllipsis"
-                                                                       MaxWidth="88"
+                                                                       MaxWidth="120"
                                                                        IsVisible="{Binding IsCurrentPlayer}"
                                                                        ToolTip.Tip="{Binding ToolTipText}" />
                                                             <Button Classes="player-link"
@@ -1075,7 +1078,7 @@
                                                                            Foreground="{Binding NameColor}"
                                                                            FontWeight="{Binding NameWeight}"
                                                                            TextTrimming="CharacterEllipsis"
-                                                                           MaxWidth="88" />
+                                                                           MaxWidth="120" />
                                                             </Button>
                                                         </StackPanel>
                                                     </DataTemplate>
@@ -1095,7 +1098,7 @@
                                                                        Foreground="{Binding NameColor}"
                                                                        FontWeight="{Binding NameWeight}"
                                                                        TextTrimming="CharacterEllipsis"
-                                                                       MaxWidth="88"
+                                                                       MaxWidth="120"
                                                                        IsVisible="{Binding IsCurrentPlayer}"
                                                                        ToolTip.Tip="{Binding ToolTipText}" />
                                                             <Button Classes="player-link"
@@ -1108,7 +1111,7 @@
                                                                            Foreground="{Binding NameColor}"
                                                                            FontWeight="{Binding NameWeight}"
                                                                            TextTrimming="CharacterEllipsis"
-                                                                           MaxWidth="88" />
+                                                                           MaxWidth="120" />
                                                             </Button>
                                                         </StackPanel>
                                                     </DataTemplate>
@@ -1187,10 +1190,10 @@
                                                                 <DataTemplate x:DataType="vm:DetailedParticipantViewModel">
                                                                     <Border Background="#0D131F" CornerRadius="4" Padding="6,4" Margin="0,1">
                                                                         <Grid ColumnDefinitions="260, 95, 160, 120, *">
-                                                                            <!-- Player Info with Clickable Link -->
+                                                                             <!-- Player Info with Clickable Link -->
                                                                             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                                                                                 <Border Width="28" Height="28" CornerRadius="14" ClipToBounds="True" Background="#091428" BorderBrush="#252D3D" BorderThickness="1">
-                                                                                    <Image Source="{Binding ChampionIconUrl, Converter={StaticResource BitmapAssetConverter}}" Width="28" Height="28" Stretch="UniformToFill" />
+                                                                                    <Image Source="{Binding ChampionIcon}" Width="28" Height="28" Stretch="UniformToFill" />
                                                                                 </Border>
                                                                                 <!-- Match Grade Pill -->
                                                                                 <Border Background="{Binding MatchGradeColor}"
@@ -1279,7 +1282,7 @@
                                                                                         <DataTemplate x:DataType="vm:ItemSlotViewModel">
                                                                                             <Border Width="24" Height="24" CornerRadius="3" Background="#141B28" BorderBrush="#253044" BorderThickness="1" ClipToBounds="True"
                                                                                                     ToolTip.Tip="{Binding ToolTipText}">
-                                                                                                <Image Source="{Binding IconUrl, Converter={StaticResource BitmapAssetConverter}}" Width="24" Height="24" Stretch="UniformToFill" IsVisible="{Binding HasItem}" />
+                                                                                                <Image Source="{Binding ItemIcon}" Width="24" Height="24" Stretch="UniformToFill" IsVisible="{Binding HasItem}" />
                                                                                             </Border>
                                                                                         </DataTemplate>
                                                                                     </ItemsControl.ItemTemplate>
@@ -1288,7 +1291,7 @@
                                                                                 <!-- Trinket with Tooltip -->
                                                                                 <Border Width="24" Height="24" CornerRadius="12" Background="#141B28" BorderBrush="#C8AA6E" BorderThickness="1" ClipToBounds="True" Margin="3,0,0,0"
                                                                                         ToolTip.Tip="{Binding Trinket.ToolTipText}">
-                                                                                    <Image Source="{Binding Trinket.IconUrl, Converter={StaticResource BitmapAssetConverter}}" Width="24" Height="24" Stretch="UniformToFill" IsVisible="{Binding Trinket.HasItem}" />
+                                                                                    <Image Source="{Binding Trinket.ItemIcon}" Width="24" Height="24" Stretch="UniformToFill" IsVisible="{Binding Trinket.HasItem}" />
                                                                                 </Border>
                                                                             </StackPanel>
                                                                         </Grid>
@@ -1316,10 +1319,10 @@
                                                                 <DataTemplate x:DataType="vm:DetailedParticipantViewModel">
                                                                     <Border Background="#160E13" CornerRadius="4" Padding="6,4" Margin="0,1">
                                                                         <Grid ColumnDefinitions="260, 95, 160, 120, *">
-                                                                            <!-- Player Info with Clickable Link -->
+                                                                             <!-- Player Info with Clickable Link -->
                                                                             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                                                                                 <Border Width="28" Height="28" CornerRadius="14" ClipToBounds="True" Background="#091428" BorderBrush="#252D3D" BorderThickness="1">
-                                                                                    <Image Source="{Binding ChampionIconUrl, Converter={StaticResource BitmapAssetConverter}}" Width="28" Height="28" Stretch="UniformToFill" />
+                                                                                    <Image Source="{Binding ChampionIcon}" Width="28" Height="28" Stretch="UniformToFill" />
                                                                                 </Border>
                                                                                 <!-- Match Grade Pill -->
                                                                                 <Border Background="{Binding MatchGradeColor}"
@@ -1408,7 +1411,7 @@
                                                                                         <DataTemplate x:DataType="vm:ItemSlotViewModel">
                                                                                             <Border Width="24" Height="24" CornerRadius="3" Background="#141B28" BorderBrush="#253044" BorderThickness="1" ClipToBounds="True"
                                                                                                     ToolTip.Tip="{Binding ToolTipText}">
-                                                                                                <Image Source="{Binding IconUrl, Converter={StaticResource BitmapAssetConverter}}" Width="24" Height="24" Stretch="UniformToFill" IsVisible="{Binding HasItem}" />
+                                                                                                <Image Source="{Binding ItemIcon}" Width="24" Height="24" Stretch="UniformToFill" IsVisible="{Binding HasItem}" />
                                                                                             </Border>
                                                                                         </DataTemplate>
                                                                                     </ItemsControl.ItemTemplate>
@@ -1417,7 +1420,7 @@
                                                                                 <!-- Trinket with Tooltip -->
                                                                                 <Border Width="24" Height="24" CornerRadius="12" Background="#141B28" BorderBrush="#C8AA6E" BorderThickness="1" ClipToBounds="True" Margin="3,0,0,0"
                                                                                         ToolTip.Tip="{Binding Trinket.ToolTipText}">
-                                                                                    <Image Source="{Binding Trinket.IconUrl, Converter={StaticResource BitmapAssetConverter}}" Width="24" Height="24" Stretch="UniformToFill" IsVisible="{Binding Trinket.HasItem}" />
+                                                                                    <Image Source="{Binding Trinket.ItemIcon}" Width="24" Height="24" Stretch="UniformToFill" IsVisible="{Binding Trinket.HasItem}" />
                                                                                 </Border>
                                                                             </StackPanel>
                                                                         </Grid>

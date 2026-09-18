@@ -39,6 +39,15 @@ public class BitmapAssetValueConverter : IValueConverter
         return dir;
     }
 
+    public static string GetLocalPathForUrl(string url)
+    {
+        var uri = new Uri(url);
+        var segments = uri.Segments;
+        var category = segments.Length >= 2 ? segments[^2].Trim('/') : "misc";
+        var fileName = $"{category}_{Path.GetFileName(uri.LocalPath)}";
+        return Path.Combine(GetCacheDir(), fileName);
+    }
+
     public static Bitmap? GetOrLoadBitmap(string? url, Action<Bitmap>? onLoaded = null)
     {
         if (string.IsNullOrWhiteSpace(url)) return null;
@@ -48,9 +57,7 @@ public class BitmapAssetValueConverter : IValueConverter
             return cached;
         }
 
-        var dir = GetCacheDir();
-        var fileName = Path.GetFileName(new Uri(url).LocalPath);
-        var localPath = Path.Combine(dir, fileName);
+        var localPath = GetLocalPathForUrl(url);
 
         if (File.Exists(localPath))
         {
@@ -91,7 +98,6 @@ public class BitmapAssetValueConverter : IValueConverter
     public static async Task PreloadImagesAsync(IEnumerable<string> urls)
     {
         var distinctUrls = urls.Where(u => !string.IsNullOrWhiteSpace(u)).Distinct().ToList();
-        var dir = GetCacheDir();
 
         var tasks = distinctUrls.Select(async url =>
         {
@@ -99,8 +105,7 @@ public class BitmapAssetValueConverter : IValueConverter
 
             try
             {
-                var fileName = Path.GetFileName(new Uri(url).LocalPath);
-                var localPath = Path.Combine(dir, fileName);
+                var localPath = GetLocalPathForUrl(url);
 
                 if (File.Exists(localPath))
                 {
@@ -140,9 +145,7 @@ public class BitmapAssetValueConverter : IValueConverter
         }
 
         // Try local disk cache
-        var dir = GetCacheDir();
-        var fileName = Path.GetFileName(new Uri(url).LocalPath);
-        var localPath = Path.Combine(dir, fileName);
+        var localPath = GetLocalPathForUrl(url);
 
         if (File.Exists(localPath))
         {

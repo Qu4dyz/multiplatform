@@ -10,10 +10,15 @@ using GameAnalytics.ML.Engine;
 
 namespace GameAnalytics.Desktop.ViewModels;
 
-public class RecentChampionStatViewModel
+public partial class RecentChampionStatViewModel : ObservableObject
 {
     public string ChampionName { get; set; } = string.Empty;
-    public string ChampionIconUrl => $"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/champion/{ChampionName}.png";
+    public string NormalizedChampionName => PlayerMatchItemViewModel.NormalizeChampionName(ChampionName);
+    public string ChampionIconUrl => $"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/champion/{NormalizedChampionName}.png";
+
+    [ObservableProperty]
+    private Avalonia.Media.Imaging.Bitmap? _championIcon;
+
     public int GamesCount { get; set; }
     public int WinsCount { get; set; }
     public double CustomWinRate { get; set; } = -1;
@@ -57,6 +62,9 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
 
     [ObservableProperty]
     private SummonerProfile? _summoner;
+
+    [ObservableProperty]
+    private Avalonia.Media.Imaging.Bitmap? _profileIconBitmap;
 
     [ObservableProperty]
     private string _tierBadgeColor = "#E6B328";
@@ -308,6 +316,7 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
             {
                 Summoner = profile;
                 TierBadgeColor = GetTierColor(profile.Tier);
+                ProfileIconBitmap = BitmapAssetValueConverter.GetOrLoadBitmap(profile.ProfileIconUrl, bmp => ProfileIconBitmap = bmp);
                 StatusMessage = HasApiKey
                     ? $"Профіль {profile.FullName} успішно завантажено з Riot API."
                     : $"Профіль {profile.FullName} (Демо-режим). Отримання матчів...";
@@ -563,14 +572,16 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
                 ? (g.Average(m => m.Kills) + g.Average(m => m.Assists)) / champAvgD
                 : (g.Average(m => m.Kills) + g.Average(m => m.Assists));
 
-            TopRecentChampions.Add(new RecentChampionStatViewModel
+            var champStatVm = new RecentChampionStatViewModel
             {
                 ChampionName = g.Key,
                 GamesCount = champGames,
                 WinsCount = champWins,
                 CustomWinRate = champWinRate,
                 AvgKda = Math.Round(champKda, 2)
-            });
+            };
+            champStatVm.ChampionIcon = BitmapAssetValueConverter.GetOrLoadBitmap(champStatVm.ChampionIconUrl, bmp => champStatVm.ChampionIcon = bmp);
+            TopRecentChampions.Add(champStatVm);
         }
 
         // Preferred role in THIS filtered subset (ignore ARAM for lane distribution unless only ARAM games exist)
