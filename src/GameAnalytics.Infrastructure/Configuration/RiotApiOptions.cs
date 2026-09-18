@@ -61,6 +61,48 @@ public class RiotApiOptions
 
     public static RiotApiOptions LoadFromFile(string filePath)
     {
+        var options = LoadSingle(filePath) ?? new RiotApiOptions();
+
+        // 1. Check local override file (appsettings.local.json)
+        var dir = Path.GetDirectoryName(filePath);
+        string[] candidateLocalPaths =
+        [
+            !string.IsNullOrEmpty(dir) ? Path.Combine(dir, "appsettings.local.json") : "appsettings.local.json",
+            Path.Combine(Directory.GetCurrentDirectory(), "src", "GameAnalytics.Desktop", "appsettings.local.json")
+        ];
+
+        foreach (var localPath in candidateLocalPaths)
+        {
+            if (File.Exists(localPath))
+            {
+                var localOptions = LoadSingle(localPath);
+                if (localOptions != null)
+                {
+                    if (!string.IsNullOrWhiteSpace(localOptions.ApiKey))
+                        options.ApiKey = localOptions.ApiKey;
+                    if (!string.IsNullOrWhiteSpace(localOptions.PlatformRegion))
+                        options.PlatformRegion = localOptions.PlatformRegion;
+                    if (!string.IsNullOrWhiteSpace(localOptions.RoutingRegion))
+                        options.RoutingRegion = localOptions.RoutingRegion;
+                    options.UseMockFallback = localOptions.UseMockFallback;
+                    options.DemoTier = localOptions.DemoTier;
+                    break;
+                }
+            }
+        }
+
+        // 2. Check environment variable override
+        var envKey = Environment.GetEnvironmentVariable("RIOT_API_KEY");
+        if (!string.IsNullOrWhiteSpace(envKey))
+        {
+            options.ApiKey = envKey.Trim();
+        }
+
+        return options;
+    }
+
+    private static RiotApiOptions? LoadSingle(string filePath)
+    {
         try
         {
             if (File.Exists(filePath))
@@ -69,41 +111,51 @@ public class RiotApiOptions
                 using var doc = JsonDocument.Parse(json);
                 if (doc.RootElement.TryGetProperty("RiotApi", out var section))
                 {
-                    var options = JsonSerializer.Deserialize<RiotApiOptions>(section.GetRawText(), new JsonSerializerOptions
+                    return JsonSerializer.Deserialize<RiotApiOptions>(section.GetRawText(), new JsonSerializerOptions
                     {
                         PropertyNameCaseInsensitive = true
                     });
-                    if (options != null) return options;
                 }
             }
         }
         catch
         {
-            // Fall back to default
+            // Fall back
         }
 
-        return new RiotApiOptions();
+        return null;
     }
 
     public void SaveToFile(string filePath)
     {
         try
         {
-            var config = new Dictionary<string, object>();
-            if (File.Exists(filePath))
-            {
-                var existingJson = File.ReadAllText(filePath);
-                var existing = JsonSerializer.Deserialize<Dictionary<string, object>>(existingJson);
-                if (existing != null) config = existing;
-            }
+            var dir = Path.GetDirectoryName(filePath);
+            var localPath = !string.IsNullOrEmpty(dir)
+                ? Path.Combine(dir, "appsettings.local.json")
+                : "appsettings.local.json";
 
-            config["RiotApi"] = this;
-            var updatedJson = JsonSerializer.Serialize(config, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(filePath, updatedJson);
+            WriteConfig(localPath);
+            WriteConfig(filePath);
         }
         catch
         {
             // Ignore disk write errors if read-only
         }
+    }
+
+    private void WriteConfig(string path)
+    {
+        var config = new Dictionary<string, object>();
+        if (File.Exists(path))
+        {
+            var existingJson = File.ReadAllText(path);
+            var existing = JsonSerializer.Deserialize<Dictionary<string, object>>(existingJson);
+            if (existing != null) config = existing;
+        }
+
+        config["RiotApi"] = this;
+        var updatedJson = JsonSerializer.Serialize(config, new JsonSerializerOptions { WriteIndented = true });
+        File.WriteAllText(path, updatedJson);
     }
 }

@@ -2,6 +2,7 @@ using GameAnalytics.Core.Entities;
 using GameAnalytics.Core.Enums;
 using GameAnalytics.Desktop.Converters;
 using GameAnalytics.Desktop.ViewModels;
+using GameAnalytics.Infrastructure.Configuration;
 using GameAnalytics.Infrastructure.Services;
 using GameAnalytics.ML.Engine;
 using Xunit;
@@ -1152,6 +1153,39 @@ public class DataLayerTests
 
         slot.ItemId = 3006;
         Assert.Contains("Berserker's Greaves", slot.ToolTipText);
+    }
+
+    [Fact]
+    public void RiotApiOptions_Validation_CorrectlyIdentifiesValidKeys()
+    {
+        var validOptions = new RiotApiOptions { ApiKey = "RGAPI-eb76424c-9723-49ac-bd29-950b9b342595" };
+        Assert.True(validOptions.HasValidApiKey);
+
+        var dummyOptions = new RiotApiOptions { ApiKey = "RGAPI-XXXX-XXXX" };
+        Assert.False(dummyOptions.HasValidApiKey);
+
+        var emptyOptions = new RiotApiOptions { ApiKey = "" };
+        Assert.False(emptyOptions.HasValidApiKey);
+    }
+
+    [Fact]
+    public void RiotApiOptions_LoadFromFile_HandlesOverridesGracefully()
+    {
+        var tempBase = Path.Combine(Path.GetTempPath(), $"appsettings_test_{Guid.NewGuid():N}.json");
+        var tempLocal = Path.Combine(Path.GetTempPath(), "appsettings.local.json");
+
+        try
+        {
+            File.WriteAllText(tempBase, @"{ ""RiotApi"": { ""ApiKey"": ""RGAPI-BASE-KEY-VALUE-TOO-LONG-123456"", ""PlatformRegion"": ""euw1"" } }");
+            var loaded = RiotApiOptions.LoadFromFile(tempBase);
+            Assert.Equal("euw1", loaded.PlatformRegion);
+            Assert.Equal("RGAPI-BASE-KEY-VALUE-TOO-LONG-123456", loaded.ApiKey);
+        }
+        finally
+        {
+            if (File.Exists(tempBase)) File.Delete(tempBase);
+            if (File.Exists(tempLocal)) File.Delete(tempLocal);
+        }
     }
 }
 
