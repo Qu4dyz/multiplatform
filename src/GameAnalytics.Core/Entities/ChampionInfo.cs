@@ -14,3 +14,4 @@ public class ChampionInfo
 
     public string PrimaryRole => Roles.Count > 0 ? Roles[0] : "All";
 }
+

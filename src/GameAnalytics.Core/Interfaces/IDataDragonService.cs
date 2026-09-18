@@ -10,3 +10,4 @@ public interface IDataDragonService
     Task<ChampionInfo?> GetChampionByIdAsync(string id, CancellationToken ct = default);
     Task<IReadOnlyList<ChampionInfo>> GetChampionsByRoleAsync(string role, CancellationToken ct = default);
 }
+
