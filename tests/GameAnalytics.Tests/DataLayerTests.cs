@@ -105,5 +105,32 @@ public class DataLayerTests
         var profile = new SummonerProfile { ProfileIconId = 2072 };
         Assert.Equal("https://ddragon.leagueoflegends.com/cdn/14.18.1/img/profileicon/2072.png", profile.ProfileIconUrl);
     }
+
+    [Fact]
+    public async Task RiotRateLimiter_IsolatesRoutingRegions()
+    {
+        var limiter = new RiotRateLimiter();
+
+        await limiter.WaitForSlotAsync("euw1");
+        await limiter.WaitForSlotAsync("europe");
+
+        Assert.Equal(2, limiter.ActiveBucketCount);
+    }
+
+    [Fact]
+    public async Task RiotRateLimiter_NotifyRateLimitHit_BlocksOnlyTargetRegion()
+    {
+        var limiter = new RiotRateLimiter();
+
+        // Hit rate limit on euw1 for 600ms
+        limiter.NotifyRateLimitHit("euw1", TimeSpan.FromMilliseconds(600));
+
+        // Call to europe should complete almost instantaneously (<100ms)
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        await limiter.WaitForSlotAsync("europe");
+        sw.Stop();
+
+        Assert.True(sw.ElapsedMilliseconds < 250, $"europe was blocked unexpectedly: {sw.ElapsedMilliseconds}ms");
+    }
 }
 

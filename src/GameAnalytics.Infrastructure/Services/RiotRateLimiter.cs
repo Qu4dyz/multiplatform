@@ -1,60 +1,136 @@
+using System.Collections.Concurrent;
+
 namespace GameAnalytics.Infrastructure.Services;
 
 public class RiotRateLimiter
 {
-    private readonly SemaphoreSlim _semaphore = new(1, 1);
-    private readonly Queue<DateTime> _shortWindowRequests = new(); // 20 requests per 1 second
-    private readonly Queue<DateTime> _longWindowRequests = new();  // 100 requests per 120 seconds
+    private readonly ConcurrentDictionary<string, RegionBucket> _buckets = new(StringComparer.OrdinalIgnoreCase);
 
-    private const int ShortWindowMax = 20;
-    private static readonly TimeSpan ShortWindowDuration = TimeSpan.FromSeconds(1);
+    public const int DefaultShortMax = 20;
+    public static readonly TimeSpan DefaultShortDuration = TimeSpan.FromSeconds(1);
 
-    private const int LongWindowMax = 100;
-    private static readonly TimeSpan LongWindowDuration = TimeSpan.FromSeconds(120);
+    public const int DefaultLongMax = 100;
+    public static readonly TimeSpan DefaultLongDuration = TimeSpan.FromSeconds(120);
 
-    public async Task WaitForSlotAsync(CancellationToken ct = default)
+    public Task WaitForSlotAsync(CancellationToken ct = default) => WaitForSlotAsync("global", ct);
+
+    public async Task WaitForSlotAsync(string region, CancellationToken ct = default)
     {
-        await _semaphore.WaitAsync(ct);
-        try
+        var key = NormalizeRegion(region);
+        var bucket = _buckets.GetOrAdd(key, _ => new RegionBucket(DefaultShortMax, DefaultShortDuration, DefaultLongMax, DefaultLongDuration));
+        await bucket.WaitForSlotAsync(ct);
+    }
+
+    public void NotifyRateLimitHit(string region, TimeSpan retryAfter)
+    {
+        var key = NormalizeRegion(region);
+        var bucket = _buckets.GetOrAdd(key, _ => new RegionBucket(DefaultShortMax, DefaultShortDuration, DefaultLongMax, DefaultLongDuration));
+        bucket.BlockUntil(DateTime.UtcNow.Add(retryAfter));
+    }
+
+    public int ActiveBucketCount => _buckets.Count;
+
+    private static string NormalizeRegion(string? region)
+    {
+        return string.IsNullOrWhiteSpace(region) ? "global" : region.Trim().ToLowerInvariant();
+    }
+
+    private class RegionBucket
+    {
+        private readonly SemaphoreSlim _semaphore = new(1, 1);
+        private readonly Queue<DateTime> _shortWindowRequests = new();
+        private readonly Queue<DateTime> _longWindowRequests = new();
+
+        private readonly int _shortMax;
+        private readonly TimeSpan _shortDuration;
+        private readonly int _longMax;
+        private readonly TimeSpan _longDuration;
+
+        private DateTime _blockedUntil = DateTime.MinValue;
+
+        public RegionBucket(int shortMax, TimeSpan shortDuration, int longMax, TimeSpan longDuration)
         {
-            while (true)
+            _shortMax = shortMax;
+            _shortDuration = shortDuration;
+            _longMax = longMax;
+            _longDuration = longDuration;
+        }
+
+        public void BlockUntil(DateTime until)
+        {
+            lock (_shortWindowRequests)
             {
-                var now = DateTime.UtcNow;
-
-                // Clean old entries
-                while (_shortWindowRequests.Count > 0 && (now - _shortWindowRequests.Peek()) > ShortWindowDuration)
+                if (until > _blockedUntil)
                 {
-                    _shortWindowRequests.Dequeue();
+                    _blockedUntil = until;
                 }
-
-                while (_longWindowRequests.Count > 0 && (now - _longWindowRequests.Peek()) > LongWindowDuration)
-                {
-                    _longWindowRequests.Dequeue();
-                }
-
-                // Check limits
-                if (_shortWindowRequests.Count < ShortWindowMax && _longWindowRequests.Count < LongWindowMax)
-                {
-                    _shortWindowRequests.Enqueue(now);
-                    _longWindowRequests.Enqueue(now);
-                    break;
-                }
-
-                // Wait until the earliest slot frees up
-                var waitTime = TimeSpan.FromMilliseconds(50);
-                if (_shortWindowRequests.Count >= ShortWindowMax)
-                {
-                    var waitShort = ShortWindowDuration - (now - _shortWindowRequests.Peek());
-                    if (waitShort > waitTime) waitTime = waitShort;
-                }
-
-                await Task.Delay(waitTime, ct);
             }
         }
-        finally
+
+        public async Task WaitForSlotAsync(CancellationToken ct)
         {
-            _semaphore.Release();
+            await _semaphore.WaitAsync(ct);
+            try
+            {
+                while (true)
+                {
+                    ct.ThrowIfCancellationRequested();
+
+                    var now = DateTime.UtcNow;
+
+                    // If explicit rate limit (429) active, sleep until block expires
+                    if (now < _blockedUntil)
+                    {
+                        var blockDelay = _blockedUntil - now + TimeSpan.FromMilliseconds(50);
+                        await Task.Delay(blockDelay, ct);
+                        continue;
+                    }
+
+                    // Evict entries older than short window (1 second)
+                    while (_shortWindowRequests.Count > 0 && (now - _shortWindowRequests.Peek()) > _shortDuration)
+                    {
+                        _shortWindowRequests.Dequeue();
+                    }
+
+                    // Evict entries older than long window (120 seconds)
+                    while (_longWindowRequests.Count > 0 && (now - _longWindowRequests.Peek()) > _longDuration)
+                    {
+                        _longWindowRequests.Dequeue();
+                    }
+
+                    // If capacity available in both windows, consume a slot and proceed
+                    if (_shortWindowRequests.Count < _shortMax && _longWindowRequests.Count < _longMax)
+                    {
+                        _shortWindowRequests.Enqueue(now);
+                        _longWindowRequests.Enqueue(now);
+                        break;
+                    }
+
+                    // Calculate the required wait time to free up a slot
+                    var waitTime = TimeSpan.FromMilliseconds(25);
+
+                    if (_shortWindowRequests.Count >= _shortMax)
+                    {
+                        var waitShort = _shortDuration - (now - _shortWindowRequests.Peek());
+                        if (waitShort > waitTime) waitTime = waitShort;
+                    }
+
+                    if (_longWindowRequests.Count >= _longMax)
+                    {
+                        var waitLong = _longDuration - (now - _longWindowRequests.Peek());
+                        if (waitLong > waitTime) waitTime = waitLong;
+                    }
+
+                    // Add a safety buffer to guarantee crossing Riot's edge window
+                    waitTime += TimeSpan.FromMilliseconds(25);
+
+                    await Task.Delay(waitTime, ct);
+                }
+            }
+            finally
+            {
+                _semaphore.Release();
+            }
         }
     }
 }
-

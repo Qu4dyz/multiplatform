@@ -31,6 +31,97 @@ public class RiotApiClient : IRiotApiClient
         return request;
     }
 
+    private async Task<HttpResponseMessage?> SendWithRetryAsync(string url, CancellationToken ct = default)
+    {
+        var region = ExtractRegionFromUrl(url);
+
+        const int maxRetries = 3;
+        for (int attempt = 0; attempt <= maxRetries; attempt++)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            // Wait for rate-limit slot specifically for this routing region (20/1s, 100/120s)
+            await _rateLimiter.WaitForSlotAsync(region, ct);
+
+            var request = CreateAuthenticatedRequest(url);
+            HttpResponseMessage response;
+            try
+            {
+                response = await _httpClient.SendAsync(request, ct);
+            }
+            catch (HttpRequestException) when (attempt < maxRetries)
+            {
+                await Task.Delay(500 * (attempt + 1), ct);
+                continue;
+            }
+
+            // Handle HTTP 429 Too Many Requests
+            if (response.StatusCode == (HttpStatusCode)429)
+            {
+                var retryAfter = TimeSpan.FromSeconds(2);
+                if (response.Headers.RetryAfter != null)
+                {
+                    if (response.Headers.RetryAfter.Delta.HasValue)
+                    {
+                        retryAfter = response.Headers.RetryAfter.Delta.Value;
+                    }
+                    else if (response.Headers.RetryAfter.Date.HasValue)
+                    {
+                        var diff = response.Headers.RetryAfter.Date.Value - DateTimeOffset.UtcNow;
+                        if (diff > TimeSpan.Zero) retryAfter = diff;
+                    }
+                }
+                else if (response.Headers.TryGetValues("Retry-After", out var values))
+                {
+                    var raw = values.FirstOrDefault();
+                    if (int.TryParse(raw, out var sec))
+                    {
+                        retryAfter = TimeSpan.FromSeconds(sec);
+                    }
+                }
+
+                // Notify the per-region rate limiter so other calls pause
+                _rateLimiter.NotifyRateLimitHit(region, retryAfter);
+                response.Dispose();
+
+                if (attempt < maxRetries)
+                {
+                    await Task.Delay(retryAfter + TimeSpan.FromMilliseconds(250), ct);
+                    continue;
+                }
+
+                return null;
+            }
+
+            // Retry on transient server errors (500, 502, 503, 504)
+            if ((int)response.StatusCode >= 500 && attempt < maxRetries)
+            {
+                response.Dispose();
+                await Task.Delay(1000 * (attempt + 1), ct);
+                continue;
+            }
+
+            return response;
+        }
+
+        return null;
+    }
+
+    private static string ExtractRegionFromUrl(string url)
+    {
+        try
+        {
+            var host = new Uri(url).Host;
+            var dotIndex = host.IndexOf('.');
+            if (dotIndex > 0)
+            {
+                return host[..dotIndex].ToLowerInvariant();
+            }
+        }
+        catch { }
+        return "global";
+    }
+
     public async Task<SummonerProfile?> GetSummonerByRiotIdAsync(string gameName, string tagLine, CancellationToken ct = default)
     {
         if (!_options.HasValidApiKey)
@@ -40,14 +131,11 @@ public class RiotApiClient : IRiotApiClient
 
         try
         {
-            await _rateLimiter.WaitForSlotAsync(ct);
-
             // Step 1: Query Account-v1 by Riot ID (GameName + TagLine)
             var accountUrl = $"https://{_options.RoutingRegion}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{Uri.EscapeDataString(gameName)}/{Uri.EscapeDataString(tagLine)}";
-            using var accountReq = CreateAuthenticatedRequest(accountUrl);
-            using var accountResp = await _httpClient.SendAsync(accountReq, ct);
+            using var accountResp = await SendWithRetryAsync(accountUrl, ct);
 
-            if (accountResp.StatusCode == HttpStatusCode.NotFound)
+            if (accountResp == null || accountResp.StatusCode == HttpStatusCode.NotFound)
             {
                 // Account not found on Riot servers
                 return null;
@@ -63,12 +151,10 @@ public class RiotApiClient : IRiotApiClient
             if (account == null) return _options.UseMockFallback ? GetMockProfile(gameName, tagLine) : null;
 
             // Step 2: Query Summoner-v4 by PUUID
-            await _rateLimiter.WaitForSlotAsync(ct);
             var summonerUrl = $"https://{_options.PlatformRegion}.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/{account.Puuid}";
-            using var summonerReq = CreateAuthenticatedRequest(summonerUrl);
-            using var summonerResp = await _httpClient.SendAsync(summonerReq, ct);
+            using var summonerResp = await SendWithRetryAsync(summonerUrl, ct);
 
-            var summoner = summonerResp.IsSuccessStatusCode
+            var summoner = (summonerResp != null && summonerResp.IsSuccessStatusCode)
                 ? await summonerResp.Content.ReadFromJsonAsync<RiotSummonerDto>(cancellationToken: ct)
                 : null;
 
@@ -87,22 +173,19 @@ public class RiotApiClient : IRiotApiClient
             };
 
             // Step 3: Query League-v4 Ranked Entries (Try modern by-puuid, fallback to legacy by-summoner)
-            await _rateLimiter.WaitForSlotAsync(ct);
             var leaguePuuidUrl = $"https://{_options.PlatformRegion}.api.riotgames.com/lol/league/v4/entries/by-puuid/{account.Puuid}";
-            using var leaguePuuidReq = CreateAuthenticatedRequest(leaguePuuidUrl);
-            using var leaguePuuidResp = await _httpClient.SendAsync(leaguePuuidReq, ct);
+            using var leaguePuuidResp = await SendWithRetryAsync(leaguePuuidUrl, ct);
 
             List<RiotLeagueEntryDto>? entries = null;
-            if (leaguePuuidResp.IsSuccessStatusCode)
+            if (leaguePuuidResp != null && leaguePuuidResp.IsSuccessStatusCode)
             {
                 entries = await leaguePuuidResp.Content.ReadFromJsonAsync<List<RiotLeagueEntryDto>>(cancellationToken: ct);
             }
             else if (summoner != null && !string.IsNullOrWhiteSpace(summoner.Id))
             {
                 var legacyUrl = $"https://{_options.PlatformRegion}.api.riotgames.com/lol/league/v4/entries/by-summoner/{summoner.Id}";
-                using var legacyReq = CreateAuthenticatedRequest(legacyUrl);
-                using var legacyResp = await _httpClient.SendAsync(legacyReq, ct);
-                if (legacyResp.IsSuccessStatusCode)
+                using var legacyResp = await SendWithRetryAsync(legacyUrl, ct);
+                if (legacyResp != null && legacyResp.IsSuccessStatusCode)
                 {
                     entries = await legacyResp.Content.ReadFromJsonAsync<List<RiotLeagueEntryDto>>(cancellationToken: ct);
                 }
@@ -140,12 +223,9 @@ public class RiotApiClient : IRiotApiClient
 
         try
         {
-            await _rateLimiter.WaitForSlotAsync(ct);
             var url = $"https://{_options.RoutingRegion}.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids?count={count}";
-            using var request = CreateAuthenticatedRequest(url);
-
-            using var response = await _httpClient.SendAsync(request, ct);
-            if (!response.IsSuccessStatusCode)
+            using var response = await SendWithRetryAsync(url, ct);
+            if (response == null || !response.IsSuccessStatusCode)
             {
                 return _options.UseMockFallback ? GenerateMockMatchIds(puuid, count) : Array.Empty<string>();
             }
@@ -168,12 +248,9 @@ public class RiotApiClient : IRiotApiClient
 
         try
         {
-            await _rateLimiter.WaitForSlotAsync(ct);
             var url = $"https://{_options.RoutingRegion}.api.riotgames.com/lol/match/v5/matches/{matchId}";
-            using var request = CreateAuthenticatedRequest(url);
-
-            using var response = await _httpClient.SendAsync(request, ct);
-            if (!response.IsSuccessStatusCode)
+            using var response = await SendWithRetryAsync(url, ct);
+            if (response == null || !response.IsSuccessStatusCode)
             {
                 return _options.UseMockFallback ? GenerateMockMatch(matchId) : null;
             }
@@ -201,12 +278,9 @@ public class RiotApiClient : IRiotApiClient
 
         try
         {
-            await _rateLimiter.WaitForSlotAsync(ct);
             var url = $"https://{_options.RoutingRegion}.api.riotgames.com/lol/match/v5/matches/{matchId}/timeline";
-            using var request = CreateAuthenticatedRequest(url);
-
-            using var response = await _httpClient.SendAsync(request, ct);
-            if (!response.IsSuccessStatusCode)
+            using var response = await SendWithRetryAsync(url, ct);
+            if (response == null || !response.IsSuccessStatusCode)
             {
                 return _options.UseMockFallback ? GenerateMockTimeline(matchId) : null;
             }
