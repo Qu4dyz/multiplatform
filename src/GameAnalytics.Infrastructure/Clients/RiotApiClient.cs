@@ -23,6 +23,14 @@ public class RiotApiClient : IRiotApiClient
         _rateLimiter = rateLimiter ?? new RiotRateLimiter();
     }
 
+    private HttpRequestMessage CreateAuthenticatedRequest(string url)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.Add("X-Riot-Token", _options.ApiKey);
+        request.Headers.Add("User-Agent", "GameAnalytics/1.0 (Windows NT 10.0; Win64; x64)");
+        return request;
+    }
+
     public async Task<SummonerProfile?> GetSummonerByRiotIdAsync(string gameName, string tagLine, CancellationToken ct = default)
     {
         if (!_options.HasValidApiKey)
@@ -36,10 +44,9 @@ public class RiotApiClient : IRiotApiClient
 
             // Step 1: Query Account-v1 by Riot ID (GameName + TagLine)
             var accountUrl = $"https://{_options.RoutingRegion}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{Uri.EscapeDataString(gameName)}/{Uri.EscapeDataString(tagLine)}";
-            using var accountReq = new HttpRequestMessage(HttpMethod.Get, accountUrl);
-            accountReq.Headers.Add("X-Riot-Token", _options.ApiKey);
-
+            using var accountReq = CreateAuthenticatedRequest(accountUrl);
             using var accountResp = await _httpClient.SendAsync(accountReq, ct);
+
             if (accountResp.StatusCode == HttpStatusCode.NotFound)
             {
                 // Account not found on Riot servers
@@ -58,10 +65,9 @@ public class RiotApiClient : IRiotApiClient
             // Step 2: Query Summoner-v4 by PUUID
             await _rateLimiter.WaitForSlotAsync(ct);
             var summonerUrl = $"https://{_options.PlatformRegion}.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/{account.Puuid}";
-            using var summonerReq = new HttpRequestMessage(HttpMethod.Get, summonerUrl);
-            summonerReq.Headers.Add("X-Riot-Token", _options.ApiKey);
-
+            using var summonerReq = CreateAuthenticatedRequest(summonerUrl);
             using var summonerResp = await _httpClient.SendAsync(summonerReq, ct);
+
             var summoner = summonerResp.IsSuccessStatusCode
                 ? await summonerResp.Content.ReadFromJsonAsync<RiotSummonerDto>(cancellationToken: ct)
                 : null;
@@ -80,29 +86,40 @@ public class RiotApiClient : IRiotApiClient
                 Losses = 0
             };
 
-            // Step 3: Query League-v4 Ranked Entries
-            if (summoner != null && !string.IsNullOrWhiteSpace(summoner.Id))
+            // Step 3: Query League-v4 Ranked Entries (Try modern by-puuid, fallback to legacy by-summoner)
+            await _rateLimiter.WaitForSlotAsync(ct);
+            var leaguePuuidUrl = $"https://{_options.PlatformRegion}.api.riotgames.com/lol/league/v4/entries/by-puuid/{account.Puuid}";
+            using var leaguePuuidReq = CreateAuthenticatedRequest(leaguePuuidUrl);
+            using var leaguePuuidResp = await _httpClient.SendAsync(leaguePuuidReq, ct);
+
+            List<RiotLeagueEntryDto>? entries = null;
+            if (leaguePuuidResp.IsSuccessStatusCode)
             {
-                await _rateLimiter.WaitForSlotAsync(ct);
-                var leagueUrl = $"https://{_options.PlatformRegion}.api.riotgames.com/lol/league/v4/entries/by-summoner/{summoner.Id}";
-                using var leagueReq = new HttpRequestMessage(HttpMethod.Get, leagueUrl);
-                leagueReq.Headers.Add("X-Riot-Token", _options.ApiKey);
-
-                using var leagueResp = await _httpClient.SendAsync(leagueReq, ct);
-                if (leagueResp.IsSuccessStatusCode)
+                entries = await leaguePuuidResp.Content.ReadFromJsonAsync<List<RiotLeagueEntryDto>>(cancellationToken: ct);
+            }
+            else if (summoner != null && !string.IsNullOrWhiteSpace(summoner.Id))
+            {
+                var legacyUrl = $"https://{_options.PlatformRegion}.api.riotgames.com/lol/league/v4/entries/by-summoner/{summoner.Id}";
+                using var legacyReq = CreateAuthenticatedRequest(legacyUrl);
+                using var legacyResp = await _httpClient.SendAsync(legacyReq, ct);
+                if (legacyResp.IsSuccessStatusCode)
                 {
-                    var entries = await leagueResp.Content.ReadFromJsonAsync<List<RiotLeagueEntryDto>>(cancellationToken: ct);
-                    var soloEntry = entries?.FirstOrDefault(e => e.QueueType == "RANKED_SOLO_5x5") ??
-                                    entries?.FirstOrDefault(e => e.QueueType == "RANKED_FLEX_SR");
+                    entries = await legacyResp.Content.ReadFromJsonAsync<List<RiotLeagueEntryDto>>(cancellationToken: ct);
+                }
+            }
 
-                    if (soloEntry != null)
-                    {
-                        profile.Tier = ParseTier(soloEntry.Tier);
-                        profile.Rank = soloEntry.Rank ?? "IV";
-                        profile.LeaguePoints = soloEntry.LeaguePoints;
-                        profile.Wins = soloEntry.Wins;
-                        profile.Losses = soloEntry.Losses;
-                    }
+            if (entries != null && entries.Count > 0)
+            {
+                var soloEntry = entries.FirstOrDefault(e => e.QueueType == "RANKED_SOLO_5x5") ??
+                                entries.FirstOrDefault(e => e.QueueType == "RANKED_FLEX_SR");
+
+                if (soloEntry != null)
+                {
+                    profile.Tier = ParseTier(soloEntry.Tier);
+                    profile.Rank = soloEntry.Rank ?? "IV";
+                    profile.LeaguePoints = soloEntry.LeaguePoints;
+                    profile.Wins = soloEntry.Wins;
+                    profile.Losses = soloEntry.Losses;
                 }
             }
 
@@ -125,8 +142,7 @@ public class RiotApiClient : IRiotApiClient
         {
             await _rateLimiter.WaitForSlotAsync(ct);
             var url = $"https://{_options.RoutingRegion}.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids?count={count}";
-            using var request = new HttpRequestMessage(HttpMethod.Get, url);
-            request.Headers.Add("X-Riot-Token", _options.ApiKey);
+            using var request = CreateAuthenticatedRequest(url);
 
             using var response = await _httpClient.SendAsync(request, ct);
             if (!response.IsSuccessStatusCode)
@@ -154,8 +170,7 @@ public class RiotApiClient : IRiotApiClient
         {
             await _rateLimiter.WaitForSlotAsync(ct);
             var url = $"https://{_options.RoutingRegion}.api.riotgames.com/lol/match/v5/matches/{matchId}";
-            using var request = new HttpRequestMessage(HttpMethod.Get, url);
-            request.Headers.Add("X-Riot-Token", _options.ApiKey);
+            using var request = CreateAuthenticatedRequest(url);
 
             using var response = await _httpClient.SendAsync(request, ct);
             if (!response.IsSuccessStatusCode)
@@ -188,8 +203,7 @@ public class RiotApiClient : IRiotApiClient
         {
             await _rateLimiter.WaitForSlotAsync(ct);
             var url = $"https://{_options.RoutingRegion}.api.riotgames.com/lol/match/v5/matches/{matchId}/timeline";
-            using var request = new HttpRequestMessage(HttpMethod.Get, url);
-            request.Headers.Add("X-Riot-Token", _options.ApiKey);
+            using var request = CreateAuthenticatedRequest(url);
 
             using var response = await _httpClient.SendAsync(request, ct);
             if (!response.IsSuccessStatusCode)
@@ -291,7 +305,6 @@ public class RiotApiClient : IRiotApiClient
             if (root.TryGetProperty("info", out var infoElem) && infoElem.TryGetProperty("frames", out var framesElem))
             {
                 var frameCount = framesElem.GetArrayLength();
-                // Target frame 15 (index 15), or the last frame available
                 var targetIndex = Math.Min(15, frameCount - 1);
                 var frame = framesElem[targetIndex];
 
@@ -374,7 +387,6 @@ public class RiotApiClient : IRiotApiClient
         var cleanName = string.IsNullOrWhiteSpace(gameName) ? "Qu4dyz" : gameName.Trim();
         var cleanTag = string.IsNullOrWhiteSpace(tagLine) ? "EUW" : tagLine.Trim();
 
-        // Use configured Demo tier instead of hardcoded Emerald
         var tier = _options.DemoTier;
         var rank = string.IsNullOrWhiteSpace(_options.DemoRank) ? "II" : _options.DemoRank;
         var lp = _options.DemoLp > 0 ? _options.DemoLp : 48;
@@ -407,7 +419,7 @@ public class RiotApiClient : IRiotApiClient
     public Match GenerateMockMatch(string matchId)
     {
         var random = new Random(matchId.GetHashCode());
-        var duration = random.Next(1350, 2200); // 22 to 36 minutes
+        var duration = random.Next(1350, 2200);
         var blueWin = random.Next(0, 2) == 1;
 
         var champions = new[]
@@ -433,7 +445,6 @@ public class RiotApiClient : IRiotApiClient
             WinningTeam = blueWin ? TeamSide.Blue : TeamSide.Red
         };
 
-        // Teams
         var blueStats = new TeamStats
         {
             TeamSide = TeamSide.Blue,
@@ -467,7 +478,6 @@ public class RiotApiClient : IRiotApiClient
         match.Teams.Add(blueStats);
         match.Teams.Add(redStats);
 
-        // Participants
         for (int i = 0; i < 10; i++)
         {
             var isBlue = i < 5;
@@ -535,8 +545,8 @@ public class RiotApiClient : IRiotApiClient
     );
 
     private record RiotSummonerDto(
-        [property: JsonPropertyName("id")] string Id,
-        [property: JsonPropertyName("accountId")] string AccountId,
+        [property: JsonPropertyName("id")] string? Id,
+        [property: JsonPropertyName("accountId")] string? AccountId,
         [property: JsonPropertyName("puuid")] string Puuid,
         [property: JsonPropertyName("profileIconId")] int ProfileIconId,
         [property: JsonPropertyName("summonerLevel")] int SummonerLevel
