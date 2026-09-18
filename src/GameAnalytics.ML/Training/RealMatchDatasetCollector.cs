@@ -48,7 +48,7 @@ public class RealMatchDatasetCollector
                 var storedPuuids = await _matchRepo.GetDistinctParticipantPuuidsAsync(limit: 50, ct);
                 foreach (var p in storedPuuids)
                 {
-                    if (visitedPuuids.Add(p))
+                    if (!p.StartsWith("puuid-", StringComparison.OrdinalIgnoreCase) && visitedPuuids.Add(p))
                     {
                         candidatePuuids.Enqueue(p);
                     }
@@ -127,7 +127,7 @@ public class RealMatchDatasetCollector
                 // Discover other high-elo players from this match to expand the crawl graph
                 foreach (var p in match.Participants)
                 {
-                    if (!string.IsNullOrWhiteSpace(p.Puuid) && visitedPuuids.Add(p.Puuid))
+                    if (!string.IsNullOrWhiteSpace(p.Puuid) && !p.Puuid.StartsWith("puuid-", StringComparison.OrdinalIgnoreCase) && visitedPuuids.Add(p.Puuid))
                     {
                         candidatePuuids.Enqueue(p.Puuid);
                     }

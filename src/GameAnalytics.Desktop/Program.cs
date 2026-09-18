@@ -65,7 +65,7 @@ sealed class Program
         try
         {
             var profile = await apiClient.GetSummonerByRiotIdAsync("Qu4dyz", "qu4");
-            if (profile != null && !string.IsNullOrWhiteSpace(profile.Puuid))
+            if (profile != null && !string.IsNullOrWhiteSpace(profile.Puuid) && !profile.Puuid.StartsWith("puuid-", StringComparison.OrdinalIgnoreCase))
             {
                 seedPuuid = profile.Puuid;
             }
