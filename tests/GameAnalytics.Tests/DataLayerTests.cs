@@ -803,13 +803,9 @@ public class DataLayerTests
 
         // Ranked Win
         var (winDelta, winText, winBg, winFg) = GlobalCoachingAnalyzer.CalculateLpDelta(rankedMatch, isVictory: true, isRemake: false, isMvp: false, isAce: false);
-        Assert.InRange(winDelta, 20, 24);
-        Assert.StartsWith("+", winText);
+        Assert.Equal(20, winDelta);
+        Assert.Equal("+20 LP", winText);
         Assert.Equal("#0AC8B9", winFg);
-
-        // Ranked Win with MVP bonus
-        var (mvpDelta, mvpText, _, _) = GlobalCoachingAnalyzer.CalculateLpDelta(rankedMatch, isVictory: true, isRemake: false, isMvp: true, isAce: false);
-        Assert.True(mvpDelta >= winDelta);
 
         // Ranked Loss
         var (lossDelta, lossText, lossBg, lossFg) = GlobalCoachingAnalyzer.CalculateLpDelta(rankedMatch, isVictory: false, isRemake: false, isMvp: false, isAce: false);
@@ -821,10 +817,6 @@ public class DataLayerTests
         var (overrideDelta, overrideText, _, _) = GlobalCoachingAnalyzer.CalculateLpDelta(rankedMatch, isVictory: false, isRemake: false, isMvp: false, isAce: false, overrideLpDelta: -20);
         Assert.Equal(-20, overrideDelta);
         Assert.Equal("-20 LP", overrideText);
-
-        // Ranked Loss with ACE mitigation
-        var (aceDelta, _, _, _) = GlobalCoachingAnalyzer.CalculateLpDelta(rankedMatch, isVictory: false, isRemake: false, isMvp: false, isAce: true);
-        Assert.True(aceDelta > lossDelta);
 
         // Remake
         var (remakeDelta, remakeText, _, _) = GlobalCoachingAnalyzer.CalculateLpDelta(rankedMatch, isVictory: false, isRemake: true, isMvp: false, isAce: false);

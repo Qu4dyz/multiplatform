@@ -339,13 +339,13 @@ public static class GlobalCoachingAnalyzer
         }
         else if (isVictory)
         {
-            // Standard LoL Ranked win baseline is +20 LP (+21 with high winrate or MVP)
-            delta = isMvp ? 21 : (winRate >= 54.0 ? 21 : 20);
+            // Standard LoL Ranked win baseline is +20 LP
+            delta = 20;
         }
         else
         {
-            // Standard LoL Ranked loss baseline is -20 LP (-18 with ACE mitigation or high MMR)
-            delta = isAce ? -18 : (winRate >= 54.0 ? -19 : -20);
+            // Standard LoL Ranked loss baseline is -20 LP
+            delta = -20;
         }
 
         var text = delta > 0 ? $"+{delta} LP" : $"{delta} LP";
