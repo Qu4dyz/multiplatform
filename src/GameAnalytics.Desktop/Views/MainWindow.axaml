@@ -14,6 +14,27 @@
         Icon="/Assets/avalonia-logo.ico"
         Title="{Binding AppTitle}">
 
+    <Window.Styles>
+        <Style Selector="TabItem">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#A09B8C" />
+            <Setter Property="Padding" Value="20,12" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Foreground" Duration="0:0:0.2" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="TabItem:pointerover">
+            <Setter Property="Foreground" Value="#F0E6D2" />
+        </Style>
+        <Style Selector="TabItem:selected">
+            <Setter Property="Foreground" Value="#C8AA6E" />
+            <Setter Property="FontWeight" Value="Bold" />
+        </Style>
+    </Window.Styles>
+
     <Grid RowDefinitions="Auto, *, Auto">
         <!-- Application Top App Bar -->
         <Border Grid.Row="0"
