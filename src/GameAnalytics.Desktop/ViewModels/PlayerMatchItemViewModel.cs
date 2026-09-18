@@ -50,6 +50,10 @@ public class DetailedParticipantViewModel
     public string DisplayName => $"{IndicatorText}{SummonerName}";
     public string ToolTipText => IsCurrentPlayer ? $"{FullRiotId} (Ви)" : $"Переглянути профіль {FullRiotId} (клікніть)";
 
+    public string BadgeText { get; set; } = string.Empty;
+    public string BadgeBg { get; set; } = "Transparent";
+    public bool HasBadge => !string.IsNullOrEmpty(BadgeText);
+
     public System.Windows.Input.ICommand? SelectPlayerCommand { get; set; }
 }
 
@@ -80,6 +84,11 @@ public partial class PlayerMatchItemViewModel : ObservableObject
     public string ResultBgColor => IsRemake ? "#1C222B" : (IsVictory ? "#16243A" : "#2C1822");
     public string ResultBorderColor => IsRemake ? "#363E4D" : (IsVictory ? "#283852" : "#4D222E");
     public string AccentBarColor => IsRemake ? "#758092" : (IsVictory ? "#5383E8" : "#E84057");
+
+    public string PerformanceBadgeText { get; set; } = string.Empty;
+    public string PerformanceBadgeBg { get; set; } = "Transparent";
+    public string PerformanceBadgeFg { get; set; } = "#010A13";
+    public bool HasPerformanceBadge => !string.IsNullOrEmpty(PerformanceBadgeText);
 
     public string GameModeText { get; set; } = "Normal Draft";
     public string FormattedDuration { get; set; } = string.Empty;
@@ -229,6 +238,33 @@ public partial class PlayerMatchItemViewModel : ObservableObject
         // Find max damage for relative damage bar width
         var maxDamage = Math.Max(1, match.Participants.Count > 0 ? match.Participants.Max(p => p.TotalDamageDealtToChampions) : 1);
 
+        // Calculate MVP (highest damage on winning team) and ACE (highest damage on losing team)
+        var winners = match.Participants.Where(p => p.Win).ToList();
+        if (winners.Count == 0)
+        {
+            winners = match.Participants.Where(p => p.TeamSide == match.WinningTeam).ToList();
+        }
+        var losers = match.Participants.Where(p => !winners.Contains(p)).ToList();
+
+        var mvpParticipant = winners.OrderByDescending(p => p.TotalDamageDealtToChampions).FirstOrDefault();
+        var aceParticipant = losers.OrderByDescending(p => p.TotalDamageDealtToChampions).FirstOrDefault();
+
+        if (!isRemake && match.Participants.Count >= 6)
+        {
+            if (player != null && mvpParticipant == player && player.TotalDamageDealtToChampions > 0)
+            {
+                vm.PerformanceBadgeText = "MVP";
+                vm.PerformanceBadgeBg = "#C8AA6E";
+                vm.PerformanceBadgeFg = "#010A13";
+            }
+            else if (player != null && aceParticipant == player && player.TotalDamageDealtToChampions > 0)
+            {
+                vm.PerformanceBadgeText = "ACE";
+                vm.PerformanceBadgeBg = "#E84057";
+                vm.PerformanceBadgeFg = "#FFFFFF";
+            }
+        }
+
         // Populate Blue and Red participants (both compact and detailed)
         foreach (var p in match.Participants.Where(x => x.TeamSide == TeamSide.Blue))
         {
@@ -258,6 +294,11 @@ public partial class PlayerMatchItemViewModel : ObservableObject
                     _ => ("MID", "⚔️")
                 };
 
+            var isMvp = !isRemake && match.Participants.Count >= 6 && p == mvpParticipant && p.TotalDamageDealtToChampions > 0;
+            var isAce = !isRemake && match.Participants.Count >= 6 && p == aceParticipant && p.TotalDamageDealtToChampions > 0;
+            var badgeText = isMvp ? "MVP" : (isAce ? "ACE" : string.Empty);
+            var badgeBg = isMvp ? "#C8AA6E" : (isAce ? "#E84057" : "Transparent");
+
             vm.BlueTeamDetailed.Add(new DetailedParticipantViewModel
             {
                 SummonerName = shortName,
@@ -265,6 +306,8 @@ public partial class PlayerMatchItemViewModel : ObservableObject
                 ChampionName = p.ChampionName,
                 ChampLevel = p.ChampLevel > 0 ? p.ChampLevel : 1,
                 IsCurrentPlayer = isCurrent,
+                BadgeText = badgeText,
+                BadgeBg = badgeBg,
                 PositionName = pRoleName,
                 PositionIcon = pRoleIcon,
                 Kills = p.Kills,
@@ -316,6 +359,11 @@ public partial class PlayerMatchItemViewModel : ObservableObject
                     _ => ("MID", "⚔️")
                 };
 
+            var isMvp = !isRemake && match.Participants.Count >= 6 && p == mvpParticipant && p.TotalDamageDealtToChampions > 0;
+            var isAce = !isRemake && match.Participants.Count >= 6 && p == aceParticipant && p.TotalDamageDealtToChampions > 0;
+            var badgeText = isMvp ? "MVP" : (isAce ? "ACE" : string.Empty);
+            var badgeBg = isMvp ? "#C8AA6E" : (isAce ? "#E84057" : "Transparent");
+
             vm.RedTeamDetailed.Add(new DetailedParticipantViewModel
             {
                 SummonerName = shortName,
@@ -323,6 +371,8 @@ public partial class PlayerMatchItemViewModel : ObservableObject
                 ChampionName = p.ChampionName,
                 ChampLevel = p.ChampLevel > 0 ? p.ChampLevel : 1,
                 IsCurrentPlayer = isCurrent,
+                BadgeText = badgeText,
+                BadgeBg = badgeBg,
                 PositionName = pRoleName,
                 PositionIcon = pRoleIcon,
                 Kills = p.Kills,

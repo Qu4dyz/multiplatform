@@ -514,6 +514,216 @@ public class DataLayerTests
         Assert.Equal("Bofur", vm.GameName);
         Assert.Equal("EUW", vm.TagLine); // Keeps existing tag
     }
+
+    [Fact]
+    public void MainViewModel_ScalingCommands_UpdateUiScaleAndIndicators()
+    {
+        var vm = new MainViewModel();
+
+        // Default scale is 1.0 (100%)
+        Assert.Equal(1.0, vm.UiScale);
+        Assert.True(vm.IsScale100);
+        Assert.False(vm.IsScale115);
+        Assert.False(vm.IsScale125);
+        Assert.Equal("#0AC8B9", vm.Scale100Bg);
+        Assert.Equal("Transparent", vm.Scale115Bg);
+
+        // Switch to 115%
+        vm.SetScale115Command.Execute(null);
+        Assert.Equal(1.15, vm.UiScale);
+        Assert.False(vm.IsScale100);
+        Assert.True(vm.IsScale115);
+        Assert.False(vm.IsScale125);
+        Assert.Equal("#0AC8B9", vm.Scale115Bg);
+        Assert.Equal("Transparent", vm.Scale100Bg);
+
+        // Switch to 125%
+        vm.SetScale125Command.Execute(null);
+        Assert.Equal(1.25, vm.UiScale);
+        Assert.False(vm.IsScale100);
+        Assert.False(vm.IsScale115);
+        Assert.True(vm.IsScale125);
+        Assert.Equal("#0AC8B9", vm.Scale125Bg);
+
+        // Switch back to 100%
+        vm.SetScale100Command.Execute(null);
+        Assert.Equal(1.0, vm.UiScale);
+        Assert.True(vm.IsScale100);
+    }
+
+    [Fact]
+    public void PlayerMatchItemViewModel_FromMatch_AssignsMvpAndAceCorrectly()
+    {
+        // 1. Victory Match: Player has highest damage on winning team -> MVP
+        var winMatch = new Match
+        {
+            MatchId = "WIN_001",
+            GameDurationSeconds = 1800,
+            WinningTeam = TeamSide.Blue,
+            QueueId = 420,
+            GameCreation = DateTime.UtcNow
+        };
+
+        // 3 Blue, 3 Red participants (>= 6)
+        var player = new Participant
+        {
+            Puuid = "hero-puuid",
+            SummonerName = "Hero#EUW",
+            TeamSide = TeamSide.Blue,
+            Win = true,
+            TotalDamageDealtToChampions = 35000,
+            Kills = 12, Deaths = 1, Assists = 7
+        };
+        winMatch.Participants.Add(player);
+
+        winMatch.Participants.Add(new Participant
+        {
+            Puuid = "blue-2",
+            SummonerName = "Blue2#EUW",
+            TeamSide = TeamSide.Blue,
+            Win = true,
+            TotalDamageDealtToChampions = 20000,
+            Kills = 4, Deaths = 3, Assists = 9
+        });
+
+        winMatch.Participants.Add(new Participant
+        {
+            Puuid = "blue-3",
+            SummonerName = "Blue3#EUW",
+            TeamSide = TeamSide.Blue,
+            Win = true,
+            TotalDamageDealtToChampions = 15000,
+            Kills = 2, Deaths = 4, Assists = 10
+        });
+
+        var redAce = new Participant
+        {
+            Puuid = "red-ace",
+            SummonerName = "RedAce#EUW",
+            TeamSide = TeamSide.Red,
+            Win = false,
+            TotalDamageDealtToChampions = 28000,
+            Kills = 6, Deaths = 5, Assists = 2
+        };
+        winMatch.Participants.Add(redAce);
+
+        winMatch.Participants.Add(new Participant
+        {
+            Puuid = "red-2",
+            SummonerName = "Red2#EUW",
+            TeamSide = TeamSide.Red,
+            Win = false,
+            TotalDamageDealtToChampions = 12000,
+            Kills = 1, Deaths = 6, Assists = 3
+        });
+
+        winMatch.Participants.Add(new Participant
+        {
+            Puuid = "red-3",
+            SummonerName = "Red3#EUW",
+            TeamSide = TeamSide.Red,
+            Win = false,
+            TotalDamageDealtToChampions = 9000,
+            Kills = 1, Deaths = 7, Assists = 4
+        });
+
+        var winVm = PlayerMatchItemViewModel.FromMatch(winMatch, "hero-puuid");
+        Assert.True(winVm.HasPerformanceBadge);
+        Assert.Equal("MVP", winVm.PerformanceBadgeText);
+        Assert.Equal("#C8AA6E", winVm.PerformanceBadgeBg);
+
+        var blueHeroDetailed = winVm.BlueTeamDetailed.First(p => p.FullRiotId == "Hero#EUW");
+        Assert.True(blueHeroDetailed.HasBadge);
+        Assert.Equal("MVP", blueHeroDetailed.BadgeText);
+
+        var redAceDetailed = winVm.RedTeamDetailed.First(p => p.FullRiotId == "RedAce#EUW");
+        Assert.True(redAceDetailed.HasBadge);
+        Assert.Equal("ACE", redAceDetailed.BadgeText);
+
+        // 2. Defeat Match: Player has highest damage on losing team -> ACE
+        var lossMatch = new Match
+        {
+            MatchId = "LOSS_001",
+            GameDurationSeconds = 1800,
+            WinningTeam = TeamSide.Red,
+            QueueId = 420,
+            GameCreation = DateTime.UtcNow
+        };
+
+        var losingPlayer = new Participant
+        {
+            Puuid = "hero-puuid",
+            SummonerName = "Hero#EUW",
+            TeamSide = TeamSide.Blue,
+            Win = false,
+            TotalDamageDealtToChampions = 30000,
+            Kills = 8, Deaths = 4, Assists = 3
+        };
+        lossMatch.Participants.Add(losingPlayer);
+
+        lossMatch.Participants.Add(new Participant
+        {
+            Puuid = "blue-2",
+            SummonerName = "Blue2#EUW",
+            TeamSide = TeamSide.Blue,
+            Win = false,
+            TotalDamageDealtToChampions = 14000,
+            Kills = 2, Deaths = 8, Assists = 4
+        });
+
+        lossMatch.Participants.Add(new Participant
+        {
+            Puuid = "blue-3",
+            SummonerName = "Blue3#EUW",
+            TeamSide = TeamSide.Blue,
+            Win = false,
+            TotalDamageDealtToChampions = 11000,
+            Kills = 1, Deaths = 9, Assists = 2
+        });
+
+        lossMatch.Participants.Add(new Participant
+        {
+            Puuid = "red-mvp",
+            SummonerName = "RedMvp#EUW",
+            TeamSide = TeamSide.Red,
+            Win = true,
+            TotalDamageDealtToChampions = 38000,
+            Kills = 15, Deaths = 2, Assists = 8
+        });
+
+        lossMatch.Participants.Add(new Participant
+        {
+            Puuid = "red-2",
+            SummonerName = "Red2#EUW",
+            TeamSide = TeamSide.Red,
+            Win = true,
+            TotalDamageDealtToChampions = 16000,
+            Kills = 4, Deaths = 3, Assists = 10
+        });
+
+        lossMatch.Participants.Add(new Participant
+        {
+            Puuid = "red-3",
+            SummonerName = "Red3#EUW",
+            TeamSide = TeamSide.Red,
+            Win = true,
+            TotalDamageDealtToChampions = 13000,
+            Kills = 2, Deaths = 6, Assists = 12
+        });
+
+        var lossVm = PlayerMatchItemViewModel.FromMatch(lossMatch, "hero-puuid");
+        Assert.True(lossVm.HasPerformanceBadge);
+        Assert.Equal("ACE", lossVm.PerformanceBadgeText);
+        Assert.Equal("#E84057", lossVm.PerformanceBadgeBg);
+
+        var losingPlayerDetailed = lossVm.BlueTeamDetailed.First(p => p.FullRiotId == "Hero#EUW");
+        Assert.True(losingPlayerDetailed.HasBadge);
+        Assert.Equal("ACE", losingPlayerDetailed.BadgeText);
+
+        var winningRedDetailed = lossVm.RedTeamDetailed.First(p => p.FullRiotId == "RedMvp#EUW");
+        Assert.True(winningRedDetailed.HasBadge);
+        Assert.Equal("MVP", winningRedDetailed.BadgeText);
+    }
 }
 
 

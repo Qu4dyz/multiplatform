@@ -33,6 +33,11 @@
             <Setter Property="Foreground" Value="#C8AA6E" />
             <Setter Property="FontWeight" Value="Bold" />
         </Style>
+        <Style Selector="Button.scale-btn">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
     </Window.Styles>
 
     <Grid RowDefinitions="Auto, *, Auto">
@@ -77,8 +82,18 @@
                                Foreground="#C8AA6E" />
                 </Border>
 
-                <!-- Author Tag -->
-                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <!-- Scale Selector & Author Tag -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                    <!-- Zoom Scale Selector -->
+                    <Border Background="#101726" CornerRadius="6" Padding="4,2" BorderBrush="#252D3D" BorderThickness="1">
+                        <StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+                            <TextBlock Text="🔍 Масштаб:" FontSize="11" Foreground="#8A93A5" VerticalAlignment="Center" Margin="4,0,4,0" />
+                            <Button Content="100%" Command="{Binding SetScale100Command}" Classes="scale-btn" FontSize="10" FontWeight="Bold" Padding="6,3" CornerRadius="4" Background="{Binding Scale100Bg}" Foreground="{Binding Scale100Fg}" />
+                            <Button Content="115%" Command="{Binding SetScale115Command}" Classes="scale-btn" FontSize="10" FontWeight="Bold" Padding="6,3" CornerRadius="4" Background="{Binding Scale115Bg}" Foreground="{Binding Scale115Fg}" />
+                            <Button Content="125%" Command="{Binding SetScale125Command}" Classes="scale-btn" FontSize="10" FontWeight="Bold" Padding="6,3" CornerRadius="4" Background="{Binding Scale125Bg}" Foreground="{Binding Scale125Fg}" />
+                        </StackPanel>
+                    </Border>
+
                     <Border Background="#0AC8B9"
                             CornerRadius="4"
                             Padding="8,4">
@@ -98,30 +113,35 @@
             </Grid>
         </Border>
 
-        <!-- Main Tab Control for Navigation -->
-        <TabControl Grid.Row="1"
-                    SelectedIndex="{Binding SelectedTabIndex}"
-                    Margin="0,8,0,0">
-            <!-- Tab 1: Player Analytics -->
-            <TabItem Header="🔍 Аналітика гравця">
-                <views:PlayerAnalyticsView DataContext="{Binding PlayerAnalytics}" />
-            </TabItem>
+        <!-- Main Tab Control for Navigation with Dynamic Scaling -->
+        <LayoutTransformControl Grid.Row="1">
+            <LayoutTransformControl.LayoutTransform>
+                <ScaleTransform ScaleX="{Binding UiScale}" ScaleY="{Binding UiScale}" />
+            </LayoutTransformControl.LayoutTransform>
 
-            <!-- Tab 2: Draft & In-game ML Prediction -->
-            <TabItem Header="🧠 Аналіз драфту / Передбачення">
-                <views:DraftPredictionView DataContext="{Binding DraftPrediction}" />
-            </TabItem>
+            <TabControl SelectedIndex="{Binding SelectedTabIndex}"
+                        Margin="0,8,0,0">
+                <!-- Tab 1: Player Analytics -->
+                <TabItem Header="🔍 Аналітика гравця">
+                    <views:PlayerAnalyticsView DataContext="{Binding PlayerAnalytics}" />
+                </TabItem>
 
-            <!-- Tab 3: Local SQLite Match History -->
-            <TabItem Header="📊 Історія матчів">
-                <views:MatchHistoryView DataContext="{Binding MatchHistory}" />
-            </TabItem>
+                <!-- Tab 2: Draft & In-game ML Prediction -->
+                <TabItem Header="🧠 Аналіз драфту / Передбачення">
+                    <views:DraftPredictionView DataContext="{Binding DraftPrediction}" />
+                </TabItem>
 
-            <!-- Tab 4: System & VPS Settings -->
-            <TabItem Header="⚙️ Налаштування">
-                <views:SettingsView DataContext="{Binding Settings}" />
-            </TabItem>
-        </TabControl>
+                <!-- Tab 3: Local SQLite Match History -->
+                <TabItem Header="📊 Історія матчів">
+                    <views:MatchHistoryView DataContext="{Binding MatchHistory}" />
+                </TabItem>
+
+                <!-- Tab 4: System & VPS Settings -->
+                <TabItem Header="⚙️ Налаштування">
+                    <views:SettingsView DataContext="{Binding Settings}" />
+                </TabItem>
+            </TabControl>
+        </LayoutTransformControl>
 
         <!-- Bottom Status Bar -->
         <Border Grid.Row="2"
