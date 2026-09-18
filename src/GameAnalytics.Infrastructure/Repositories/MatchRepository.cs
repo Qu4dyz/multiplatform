@@ -104,6 +104,39 @@ public class MatchRepository : IMatchRepository
             }
             catch { /* Column already exists */ }
         }
+
+        try
+        {
+            _context.Database.ExecuteSqlRaw(@"
+                CREATE TABLE IF NOT EXISTS PlayerLpSnapshots (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Puuid TEXT NOT NULL,
+                    QueueId INTEGER NOT NULL DEFAULT 420,
+                    LeaguePoints INTEGER NOT NULL DEFAULT 0,
+                    Tier INTEGER NOT NULL DEFAULT 6,
+                    Rank TEXT NOT NULL DEFAULT 'IV',
+                    Wins INTEGER NOT NULL DEFAULT 0,
+                    Losses INTEGER NOT NULL DEFAULT 0,
+                    LastMatchId TEXT NOT NULL DEFAULT '',
+                    LastUpdatedAt TEXT NOT NULL
+                );");
+        }
+        catch { /* Table already exists */ }
+
+        try
+        {
+            _context.Database.ExecuteSqlRaw(@"
+                CREATE TABLE IF NOT EXISTS PlayerMatchLpRecords (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Puuid TEXT NOT NULL,
+                    MatchId TEXT NOT NULL,
+                    QueueId INTEGER NOT NULL DEFAULT 420,
+                    LpDelta INTEGER NOT NULL DEFAULT 0,
+                    LeaguePointsAfter INTEGER NOT NULL DEFAULT 0,
+                    RecordedAt TEXT NOT NULL
+                );");
+        }
+        catch { /* Table already exists */ }
     }
 
     public async Task<IReadOnlyList<Match>> GetAllMatchesAsync(CancellationToken ct = default)
@@ -173,6 +206,61 @@ public class MatchRepository : IMatchRepository
             .Distinct()
             .Take(limit)
             .ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyDictionary<string, int>> GetPlayerMatchLpMapAsync(string puuid, CancellationToken ct = default)
+    {
+        return await _context.PlayerMatchLpRecords
+            .Where(r => r.Puuid == puuid)
+            .ToDictionaryAsync(r => r.MatchId, r => r.LpDelta, ct);
+    }
+
+    public async Task SaveMatchLpRecordAsync(PlayerMatchLpRecord record, CancellationToken ct = default)
+    {
+        var existing = await _context.PlayerMatchLpRecords
+            .FirstOrDefaultAsync(r => r.Puuid == record.Puuid && r.MatchId == record.MatchId, ct);
+
+        if (existing != null)
+        {
+            existing.LpDelta = record.LpDelta;
+            existing.LeaguePointsAfter = record.LeaguePointsAfter;
+            existing.RecordedAt = DateTime.UtcNow;
+        }
+        else
+        {
+            await _context.PlayerMatchLpRecords.AddAsync(record, ct);
+        }
+
+        await _context.SaveChangesAsync(ct);
+    }
+
+    public async Task<PlayerLpSnapshot?> GetLpSnapshotAsync(string puuid, int queueId = 420, CancellationToken ct = default)
+    {
+        return await _context.PlayerLpSnapshots
+            .FirstOrDefaultAsync(s => s.Puuid == puuid && s.QueueId == queueId, ct);
+    }
+
+    public async Task SaveLpSnapshotAsync(PlayerLpSnapshot snapshot, CancellationToken ct = default)
+    {
+        var existing = await _context.PlayerLpSnapshots
+            .FirstOrDefaultAsync(s => s.Puuid == snapshot.Puuid && s.QueueId == snapshot.QueueId, ct);
+
+        if (existing != null)
+        {
+            existing.LeaguePoints = snapshot.LeaguePoints;
+            existing.Tier = snapshot.Tier;
+            existing.Rank = snapshot.Rank;
+            existing.Wins = snapshot.Wins;
+            existing.Losses = snapshot.Losses;
+            existing.LastMatchId = snapshot.LastMatchId;
+            existing.LastUpdatedAt = DateTime.UtcNow;
+        }
+        else
+        {
+            await _context.PlayerLpSnapshots.AddAsync(snapshot, ct);
+        }
+
+        await _context.SaveChangesAsync(ct);
     }
 }
 
