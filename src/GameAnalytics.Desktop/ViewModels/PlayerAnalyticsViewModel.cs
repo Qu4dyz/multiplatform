@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 using GameAnalytics.Core.Entities;
 using GameAnalytics.Core.Enums;
 using GameAnalytics.Core.Interfaces;
+using GameAnalytics.Desktop.Converters;
 using GameAnalytics.Infrastructure.Configuration;
 
 namespace GameAnalytics.Desktop.ViewModels;
@@ -142,10 +143,25 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
                     : $"Профіль {profile.FullName} (Демо-режим). Отримання матчів...";
 
                 var matches = await _analyticsService.FetchAndSaveRecentMatchesAsync(profile.Puuid, 5);
+
+                // Preload profile icon and champion icons for instant rendering
+                var iconsToPreload = new List<string> { profile.ProfileIconUrl };
+                foreach (var m in matches)
+                {
+                    foreach (var p in m.Participants)
+                    {
+                        if (!string.IsNullOrWhiteSpace(p.ChampionName))
+                        {
+                            iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/champion/{p.ChampionName}.png");
+                        }
+                    }
+                }
+                await BitmapAssetValueConverter.PreloadImagesAsync(iconsToPreload);
+
                 RecentMatches.Clear();
                 foreach (var m in matches)
                 {
-                    RecentMatches.Add(PlayerMatchItemViewModel.FromMatch(m, profile.GameName));
+                    RecentMatches.Add(PlayerMatchItemViewModel.FromMatch(m, profile.Puuid, profile.GameName));
                 }
 
                 StatusMessage = $"Завантажено {RecentMatches.Count} матчів для {profile.FullName} ({SelectedRegion.Code}).";

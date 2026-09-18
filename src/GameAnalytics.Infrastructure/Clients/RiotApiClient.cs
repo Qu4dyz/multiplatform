@@ -231,6 +231,7 @@ public class RiotApiClient : IRiotApiClient
         var match = new Match
         {
             MatchId = matchId,
+            QueueId = info.QueueId,
             GameCreation = DateTimeOffset.FromUnixTimeMilliseconds(info.GameCreation).UtcDateTime,
             GameDurationSeconds = info.GameDuration,
             GameVersion = info.GameVersion ?? "14.18.1",
@@ -282,6 +283,7 @@ public class RiotApiClient : IRiotApiClient
                         : (p.SummonerName ?? "Player"),
                     ChampionName = p.ChampionName ?? "Champion",
                     ChampionId = p.ChampionId,
+                    ChampLevel = p.ChampLevel > 0 ? p.ChampLevel : 1,
                     Position = ParsePosition(p.TeamPosition),
                     TeamSide = side,
                     Kills = p.Kills,
@@ -492,6 +494,7 @@ public class RiotApiClient : IRiotApiClient
                 SummonerName = i == 3 ? "Qu4dyz#EUW" : $"Player_{i + 1}",
                 ChampionName = champ.Item1,
                 ChampionId = 100 + i,
+                ChampLevel = random.Next(11, 18),
                 Position = champ.Item2,
                 TeamSide = isBlue ? TeamSide.Blue : TeamSide.Red,
                 Kills = kills,
@@ -578,6 +581,9 @@ public class RiotApiClient : IRiotApiClient
         [JsonPropertyName("gameVersion")]
         public string? GameVersion { get; set; }
 
+        [JsonPropertyName("queueId")]
+        public int QueueId { get; set; }
+
         [JsonPropertyName("teams")]
         public List<RiotTeamDto>? Teams { get; set; }
 
@@ -640,6 +646,9 @@ public class RiotApiClient : IRiotApiClient
 
         [JsonPropertyName("championName")]
         public string? ChampionName { get; set; }
+
+        [JsonPropertyName("champLevel")]
+        public int ChampLevel { get; set; }
 
         [JsonPropertyName("teamId")]
         public int TeamId { get; set; }

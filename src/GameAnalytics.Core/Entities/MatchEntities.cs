@@ -6,6 +6,7 @@ public class Match
 {
     public int Id { get; set; }
     public string MatchId { get; set; } = string.Empty;
+    public int QueueId { get; set; } = 420;
     public DateTime GameCreation { get; set; } = DateTime.UtcNow;
     public int GameDurationSeconds { get; set; }
     public string GameVersion { get; set; } = string.Empty;
@@ -15,6 +16,18 @@ public class Match
     public List<TeamStats> Teams { get; set; } = new();
 
     public string FormattedDuration => $"{GameDurationSeconds / 60}m {GameDurationSeconds % 60}s";
+    public string QueueName => QueueId switch
+    {
+        400 => "Normal Draft",
+        420 => "Ranked Solo",
+        430 => "Normal Blind",
+        440 => "Ranked Flex",
+        450 => "ARAM",
+        700 => "Clash",
+        1700 => "Arena",
+        1900 => "Quickplay",
+        _ => "Normal Game"
+    };
 }
 
 public class Participant
@@ -27,6 +40,7 @@ public class Participant
     public string SummonerName { get; set; } = string.Empty;
     public string ChampionName { get; set; } = string.Empty;
     public int ChampionId { get; set; }
+    public int ChampLevel { get; set; } = 1;
     public TeamSide TeamSide { get; set; }
     public Position Position { get; set; }
 

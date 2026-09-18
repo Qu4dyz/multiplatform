@@ -47,10 +47,10 @@
         <StackPanel Margin="24" Spacing="18">
 
             <!-- 1. RIOT ID SEARCH & REGION CONSOLE -->
-            <Border Background="#121820"
+            <Border Background="#121824"
                     CornerRadius="10"
                     Padding="20"
-                    BorderBrush="#3C3C41"
+                    BorderBrush="#1E283A"
                     BorderThickness="1">
                 <StackPanel Spacing="14">
                     <!-- Title Bar -->
@@ -63,16 +63,16 @@
                                        LetterSpacing="1.2" />
                             <TextBlock Text="Введіть ігрове ім'я, тег після # та оберіть ігровий сервер (EUW, EUNE, NA, KR тощо)"
                                        FontSize="12"
-                                       Foreground="#A09B8C" />
+                                       Foreground="#8A93A5" />
                         </StackPanel>
 
                         <!-- API Status Pill -->
                         <Border Grid.Column="1"
                                 Background="#091428"
-                                BorderBrush="#2F3640"
+                                BorderBrush="#252D3D"
                                 BorderThickness="1"
                                 CornerRadius="14"
-                                Padding="12,5"
+                                Padding="14,6"
                                 VerticalAlignment="Center">
                             <TextBlock Text="{Binding ApiStatusText}"
                                        FontSize="11"
@@ -96,7 +96,7 @@
                         <!-- Game Name Input -->
                         <TextBox Grid.Column="1"
                                  Text="{Binding GameName}"
-                                 PlaceholderText="Ім'я гравця (підтримує введення з тегом: Qu4dyz#EUW)"
+                                 PlaceholderText="Ім'я гравця (підтримує: Qu4dyz#qu4)"
                                  Height="40"
                                  FontSize="14"
                                  VerticalContentAlignment="Center" />
@@ -113,7 +113,7 @@
                         <!-- Tag Line Input -->
                         <TextBox Grid.Column="3"
                                  Text="{Binding TagLine}"
-                                 PlaceholderText="Тег (EUW)"
+                                 PlaceholderText="Тег (qu4)"
                                  Height="40"
                                  FontSize="14"
                                  VerticalContentAlignment="Center"
@@ -134,17 +134,17 @@
                     </Grid>
 
                     <!-- Demo Mode Options & API Key Bar -->
-                    <Border Background="#0A1428"
+                    <Border Background="#091428"
                             CornerRadius="6"
                             Padding="12,8"
-                            BorderBrush="#2F3640"
+                            BorderBrush="#1E283A"
                             BorderThickness="1">
                         <Grid ColumnDefinitions="Auto, 160, *, Auto">
                             <!-- Demo Tier Selector -->
                             <TextBlock Grid.Column="0"
                                        Text="🎮 Бажаний ранг у демо-режимі:"
                                        FontSize="12"
-                                       Foreground="#A09B8C"
+                                       Foreground="#8A93A5"
                                        VerticalAlignment="Center"
                                        Margin="0,0,10,0" />
 
@@ -171,7 +171,7 @@
                                     Classes="action-btn"
                                     Content="💾 Застосувати ключ"
                                     Height="30"
-                                    Background="#2F3640"
+                                    Background="#1E283A"
                                     Foreground="#F0E6D2"
                                     FontSize="11"
                                     Padding="10,0"
@@ -187,29 +187,29 @@
             </Border>
 
             <!-- 2. PLAYER PROFILE HEXTECH CARD (Rendered when profile is loaded) -->
-            <Border Background="#121820"
+            <Border Background="#121824"
                     CornerRadius="10"
                     Padding="22"
-                    BorderBrush="#C8AA6E"
+                    BorderBrush="#252D3D"
                     BorderThickness="1"
                     IsVisible="{Binding Summoner, Converter={x:Static ObjectConverters.IsNotNull}}">
                 <Grid ColumnDefinitions="Auto, *, Auto">
                     <!-- Left: Profile Icon with Level Badge -->
-                    <Grid Grid.Column="0" Margin="0,0,22,0">
-                        <Border Width="84" Height="84"
-                                CornerRadius="42"
-                                Background="#0A1428"
+                    <Grid Grid.Column="0" Margin="0,0,22,0" VerticalAlignment="Center">
+                        <Border Width="88" Height="88"
+                                CornerRadius="44"
+                                ClipToBounds="True"
+                                Background="#091428"
                                 BorderBrush="{Binding TierBadgeColor}"
                                 BorderThickness="3">
-                            <TextBlock Text="⚔️"
-                                       FontSize="36"
-                                       HorizontalAlignment="Center"
-                                       VerticalAlignment="Center" />
+                            <Image Source="{Binding Summoner.ProfileIconUrl, Converter={StaticResource BitmapAssetConverter}}"
+                                   Width="88" Height="88"
+                                   Stretch="UniformToFill" />
                         </Border>
 
                         <!-- Level Tag floating at bottom -->
                         <Border Background="#091428"
-                                BorderBrush="#C8AA6E"
+                                BorderBrush="{Binding TierBadgeColor}"
                                 BorderThickness="1"
                                 CornerRadius="10"
                                 Padding="8,2"
@@ -219,33 +219,34 @@
                             <TextBlock Text="{Binding Summoner.SummonerLevel, StringFormat='Рівень {0}'}"
                                        FontSize="11"
                                        FontWeight="Bold"
-                                       Foreground="#0AC8B9" />
+                                       Foreground="#FFFFFF" />
                         </Border>
                     </Grid>
 
                     <!-- Center: Identity & Server -->
-                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="6">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="8">
+                        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                             <TextBlock Text="{Binding Summoner.GameName}"
-                                       FontSize="24"
+                                       FontSize="26"
                                        FontWeight="Bold"
                                        Foreground="#F0E6D2" />
                             <TextBlock Text="{Binding Summoner.TagLine, StringFormat='#{0}'}"
-                                       FontSize="22"
+                                       FontSize="24"
                                        FontWeight="Bold"
                                        Foreground="#0AC8B9" />
-                            <Border Background="#0A1428" CornerRadius="4" Padding="8,3" VerticalAlignment="Center" BorderBrush="#2F3640" BorderThickness="1">
+                            <Border Background="#091428" CornerRadius="4" Padding="8,3" VerticalAlignment="Center" BorderBrush="#252D3D" BorderThickness="1">
                                 <TextBlock Text="{Binding SelectedRegion.DisplayName}"
                                            FontSize="11"
+                                           FontWeight="SemiBold"
                                            Foreground="#C8AA6E" />
                             </Border>
                         </StackPanel>
 
                         <!-- Ranked Tier & LP -->
-                        <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                             <Border Background="{Binding TierBadgeColor}"
                                     CornerRadius="4"
-                                    Padding="8,3">
+                                    Padding="10,4">
                                 <TextBlock Text="{Binding Summoner.Tier, StringFormat='{}{0}'}"
                                            FontSize="13"
                                            FontWeight="Bold"
@@ -253,33 +254,35 @@
                             </Border>
 
                             <TextBlock Text="{Binding Summoner.Rank}"
-                                       FontSize="15"
+                                       FontSize="16"
                                        FontWeight="Bold"
                                        Foreground="#F0E6D2"
                                        VerticalAlignment="Center" />
 
                             <TextBlock Text="{Binding Summoner.LeaguePoints, StringFormat='{}{0} LP'}"
-                                       FontSize="14"
-                                       FontWeight="SemiBold"
+                                       FontSize="15"
+                                       FontWeight="Bold"
                                        Foreground="#C8AA6E"
                                        VerticalAlignment="Center" />
 
-                            <TextBlock Text="• Ranked Solo/Duo 5v5"
-                                       FontSize="12"
-                                       Foreground="#A09B8C"
-                                       VerticalAlignment="Center" />
+                            <Border Background="#091428" CornerRadius="4" Padding="6,2" BorderBrush="#252D3D" BorderThickness="1" VerticalAlignment="Center">
+                                <TextBlock Text="Ranked Solo/Duo 5v5"
+                                           FontSize="11"
+                                           Foreground="#8A93A5"
+                                           FontWeight="SemiBold" />
+                            </Border>
                         </StackPanel>
                     </StackPanel>
 
                     <!-- Right: WinRate & Record Badge -->
                     <Border Grid.Column="2"
-                            Background="#0A1428"
+                            Background="#091428"
                             CornerRadius="8"
-                            Padding="16,12"
-                            BorderBrush="#2F3640"
+                            Padding="18,14"
+                            BorderBrush="#252D3D"
                             BorderThickness="1"
                             VerticalAlignment="Center">
-                        <StackPanel Spacing="4" HorizontalAlignment="Right">
+                        <StackPanel Spacing="6" HorizontalAlignment="Right">
                             <TextBlock Text="{Binding Summoner.WinRate, StringFormat='Вінрейт: {0}%'}"
                                        FontSize="20"
                                        FontWeight="Bold"
@@ -290,14 +293,14 @@
                                 <TextBlock Text="{Binding Summoner.Wins, StringFormat='{}{0}W'}"
                                            FontSize="13"
                                            FontWeight="Bold"
-                                           Foreground="#0397AB" />
+                                           Foreground="#5383E8" />
                                 <TextBlock Text="{Binding Summoner.Losses, StringFormat='{}{0}L'}"
                                            FontSize="13"
                                            FontWeight="Bold"
                                            Foreground="#E84057" />
                                 <TextBlock Text="{Binding Summoner.TotalGames, StringFormat='({0} матчів)'}"
                                            FontSize="12"
-                                           Foreground="#A09B8C" />
+                                           Foreground="#8A93A5" />
                             </StackPanel>
 
                             <!-- Win/Loss Ratio Progress Bar -->
@@ -305,19 +308,19 @@
                                          Minimum="0"
                                          Maximum="{Binding Summoner.TotalGames}"
                                          Height="6"
-                                         Width="140"
-                                         Foreground="#0397AB"
+                                         Width="150"
+                                         Foreground="#5383E8"
                                          Background="#E84057"
-                                         Margin="0,4,0,0" />
+                                         Margin="0,2,0,0" />
                         </StackPanel>
                     </Border>
                 </Grid>
             </Border>
 
             <!-- 3. RECENT MATCHES SECTION HEADER -->
-            <Grid ColumnDefinitions="*, Auto" Margin="0,8,0,0">
+            <Grid ColumnDefinitions="*, Auto" Margin="0,6,0,0">
                 <TextBlock Grid.Column="0"
-                           Text="ІСТОРІЯ ОСТАННІХ МАТЧІВ З РЕЙТИНГОВОЇ ЧЕРГИ"
+                           Text="ІСТОРІЯ ОСТАННІХ МАТЧІВ"
                            FontWeight="Bold"
                            FontSize="14"
                            Foreground="#C8AA6E"
@@ -325,144 +328,189 @@
                            VerticalAlignment="Center" />
 
                 <Border Grid.Column="1"
-                        Background="#1E2328"
+                        Background="#121824"
                         CornerRadius="4"
-                        Padding="8,4"
-                        BorderBrush="#3C3C41"
+                        Padding="10,4"
+                        BorderBrush="#252D3D"
                         BorderThickness="1">
                     <TextBlock Text="{Binding RecentMatches.Count, StringFormat='Показано матчів: {0}'}"
                                FontSize="11"
-                               Foreground="#A09B8C" />
+                               Foreground="#8A93A5" />
                 </Border>
             </Grid>
 
-            <!-- 4. MODERN MATCH CARDS LIST (OP.GG style) -->
+            <!-- 4. MODERN MATCH CARDS LIST (OP.GG / U.GG style) -->
             <ItemsControl ItemsSource="{Binding RecentMatches}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:PlayerMatchItemViewModel">
                         <Border Classes="match-card"
                                 Background="{Binding ResultBgColor}"
                                 CornerRadius="8"
-                                Padding="16"
                                 Margin="0,0,0,10"
-                                BorderThickness="2,1,1,1"
-                                BorderBrush="{Binding ResultBorderColor}">
-                            <Grid ColumnDefinitions="140, 190, 150, 160, *">
-                                <!-- Col 0: Match Outcome & Time -->
-                                <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding ResultText}"
-                                               FontWeight="Bold"
-                                               FontSize="15"
-                                               Foreground="{Binding ResultColor}" />
-                                    <TextBlock Text="{Binding GameModeText}"
-                                               FontSize="12"
-                                               Foreground="#F0E6D2" />
-                                    <TextBlock Text="{Binding FormattedDuration}"
-                                               FontSize="11"
-                                               Foreground="#A09B8C" />
-                                    <TextBlock Text="{Binding FormattedTimeAgo}"
-                                               FontSize="11"
-                                               Foreground="#785A28" />
-                                </StackPanel>
+                                BorderThickness="1"
+                                BorderBrush="{Binding ResultBorderColor}"
+                                ClipToBounds="True">
+                            <Grid ColumnDefinitions="6, *">
+                                <!-- Colored left accent bar -->
+                                <Border Grid.Column="0" Background="{Binding AccentBarColor}" />
 
-                                <!-- Col 1: Champion & Role -->
-                                <Grid Grid.Column="1" ColumnDefinitions="48, *" VerticalAlignment="Center">
-                                    <!-- Champion Icon -->
-                                    <Border Grid.Column="0"
-                                            Width="44" Height="44"
-                                            CornerRadius="6"
-                                            ClipToBounds="True"
-                                            Background="#091428"
-                                            BorderBrush="#C8AA6E"
-                                            BorderThickness="1">
-                                        <Image Source="{Binding ChampionIconUrl, Converter={StaticResource BitmapAssetConverter}}"
-                                               Width="44" Height="44"
-                                               Stretch="UniformToFill" />
-                                    </Border>
-
-                                    <!-- Champion Name & Position -->
-                                    <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center" Spacing="2">
-                                        <TextBlock Text="{Binding ChampionName}"
+                                <!-- Card content -->
+                                <Grid Grid.Column="1" ColumnDefinitions="130, 190, 180, 150, *" Margin="16,14">
+                                    <!-- Col 0: Match Outcome & Time -->
+                                    <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding GameModeText}"
                                                    FontWeight="Bold"
-                                                   FontSize="14"
+                                                   FontSize="12"
                                                    Foreground="#F0E6D2" />
-                                        <StackPanel Orientation="Horizontal" Spacing="4">
-                                            <TextBlock Text="{Binding PositionIcon}" FontSize="12" />
-                                            <TextBlock Text="{Binding PositionName}" FontSize="11" Foreground="#A09B8C" FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding ResultText}"
+                                                   FontWeight="Bold"
+                                                   FontSize="16"
+                                                   Foreground="{Binding ResultColor}" />
+                                        <TextBlock Text="{Binding FormattedDuration}"
+                                                   FontSize="11"
+                                                   Foreground="#8A93A5" />
+                                        <TextBlock Text="{Binding FormattedTimeAgo}"
+                                                   FontSize="11"
+                                                   Foreground="#657182" />
+                                    </StackPanel>
+
+                                    <!-- Col 1: Champion & Level & Role -->
+                                    <Grid Grid.Column="1" ColumnDefinitions="52, *" VerticalAlignment="Center">
+                                        <!-- Champion Avatar with Level Badge -->
+                                        <Grid Grid.Column="0" Width="48" Height="48">
+                                            <Border Width="48" Height="48"
+                                                    CornerRadius="24"
+                                                    ClipToBounds="True"
+                                                    Background="#091428"
+                                                    BorderBrush="{Binding AccentBarColor}"
+                                                    BorderThickness="2">
+                                                <Image Source="{Binding ChampionIconUrl, Converter={StaticResource BitmapAssetConverter}}"
+                                                       Width="48" Height="48"
+                                                       Stretch="UniformToFill" />
+                                            </Border>
+
+                                            <!-- Champ Level Badge -->
+                                            <Border Background="#121824"
+                                                    BorderBrush="{Binding AccentBarColor}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="8"
+                                                    Width="18" Height="18"
+                                                    HorizontalAlignment="Right"
+                                                    VerticalAlignment="Bottom">
+                                                <TextBlock Text="{Binding ChampLevelText}"
+                                                           FontSize="9"
+                                                           FontWeight="Bold"
+                                                           Foreground="#FFFFFF"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center" />
+                                            </Border>
+                                        </Grid>
+
+                                        <!-- Champion Name & Position Pill -->
+                                        <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center" Spacing="4">
+                                            <TextBlock Text="{Binding ChampionName}"
+                                                       FontWeight="Bold"
+                                                       FontSize="15"
+                                                       Foreground="#F0E6D2" />
+                                            <Border Background="#091428"
+                                                    CornerRadius="4"
+                                                    Padding="6,2"
+                                                    HorizontalAlignment="Left"
+                                                    BorderBrush="#252D3D"
+                                                    BorderThickness="1">
+                                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                                    <TextBlock Text="{Binding PositionIcon}" FontSize="11" />
+                                                    <TextBlock Text="{Binding PositionName}" FontSize="10" Foreground="#8A93A5" FontWeight="Bold" />
+                                                </StackPanel>
+                                            </Border>
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <!-- Col 2: KDA, Ratio & Kill Participation -->
+                                    <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="4">
+                                        <TextBlock Text="{Binding KdaText}"
+                                                   FontWeight="Bold"
+                                                   FontSize="16"
+                                                   Foreground="#FFFFFF" />
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <Border Background="#091428"
+                                                    CornerRadius="4"
+                                                    Padding="6,2"
+                                                    BorderBrush="#252D3D"
+                                                    BorderThickness="1">
+                                                <TextBlock Text="{Binding KdaRatioText}"
+                                                           FontSize="11"
+                                                           FontWeight="Bold"
+                                                           Foreground="{Binding KdaRatioColor}" />
+                                            </Border>
+                                            <Border Background="#091428"
+                                                    CornerRadius="4"
+                                                    Padding="6,2"
+                                                    BorderBrush="#252D3D"
+                                                    BorderThickness="1">
+                                                <TextBlock Text="{Binding KillParticipationText}"
+                                                           FontSize="11"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{Binding KillParticipationColor}" />
+                                            </Border>
                                         </StackPanel>
                                     </StackPanel>
-                                </Grid>
 
-                                <!-- Col 2: KDA & Score -->
-                                <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="4">
-                                    <TextBlock Text="{Binding KdaText}"
-                                               FontWeight="Bold"
-                                               FontSize="16"
-                                               Foreground="#F0E6D2" />
-                                    <Border Background="#091428"
-                                            CornerRadius="4"
-                                            Padding="6,2"
-                                            HorizontalAlignment="Left">
-                                        <TextBlock Text="{Binding KdaRatioText}"
-                                                   FontSize="11"
+                                    <!-- Col 3: CS, Gold & Damage -->
+                                    <StackPanel Grid.Column="3" VerticalAlignment="Center" Spacing="4">
+                                        <TextBlock Text="{Binding CsText}"
+                                                   FontSize="12"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="#F0E6D2" />
+                                        <TextBlock Text="{Binding DamageText}"
+                                                   FontSize="12"
                                                    FontWeight="Bold"
-                                                   Foreground="#0AC8B9" />
-                                    </Border>
-                                </StackPanel>
+                                                   Foreground="#E84057" />
+                                        <TextBlock Text="{Binding GoldText}"
+                                                   FontSize="11"
+                                                   Foreground="#C8AA6E" />
+                                    </StackPanel>
 
-                                <!-- Col 3: CS, Gold & Damage -->
-                                <StackPanel Grid.Column="3" VerticalAlignment="Center" Spacing="3">
-                                    <TextBlock Text="{Binding CsText}"
-                                               FontSize="12"
-                                               Foreground="#F0E6D2" />
-                                    <TextBlock Text="{Binding DamageText}"
-                                               FontSize="12"
-                                               FontWeight="SemiBold"
-                                               Foreground="#E84057" />
-                                    <TextBlock Text="{Binding GoldText}"
-                                               FontSize="11"
-                                               Foreground="#C8AA6E" />
-                                </StackPanel>
+                                    <!-- Col 4: 10-Player Team Rosters (Blue vs Red) -->
+                                    <Grid Grid.Column="4" ColumnDefinitions="*, *" VerticalAlignment="Center" Margin="8,0,0,0">
+                                        <!-- Blue Team -->
+                                        <ItemsControl Grid.Column="0" ItemsSource="{Binding BlueTeam}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:MiniParticipantViewModel">
+                                                    <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,2">
+                                                        <Border Width="18" Height="18" CornerRadius="3" ClipToBounds="True" Background="#091428">
+                                                            <Image Source="{Binding ChampionIconUrl, Converter={StaticResource BitmapAssetConverter}}" Width="18" Height="18" Stretch="UniformToFill" />
+                                                        </Border>
+                                                        <TextBlock Text="{Binding DisplayName}"
+                                                                   FontSize="11"
+                                                                   Foreground="{Binding NameColor}"
+                                                                   FontWeight="{Binding NameWeight}"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   MaxWidth="85" />
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
 
-                                <!-- Col 4: 10-Player Team Rosters (Blue vs Red) -->
-                                <Grid Grid.Column="4" ColumnDefinitions="*, *" VerticalAlignment="Center" Margin="8,0,0,0">
-                                    <!-- Blue Team -->
-                                     <ItemsControl Grid.Column="0" ItemsSource="{Binding BlueTeam}">
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate x:DataType="vm:MiniParticipantViewModel">
-                                                <StackPanel Orientation="Horizontal" Spacing="5" Margin="0,1">
-                                                    <Border Width="16" Height="16" CornerRadius="2" ClipToBounds="True" Background="#091428">
-                                                        <Image Source="{Binding ChampionIconUrl, Converter={StaticResource BitmapAssetConverter}}" Width="16" Height="16" />
-                                                    </Border>
-                                                    <TextBlock Text="{Binding SummonerName}"
-                                                               FontSize="10"
-                                                               Foreground="{Binding NameColor}"
-                                                               FontWeight="{Binding NameWeight}"
-                                                               TextTrimming="CharacterEllipsis"
-                                                               MaxWidth="75" />
-                                                </StackPanel>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-
-                                    <!-- Red Team -->
-                                    <ItemsControl Grid.Column="1" ItemsSource="{Binding RedTeam}">
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate x:DataType="vm:MiniParticipantViewModel">
-                                                <StackPanel Orientation="Horizontal" Spacing="5" Margin="0,1">
-                                                    <Border Width="16" Height="16" CornerRadius="2" ClipToBounds="True" Background="#091428">
-                                                        <Image Source="{Binding ChampionIconUrl, Converter={StaticResource BitmapAssetConverter}}" Width="16" Height="16" />
-                                                    </Border>
-                                                    <TextBlock Text="{Binding SummonerName}"
-                                                               FontSize="10"
-                                                               Foreground="{Binding NameColor}"
-                                                               FontWeight="{Binding NameWeight}"
-                                                               TextTrimming="CharacterEllipsis"
-                                                               MaxWidth="75" />
-                                                </StackPanel>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
+                                        <!-- Red Team -->
+                                        <ItemsControl Grid.Column="1" ItemsSource="{Binding RedTeam}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:MiniParticipantViewModel">
+                                                    <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,2">
+                                                        <Border Width="18" Height="18" CornerRadius="3" ClipToBounds="True" Background="#091428">
+                                                            <Image Source="{Binding ChampionIconUrl, Converter={StaticResource BitmapAssetConverter}}" Width="18" Height="18" Stretch="UniformToFill" />
+                                                        </Border>
+                                                        <TextBlock Text="{Binding DisplayName}"
+                                                                   FontSize="11"
+                                                                   Foreground="{Binding NameColor}"
+                                                                   FontWeight="{Binding NameWeight}"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   MaxWidth="85" />
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </Grid>
                                 </Grid>
                             </Grid>
                         </Border>

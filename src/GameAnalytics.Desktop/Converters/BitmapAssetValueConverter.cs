@@ -19,6 +19,43 @@ public class BitmapAssetValueConverter : IValueConverter
         }
     }
 
+    public static async Task PreloadImagesAsync(IEnumerable<string> urls)
+    {
+        var distinctUrls = urls.Where(u => !string.IsNullOrWhiteSpace(u)).Distinct().ToList();
+        var tasks = distinctUrls.Select(async url =>
+        {
+            if (Cache.ContainsKey(url)) return;
+
+            try
+            {
+                var fileName = Path.GetFileName(new Uri(url).LocalPath);
+                var localPath = Path.Combine(CacheDir, fileName);
+
+                if (File.Exists(localPath))
+                {
+                    try
+                    {
+                        using var stream = File.OpenRead(localPath);
+                        Cache[url] = new Bitmap(stream);
+                        return;
+                    }
+                    catch { }
+                }
+
+                var bytes = await HttpClient.GetByteArrayAsync(url);
+                await File.WriteAllBytesAsync(localPath, bytes);
+                using var memStream = new MemoryStream(bytes);
+                Cache[url] = new Bitmap(memStream);
+            }
+            catch
+            {
+                // Silently ignore failed network requests
+            }
+        });
+
+        await Task.WhenAll(tasks);
+    }
+
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         if (value is not string url || string.IsNullOrWhiteSpace(url))
@@ -75,4 +112,3 @@ public class BitmapAssetValueConverter : IValueConverter
         throw new NotSupportedException();
     }
 }
-

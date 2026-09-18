@@ -84,5 +84,26 @@ public class DataLayerTests
 
         Assert.True(true);
     }
+
+    [Fact]
+    public void Match_QueueName_MapsCorrectly()
+    {
+        var normalDraft = new Match { QueueId = 400 };
+        var rankedSolo = new Match { QueueId = 420 };
+        var aram = new Match { QueueId = 450 };
+        var custom = new Match { QueueId = 9999 };
+
+        Assert.Equal("Normal Draft", normalDraft.QueueName);
+        Assert.Equal("Ranked Solo", rankedSolo.QueueName);
+        Assert.Equal("ARAM", aram.QueueName);
+        Assert.Equal("Normal Game", custom.QueueName);
+    }
+
+    [Fact]
+    public void SummonerProfile_ProfileIconUrl_FormatsProperly()
+    {
+        var profile = new SummonerProfile { ProfileIconId = 2072 };
+        Assert.Equal("https://ddragon.leagueoflegends.com/cdn/14.18.1/img/profileicon/2072.png", profile.ProfileIconUrl);
+    }
 }
 

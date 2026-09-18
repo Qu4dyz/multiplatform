@@ -19,6 +19,7 @@ public class SummonerProfile
     public int TotalGames => Wins + Losses;
     public double WinRate => TotalGames > 0 ? Math.Round((double)Wins / TotalGames * 100, 1) : 0.0;
     public string FullName => $"{GameName}#{TagLine}";
+    public string ProfileIconUrl => $"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/profileicon/{ProfileIconId}.png";
 }
 
 public class PredictionResult

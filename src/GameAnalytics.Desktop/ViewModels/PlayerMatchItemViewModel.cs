@@ -10,7 +10,9 @@ public class MiniParticipantViewModel
     public string ChampionIconUrl => $"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/champion/{ChampionName}.png";
     public bool IsCurrentPlayer { get; set; }
     public string FormattedKda { get; set; } = string.Empty;
-    public string NameColor => IsCurrentPlayer ? "#C8AA6E" : "#A09B8C";
+    public string IndicatorText => IsCurrentPlayer ? "◆ " : "";
+    public string DisplayName => $"{IndicatorText}{SummonerName}";
+    public string NameColor => IsCurrentPlayer ? "#C8AA6E" : "#8A93A5";
     public string NameWeight => IsCurrentPlayer ? "Bold" : "Normal";
 }
 
@@ -19,15 +21,18 @@ public class PlayerMatchItemViewModel
     public string MatchId { get; set; } = string.Empty;
     public bool IsVictory { get; set; }
     public string ResultText => IsVictory ? "ПЕРЕМОГА" : "ПОРАЗКА";
-    public string ResultColor => IsVictory ? "#0397AB" : "#E84057";
-    public string ResultBgColor => IsVictory ? "#0F2634" : "#28121A";
-    public string ResultBorderColor => IsVictory ? "#0AC8B9" : "#E84057";
+    public string ResultColor => IsVictory ? "#5383E8" : "#E84057";
+    public string ResultBgColor => IsVictory ? "#16243A" : "#2C1822";
+    public string ResultBorderColor => IsVictory ? "#283852" : "#4D222E";
+    public string AccentBarColor => IsVictory ? "#5383E8" : "#E84057";
 
-    public string GameModeText { get; set; } = "Ranked Solo/Duo";
+    public string GameModeText { get; set; } = "Normal Draft";
     public string FormattedDuration { get; set; } = string.Empty;
     public string FormattedTimeAgo { get; set; } = string.Empty;
 
     public string ChampionName { get; set; } = string.Empty;
+    public int ChampLevel { get; set; } = 1;
+    public string ChampLevelText => $"{ChampLevel}";
     public string ChampionIconUrl => $"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/champion/{ChampionName}.png";
     public string PositionName { get; set; } = "MID";
     public string PositionIcon { get; set; } = "⚡";
@@ -38,6 +43,11 @@ public class PlayerMatchItemViewModel
     public double KdaRatio { get; set; }
     public string KdaText => $"{Kills} / {Deaths} / {Assists}";
     public string KdaRatioText => Deaths == 0 ? "Perfect KDA" : $"{KdaRatio:F2}:1 KDA";
+    public string KdaRatioColor => (Deaths == 0 || KdaRatio >= 5.0) ? "#E6B328" : (KdaRatio >= 3.0 ? "#0AC8B9" : "#F0E6D2");
+
+    public int KillParticipationPercent { get; set; }
+    public string KillParticipationText => $"P/Kill {KillParticipationPercent}%";
+    public string KillParticipationColor => KillParticipationPercent >= 60 ? "#E84057" : (KillParticipationPercent >= 45 ? "#C8AA6E" : "#8A93A5");
 
     public int DamageDealt { get; set; }
     public string DamageText => $"{DamageDealt / 1000.0:F1}k DMG";
@@ -52,14 +62,17 @@ public class PlayerMatchItemViewModel
     public List<MiniParticipantViewModel> BlueTeam { get; set; } = new();
     public List<MiniParticipantViewModel> RedTeam { get; set; } = new();
 
-    public static PlayerMatchItemViewModel FromMatch(Match match, string searchedPuuidOrName)
+    public static PlayerMatchItemViewModel FromMatch(Match match, string searchedPuuidOrName, string fallbackName = "")
     {
-        var cleanSearched = searchedPuuidOrName.Trim();
-        var player = match.Participants.FirstOrDefault(p =>
-            (!string.IsNullOrWhiteSpace(p.Puuid) && p.Puuid.Equals(cleanSearched, StringComparison.OrdinalIgnoreCase)) ||
-            p.SummonerName.Contains(cleanSearched, StringComparison.OrdinalIgnoreCase));
+        var cleanSearched = searchedPuuidOrName?.Trim() ?? string.Empty;
+        var cleanFallback = fallbackName?.Trim() ?? string.Empty;
 
-        // If not matched, default to 4th player (arbitrary sample)
+        var player = match.Participants.FirstOrDefault(p =>
+            (!string.IsNullOrWhiteSpace(p.Puuid) && !string.IsNullOrWhiteSpace(cleanSearched) && p.Puuid.Equals(cleanSearched, StringComparison.OrdinalIgnoreCase)) ||
+            (!string.IsNullOrWhiteSpace(p.SummonerName) && !string.IsNullOrWhiteSpace(cleanSearched) && p.SummonerName.Contains(cleanSearched, StringComparison.OrdinalIgnoreCase)) ||
+            (!string.IsNullOrWhiteSpace(p.SummonerName) && !string.IsNullOrWhiteSpace(cleanFallback) && p.SummonerName.Contains(cleanFallback, StringComparison.OrdinalIgnoreCase)));
+
+        // If not matched, default to 4th player (sample)
         player ??= match.Participants.ElementAtOrDefault(3) ?? match.Participants.FirstOrDefault();
 
         var isVictory = player?.Win ?? (match.WinningTeam == TeamSide.Blue);
@@ -82,19 +95,28 @@ public class PlayerMatchItemViewModel
                 ? $"{(int)timeDiff.TotalHours} год. тому"
                 : $"{(int)Math.Max(1, timeDiff.TotalMinutes)} хв. тому";
 
+        // Kill participation
+        var playerSide = player?.TeamSide ?? TeamSide.Blue;
+        var teamTotalKills = match.Participants.Where(p => p.TeamSide == playerSide).Sum(p => p.Kills);
+        var playerKillsAndAssists = (player?.Kills ?? 0) + (player?.Assists ?? 0);
+        var kpPercent = teamTotalKills > 0 ? (int)Math.Round((double)playerKillsAndAssists / teamTotalKills * 100) : 0;
+
         var vm = new PlayerMatchItemViewModel
         {
             MatchId = match.MatchId,
             IsVictory = isVictory,
+            GameModeText = match.QueueName,
             FormattedDuration = match.FormattedDuration,
             FormattedTimeAgo = timeAgo,
             ChampionName = player?.ChampionName ?? "Aatrox",
+            ChampLevel = player?.ChampLevel > 0 ? player.ChampLevel : 1,
             PositionName = posName,
             PositionIcon = posIcon,
             Kills = player?.Kills ?? 0,
             Deaths = player?.Deaths ?? 0,
             Assists = player?.Assists ?? 0,
             KdaRatio = player?.KdaRatio ?? 0,
+            KillParticipationPercent = kpPercent,
             DamageDealt = player?.TotalDamageDealtToChampions ?? 0,
             GoldEarned = player?.GoldEarned ?? 0,
             MinionsKilled = player?.TotalMinionsKilled ?? 0,
