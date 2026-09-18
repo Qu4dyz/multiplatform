@@ -1,0 +1,268 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:GameAnalytics.Desktop.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="700"
+             x:Class="GameAnalytics.Desktop.Views.DraftPredictionView"
+             x:DataType="vm:DraftPredictionViewModel">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <Grid Margin="24" ColumnDefinitions="*, *" RowDefinitions="Auto">
+            <!-- Left Column: Input Features & Parameters -->
+            <Border Grid.Column="0"
+                    Background="#1E2328"
+                    CornerRadius="8"
+                    Padding="20"
+                    Margin="0,0,12,0"
+                    BorderBrush="#3C3C41"
+                    BorderThickness="1">
+                <StackPanel Spacing="16">
+                    <TextBlock Text="ВХІДНІ МЕТРИКИ ДЛЯ МОДЕЛІ ML.NET"
+                               FontWeight="Bold"
+                               FontSize="14"
+                               Foreground="#C8AA6E"
+                               LetterSpacing="1.2" />
+
+                    <!-- Quick Preset Buttons -->
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="Баланс (50/50)"
+                                Command="{Binding ResetToBalancedCommand}"
+                                FontSize="12"
+                                Background="#2F3640"
+                                Padding="10,6" />
+                        <Button Content="Перевага Синіх"
+                                Command="{Binding SetBlueAdvantagePresetCommand}"
+                                FontSize="12"
+                                Background="#0397AB"
+                                Foreground="White"
+                                Padding="10,6" />
+                        <Button Content="Перевага Червоних"
+                                Command="{Binding SetRedAdvantagePresetCommand}"
+                                FontSize="12"
+                                Background="#E84057"
+                                Foreground="White"
+                                Padding="10,6" />
+                    </StackPanel>
+
+                    <Separator Background="#2F3640" Height="1" />
+
+                    <!-- Key Objective Checkboxes -->
+                    <TextBlock Text="Ключові об'єкти ранньої стадії:"
+                               FontWeight="SemiBold"
+                               FontSize="13"
+                               Foreground="#F0E6D2" />
+
+                    <CheckBox IsChecked="{Binding BlueFirstBlood}"
+                              Content="🩸 Перша кров (First Blood) — Синя команда" />
+                    <CheckBox IsChecked="{Binding BlueFirstTower}"
+                              Content="🏰 Перша вежа (First Tower) — Синя команда" />
+                    <CheckBox IsChecked="{Binding BlueFirstDragon}"
+                              Content="🐉 Перший дракон (First Dragon) — Синя команда" />
+
+                    <Separator Background="#2F3640" Height="1" />
+
+                    <!-- Gold Diff Slider -->
+                    <StackPanel Spacing="4">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <TextBlock Text="Різниця за золотом на 15 хв (Gold Diff):"
+                                       FontSize="13"
+                                       Foreground="#F0E6D2" />
+                            <TextBlock Grid.Column="1"
+                                       Text="{Binding GoldDiffAt15, StringFormat='{}{0:+0;-#;0} gold'}"
+                                       FontWeight="Bold"
+                                       Foreground="#C8AA6E" />
+                        </Grid>
+                        <Slider Minimum="-6000" Maximum="6000"
+                                Value="{Binding GoldDiffAt15}"
+                                SmallChange="250" LargeChange="1000" />
+                    </StackPanel>
+
+                    <!-- Kill Diff Slider -->
+                    <StackPanel Spacing="4">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <TextBlock Text="Різниця у вбивствах на 15 хв (Kill Diff):"
+                                       FontSize="13"
+                                       Foreground="#F0E6D2" />
+                            <TextBlock Grid.Column="1"
+                                       Text="{Binding KillDiffAt15, StringFormat='{}{0:+0;-#;0} kills'}"
+                                       FontWeight="Bold"
+                                       Foreground="#0AC8B9" />
+                        </Grid>
+                        <Slider Minimum="-15" Maximum="15"
+                                Value="{Binding KillDiffAt15}"
+                                SmallChange="1" LargeChange="3" />
+                    </StackPanel>
+
+                    <!-- WinRate Sliders -->
+                    <StackPanel Spacing="4">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <TextBlock Text="Середній вінрейт піків Синіх:"
+                                       FontSize="13"
+                                       Foreground="#F0E6D2" />
+                            <TextBlock Grid.Column="1"
+                                       Text="{Binding BlueTeamAvgWinRate, StringFormat='{}{0:F1}%'}"
+                                       FontWeight="Bold"
+                                       Foreground="#0397AB" />
+                        </Grid>
+                        <Slider Minimum="40" Maximum="60"
+                                Value="{Binding BlueTeamAvgWinRate}" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="4">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <TextBlock Text="Середній вінрейт піків Червоних:"
+                                       FontSize="13"
+                                       Foreground="#F0E6D2" />
+                            <TextBlock Grid.Column="1"
+                                       Text="{Binding RedTeamAvgWinRate, StringFormat='{}{0:F1}%'}"
+                                       FontWeight="Bold"
+                                       Foreground="#E84057" />
+                        </Grid>
+                        <Slider Minimum="40" Maximum="60"
+                                Value="{Binding RedTeamAvgWinRate}" />
+                    </StackPanel>
+
+                    <!-- Run Prediction Button -->
+                    <Button Command="{Binding CalculatePredictionCommand}"
+                            Content="⚡ РОЗРАХУВАТИ ЙМОВІРНІСТЬ ПЕРЕМОГИ (ML.NET)"
+                            Height="44"
+                            Background="#C8AA6E"
+                            Foreground="#010A13"
+                            FontWeight="Bold"
+                            FontSize="13"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center"
+                            Cursor="Hand" />
+                </StackPanel>
+            </Border>
+
+            <!-- Right Column: ML Prediction Result Card -->
+            <Border Grid.Column="1"
+                    Background="#1E2328"
+                    CornerRadius="8"
+                    Padding="20"
+                    Margin="12,0,0,0"
+                    BorderBrush="#C8AA6E"
+                    BorderThickness="1">
+                <StackPanel Spacing="18">
+                    <TextBlock Text="РЕЗУЛЬТАТ ПРОГНОЗУВАННЯ ТА ОЦІНКА"
+                               FontWeight="Bold"
+                               FontSize="14"
+                               Foreground="#C8AA6E"
+                               LetterSpacing="1.2" />
+
+                    <!-- Big Chances Board -->
+                    <Grid ColumnDefinitions="*, Auto, *" Margin="0,10">
+                        <!-- Blue Side -->
+                        <Border Grid.Column="0"
+                                Background="#0A1428"
+                                CornerRadius="8"
+                                Padding="16"
+                                BorderBrush="#0397AB"
+                                BorderThickness="2">
+                            <StackPanel HorizontalAlignment="Center" Spacing="6">
+                                <TextBlock Text="СИНЯ КОМАНДА"
+                                           FontSize="12"
+                                           FontWeight="Bold"
+                                           Foreground="#0AC8B9" />
+                                <TextBlock Text="{Binding Prediction.FormattedBluePercent}"
+                                           FontSize="32"
+                                           FontWeight="Bold"
+                                           Foreground="#5383E8"
+                                           HorizontalAlignment="Center" />
+                                <TextBlock Text="Ймовірність перемоги"
+                                           FontSize="11"
+                                           Foreground="#A09B8C" />
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock Grid.Column="1"
+                                   Text="VS"
+                                   FontSize="20"
+                                   FontWeight="Bold"
+                                   Foreground="#A09B8C"
+                                   VerticalAlignment="Center"
+                                   Margin="16,0" />
+
+                        <!-- Red Side -->
+                        <Border Grid.Column="2"
+                                Background="#0A1428"
+                                CornerRadius="8"
+                                Padding="16"
+                                BorderBrush="#E84057"
+                                BorderThickness="2">
+                            <StackPanel HorizontalAlignment="Center" Spacing="6">
+                                <TextBlock Text="ЧЕРВОНА КОМАНДА"
+                                           FontSize="12"
+                                           FontWeight="Bold"
+                                           Foreground="#E84057" />
+                                <TextBlock Text="{Binding Prediction.FormattedRedPercent}"
+                                           FontSize="32"
+                                           FontWeight="Bold"
+                                           Foreground="#E84057"
+                                           HorizontalAlignment="Center" />
+                                <TextBlock Text="Ймовірність перемоги"
+                                           FontSize="11"
+                                           Foreground="#A09B8C" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- Prediction Banner -->
+                    <Border Background="#091428"
+                            CornerRadius="6"
+                            Padding="16"
+                            BorderBrush="#2F3640"
+                            BorderThickness="1">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="ПРОГНОЗОВАНИЙ ПЕРЕМОЖЕЦЬ:"
+                                       FontSize="12"
+                                       Foreground="#A09B8C" />
+                            <TextBlock Text="{Binding Prediction.PredictedWinner, StringFormat='Перемога: {0} Team'}"
+                                       FontSize="20"
+                                       FontWeight="Bold"
+                                       Foreground="#0AC8B9" />
+                            <ProgressBar Value="{Binding Prediction.BlueWinProbability}"
+                                         Minimum="0"
+                                         Maximum="1"
+                                         Height="10"
+                                         Foreground="#0397AB"
+                                         Background="#E84057" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Key Influencing Factors -->
+                    <TextBlock Text="ФАКТОРИ ВПЛИВУ (ML FEATURE IMPORTANCE):"
+                               FontWeight="Bold"
+                               FontSize="12"
+                               Foreground="#C8AA6E" />
+
+                    <ItemsControl ItemsSource="{Binding Prediction.KeyFactors}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="#091428"
+                                        CornerRadius="4"
+                                        Padding="10,8"
+                                        Margin="0,0,0,6"
+                                        BorderBrush="#2F3640"
+                                        BorderThickness="1">
+                                    <TextBlock Text="{Binding StringFormat='• {0}'}"
+                                               FontSize="12"
+                                               Foreground="#F0E6D2"
+                                               TextWrapping="Wrap" />
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <TextBlock Text="Модель: FastTreeBinaryClassification (ML.NET) | Навчання: 10 дерев рішень"
+                               FontSize="11"
+                               Foreground="#785A28"
+                               HorizontalAlignment="Center" />
+                </StackPanel>
+            </Border>
+        </Grid>
+    </ScrollViewer>
+</UserControl>

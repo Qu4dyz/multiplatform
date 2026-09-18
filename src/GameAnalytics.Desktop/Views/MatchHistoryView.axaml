@@ -1,0 +1,203 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:GameAnalytics.Desktop.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="700"
+             x:Class="GameAnalytics.Desktop.Views.MatchHistoryView"
+             x:DataType="vm:MatchHistoryViewModel">
+
+    <Grid Margin="24" RowDefinitions="Auto, *">
+        <!-- Top Controls & Metrics -->
+        <Border Grid.Row="0"
+                Background="#1E2328"
+                CornerRadius="8"
+                Padding="16"
+                Margin="0,0,0,16"
+                BorderBrush="#3C3C41"
+                BorderThickness="1">
+            <Grid ColumnDefinitions="*, Auto, Auto">
+                <StackPanel VerticalAlignment="Center" Spacing="4">
+                    <TextBlock Text="ЛОКАЛЬНА БАЗА ДАНИХ ТА КЕШ МАТЧІВ (SQLITE + EF CORE)"
+                               FontWeight="Bold"
+                               FontSize="13"
+                               Foreground="#C8AA6E"
+                               LetterSpacing="1.1" />
+                    <TextBlock Text="{Binding StatusMessage}"
+                               FontSize="12"
+                               Foreground="#A09B8C" />
+                </StackPanel>
+
+                <Button Grid.Column="1"
+                        Command="{Binding LoadMatchesCommand}"
+                        Content="🔄 Оновити дані"
+                        Margin="0,0,10,0"
+                        Background="#0397AB"
+                        Foreground="White"
+                        FontWeight="SemiBold"
+                        Padding="14,8"
+                        Cursor="Hand" />
+
+                <Button Grid.Column="2"
+                        Command="{Binding ClearHistoryCommand}"
+                        Content="🗑 Очистити кеш"
+                        Background="#3C3C41"
+                        Foreground="#E84057"
+                        FontWeight="SemiBold"
+                        Padding="14,8"
+                        Cursor="Hand" />
+            </Grid>
+        </Border>
+
+        <!-- Main Content Area: Split List & Match Details -->
+        <Grid Grid.Row="1" ColumnDefinitions="400, *">
+            <!-- Matches List Box -->
+            <Border Grid.Column="0"
+                    Background="#1E2328"
+                    CornerRadius="8"
+                    Padding="12"
+                    Margin="0,0,12,0"
+                    BorderBrush="#3C3C41"
+                    BorderThickness="1">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <ListBox ItemsSource="{Binding Matches}"
+                             SelectedItem="{Binding SelectedMatch}"
+                             Background="Transparent">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="#091428"
+                                        CornerRadius="6"
+                                        Padding="12"
+                                        Margin="0,0,0,8"
+                                        BorderThickness="1"
+                                        BorderBrush="#2F3640">
+                                    <Grid ColumnDefinitions="*, Auto">
+                                        <StackPanel Spacing="3">
+                                            <TextBlock Text="{Binding MatchId}"
+                                                       FontWeight="Bold"
+                                                       FontSize="13"
+                                                       Foreground="#F0E6D2" />
+                                            <TextBlock Text="{Binding GameCreation, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}"
+                                                       FontSize="11"
+                                                       Foreground="#A09B8C" />
+                                            <TextBlock Text="{Binding FormattedDuration, StringFormat='Тривалість: {0}'}"
+                                                       FontSize="11"
+                                                       Foreground="#C8AA6E" />
+                                        </StackPanel>
+
+                                        <Border Grid.Column="1"
+                                                CornerRadius="4"
+                                                Padding="8,4"
+                                                VerticalAlignment="Center"
+                                                Background="#1E2328">
+                                            <TextBlock Text="{Binding WinningTeam, StringFormat='{}{0} Win'}"
+                                                       FontSize="11"
+                                                       FontWeight="Bold"
+                                                       Foreground="#0AC8B9" />
+                                        </Border>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </ScrollViewer>
+            </Border>
+
+            <!-- Selected Match Details -->
+            <Border Grid.Column="1"
+                    Background="#1E2328"
+                    CornerRadius="8"
+                    Padding="20"
+                    BorderBrush="#3C3C41"
+                    BorderThickness="1">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="16">
+                        <TextBlock Text="ДЕТАЛЬНА СТАТИСТИКА ОБРАНОГО МАТЧУ"
+                                   FontWeight="Bold"
+                                   FontSize="13"
+                                   Foreground="#C8AA6E"
+                                   LetterSpacing="1.1" />
+
+                        <Grid ColumnDefinitions="*, *, *"
+                              IsVisible="{Binding SelectedMatch, Converter={x:Static ObjectConverters.IsNotNull}}">
+                            <Border Grid.Column="0" Background="#091428" CornerRadius="6" Padding="12" Margin="0,0,6,0">
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="Матч ID" FontSize="11" Foreground="#A09B8C" />
+                                    <TextBlock Text="{Binding SelectedMatch.MatchId}" FontWeight="Bold" FontSize="13" Foreground="#F0E6D2" />
+                                </StackPanel>
+                            </Border>
+
+                            <Border Grid.Column="1" Background="#091428" CornerRadius="6" Padding="12" Margin="3,0,3,0">
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="Патч гри" FontSize="11" Foreground="#A09B8C" />
+                                    <TextBlock Text="{Binding SelectedMatch.GameVersion}" FontWeight="Bold" FontSize="13" Foreground="#F0E6D2" />
+                                </StackPanel>
+                            </Border>
+
+                            <Border Grid.Column="2" Background="#091428" CornerRadius="6" Padding="12" Margin="6,0,0,0">
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="Переможець" FontSize="11" Foreground="#A09B8C" />
+                                     <TextBlock Text="{Binding SelectedMatch.WinningTeam, StringFormat='{}{0} Team'}" FontWeight="Bold" FontSize="13" Foreground="#0AC8B9" />
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+
+                        <TextBlock Text="УЧАСНИКИ МАТЧУ ТА ПОКАЗНИКИ (KDA / GOLD / CS):"
+                                   FontWeight="SemiBold"
+                                   FontSize="12"
+                                   Foreground="#F0E6D2"
+                                   Margin="0,8,0,0" />
+
+                        <!-- Participants list -->
+                        <ItemsControl ItemsSource="{Binding SelectedMatch.Participants}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="#091428"
+                                            CornerRadius="4"
+                                            Padding="10,6"
+                                            Margin="0,0,0,6"
+                                            BorderThickness="1"
+                                            BorderBrush="#2F3640">
+                                        <Grid ColumnDefinitions="120, 100, 100, 100, *">
+                                            <TextBlock Grid.Column="0"
+                                                       Text="{Binding SummonerName}"
+                                                       FontWeight="Bold"
+                                                       FontSize="12"
+                                                       Foreground="#F0E6D2"
+                                                       VerticalAlignment="Center" />
+
+                                            <TextBlock Grid.Column="1"
+                                                       Text="{Binding ChampionName}"
+                                                       FontSize="12"
+                                                       Foreground="#C8AA6E"
+                                                       VerticalAlignment="Center" />
+
+                                            <TextBlock Grid.Column="2"
+                                                       Text="{Binding KdaRatio, StringFormat='{}KDA: {0:F2}'}"
+                                                       FontSize="12"
+                                                       Foreground="#0AC8B9"
+                                                       VerticalAlignment="Center" />
+
+                                            <TextBlock Grid.Column="3"
+                                                       Text="{Binding GoldEarned, StringFormat='{}{0:N0} gold'}"
+                                                       FontSize="12"
+                                                       Foreground="#A09B8C"
+                                                       VerticalAlignment="Center" />
+
+                                            <TextBlock Grid.Column="4"
+                                                       Text="{Binding TotalDamageDealtToChampions, StringFormat='{}{0:N0} dmg'}"
+                                                       FontSize="12"
+                                                       Foreground="#E84057"
+                                                       HorizontalAlignment="Right"
+                                                       VerticalAlignment="Center" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

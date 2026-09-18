@@ -1,0 +1,126 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:GameAnalytics.Desktop.ViewModels"
+        xmlns:views="using:GameAnalytics.Desktop.Views"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="750"
+        Width="1150" Height="800"
+        MinWidth="900" MinHeight="600"
+        WindowStartupLocation="CenterScreen"
+        Background="#010A13"
+        x:Class="GameAnalytics.Desktop.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="{Binding AppTitle}">
+
+    <Grid RowDefinitions="Auto, *, Auto">
+        <!-- Application Top App Bar -->
+        <Border Grid.Row="0"
+                Background="#091428"
+                BorderBrush="#1E282D"
+                BorderThickness="0,0,0,1"
+                Padding="24,14">
+            <Grid ColumnDefinitions="Auto, *, Auto">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                    <Border Background="#C8AA6E"
+                            CornerRadius="6"
+                            Width="36" Height="36">
+                        <TextBlock Text="⚔️"
+                                   FontSize="20"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center" />
+                    </Border>
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="GameAnalytics"
+                                   FontWeight="Bold"
+                                   FontSize="16"
+                                   Foreground="#F0E6D2" />
+                        <TextBlock Text="LoL Solo/Duo Ranked Analysis &amp; ML Prediction"
+                                   FontSize="11"
+                                   Foreground="#A09B8C" />
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Center Badge -->
+                <Border Grid.Column="1"
+                        HorizontalAlignment="Center"
+                        Background="#1E2328"
+                        BorderBrush="#C8AA6E"
+                        BorderThickness="1"
+                        CornerRadius="14"
+                        Padding="14,4">
+                    <TextBlock Text="Курсовий проєкт: «Мультиплатформне програмування»"
+                               FontSize="11"
+                               FontWeight="SemiBold"
+                               Foreground="#C8AA6E" />
+                </Border>
+
+                <!-- Author Tag -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Border Background="#0AC8B9"
+                            CornerRadius="4"
+                            Padding="8,4">
+                        <TextBlock Text="Qu4dyz"
+                                   FontWeight="Bold"
+                                   FontSize="12"
+                                   Foreground="#010A13" />
+                    </Border>
+                    <Border Background="#1E2328"
+                            CornerRadius="4"
+                            Padding="8,4">
+                        <TextBlock Text=".NET 9 / Avalonia 11"
+                                   FontSize="11"
+                                   Foreground="#F0E6D2" />
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Main Tab Control for Navigation -->
+        <TabControl Grid.Row="1"
+                    SelectedIndex="{Binding SelectedTabIndex}"
+                    Margin="0,8,0,0">
+            <!-- Tab 1: Player Analytics -->
+            <TabItem Header="🔍 Аналітика гравця">
+                <views:PlayerAnalyticsView DataContext="{Binding PlayerAnalytics}" />
+            </TabItem>
+
+            <!-- Tab 2: Draft & In-game ML Prediction -->
+            <TabItem Header="🧠 Аналіз драфту / Передбачення">
+                <views:DraftPredictionView DataContext="{Binding DraftPrediction}" />
+            </TabItem>
+
+            <!-- Tab 3: Local SQLite Match History -->
+            <TabItem Header="📊 Історія матчів">
+                <views:MatchHistoryView DataContext="{Binding MatchHistory}" />
+            </TabItem>
+        </TabControl>
+
+        <!-- Bottom Status Bar -->
+        <Border Grid.Row="2"
+                Background="#091428"
+                BorderBrush="#1E282D"
+                BorderThickness="0,1,0,0"
+                Padding="16,6">
+            <Grid ColumnDefinitions="Auto, *, Auto">
+                <TextBlock Grid.Column="0"
+                           Text="{Binding OsInfo}"
+                           FontSize="11"
+                           Foreground="#A09B8C" />
+
+                <TextBlock Grid.Column="1"
+                           Text="ML Двигун: ML.NET FastTree (Active) | ORM: Entity Framework Core 9 (SQLite)"
+                           FontSize="11"
+                           Foreground="#785A28"
+                           HorizontalAlignment="Center" />
+
+                <TextBlock Grid.Column="2"
+                           Text="● Стан системи: Онлайн (Mock/API Ready)"
+                           FontSize="11"
+                           FontWeight="SemiBold"
+                           Foreground="#0AC8B9" />
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

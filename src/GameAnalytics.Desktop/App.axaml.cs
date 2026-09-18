@@ -1,0 +1,73 @@
+using Avalonia;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Markup.Xaml;
+using GameAnalytics.Core.Interfaces;
+using GameAnalytics.Desktop.ViewModels;
+using GameAnalytics.Desktop.Views;
+using GameAnalytics.Infrastructure.Clients;
+using GameAnalytics.Infrastructure.Configuration;
+using GameAnalytics.Infrastructure.Persistence;
+using GameAnalytics.Infrastructure.Repositories;
+using GameAnalytics.Infrastructure.Services;
+using GameAnalytics.ML.Engine;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace GameAnalytics.Desktop;
+
+public partial class App : Application
+{
+    public static IServiceProvider? Services { get; private set; }
+
+    public override void Initialize()
+    {
+        AvaloniaXamlLoader.Load(this);
+    }
+
+    public override void OnFrameworkInitializationCompleted()
+    {
+        var serviceCollection = new ServiceCollection();
+        ConfigureServices(serviceCollection);
+
+        Services = serviceCollection.BuildServiceProvider();
+
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            var mainViewModel = Services.GetRequiredService<MainViewModel>();
+            desktop.MainWindow = new MainWindow
+            {
+                DataContext = mainViewModel
+            };
+        }
+
+        base.OnFrameworkInitializationCompleted();
+    }
+
+    private static void ConfigureServices(IServiceCollection services)
+    {
+        // Persistence & EF Core SQLite
+        services.AddDbContext<GameAnalyticsDbContext>();
+        services.AddScoped<IMatchRepository, MatchRepository>();
+
+        // HTTP Client & Riot API
+        services.AddHttpClient<IRiotApiClient, RiotApiClient>();
+        services.AddSingleton(new RiotApiOptions
+        {
+            ApiKey = string.Empty, // Defaults to Mock Mode for testing & offline defense
+            PlatformRegion = "eun1",
+            RoutingRegion = "europe",
+            UseMockFallback = true
+        });
+
+        // ML Engine
+        services.AddSingleton<IPredictionEngine, MatchPredictionEngine>();
+
+        // Domain Services
+        services.AddScoped<IMatchAnalyticsService, MatchAnalyticsService>();
+
+        // ViewModels
+        services.AddTransient<PlayerAnalyticsViewModel>();
+        services.AddTransient<DraftPredictionViewModel>();
+        services.AddTransient<MatchHistoryViewModel>();
+        services.AddSingleton<MainViewModel>();
+    }
+}

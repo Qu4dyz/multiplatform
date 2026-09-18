@@ -1,0 +1,202 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:GameAnalytics.Desktop.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="700"
+             x:Class="GameAnalytics.Desktop.Views.PlayerAnalyticsView"
+             x:DataType="vm:PlayerAnalyticsViewModel">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="24" Spacing="20">
+            <!-- Search Header Card -->
+            <Border Background="#1E2328" CornerRadius="8" Padding="20" BorderBrush="#3C3C41" BorderThickness="1">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="ПОШУК ГРАВЦЯ У RIOT GAMES API"
+                               FontWeight="Bold"
+                               FontSize="14"
+                               Foreground="#C8AA6E"
+                               LetterSpacing="1.2" />
+
+                    <Grid ColumnDefinitions="*, 120, Auto" RowDefinitions="Auto">
+                        <TextBox Grid.Column="0"
+                                 Text="{Binding GameName}"
+                                 PlaceholderText="Game Name (напр. Qu4dyz)"
+                                 Height="38"
+                                 Margin="0,0,10,0"
+                                 FontSize="14"
+                                 VerticalContentAlignment="Center" />
+
+                        <TextBox Grid.Column="1"
+                                 Text="{Binding TagLine}"
+                                 PlaceholderText="Tag (напр. EUW)"
+                                 Height="38"
+                                 Margin="0,0,10,0"
+                                 FontSize="14"
+                                 VerticalContentAlignment="Center" />
+
+                        <Button Grid.Column="2"
+                                Command="{Binding SearchPlayerCommand}"
+                                Content="🔍 Знайти гравця"
+                                Height="38"
+                                Background="#0AC8B9"
+                                Foreground="#010A13"
+                                FontWeight="SemiBold"
+                                Padding="16,0"
+                                Cursor="Hand" />
+                    </Grid>
+
+                    <TextBlock Text="{Binding StatusMessage}"
+                               FontSize="12"
+                               Foreground="#A09B8C" />
+                </StackPanel>
+            </Border>
+
+            <!-- Summoner Card (If loaded) -->
+            <Border Background="#1E2328"
+                    CornerRadius="8"
+                    Padding="20"
+                    BorderBrush="#C8AA6E"
+                    BorderThickness="1"
+                    IsVisible="{Binding Summoner, Converter={x:Static ObjectConverters.IsNotNull}}">
+                <Grid ColumnDefinitions="Auto, *, Auto">
+                    <!-- Icon / Badge placeholder -->
+                    <Border Grid.Column="0"
+                            Width="72"
+                            Height="72"
+                            CornerRadius="36"
+                            Background="#091428"
+                            BorderBrush="#C8AA6E"
+                            BorderThickness="2"
+                            Margin="0,0,20,0">
+                        <TextBlock Text="🏆"
+                                   FontSize="32"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center" />
+                    </Border>
+
+                    <!-- Info -->
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <TextBlock Text="{Binding Summoner.FullName}"
+                                       FontSize="22"
+                                       FontWeight="Bold"
+                                       Foreground="#F0E6D2" />
+                            <Border Background="#091428" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Summoner.SummonerLevel, StringFormat='Рівень {0}'}"
+                                           FontSize="12"
+                                           Foreground="#0AC8B9" />
+                            </Border>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Spacing="15">
+                            <TextBlock Text="{Binding Summoner.Tier, StringFormat='Ранг: {0}'}"
+                                       FontSize="15"
+                                       FontWeight="SemiBold"
+                                       Foreground="#C8AA6E" />
+                            <TextBlock Text="{Binding Summoner.Rank}"
+                                       FontSize="15"
+                                       FontWeight="SemiBold"
+                                       Foreground="#C8AA6E" />
+                            <TextBlock Text="{Binding Summoner.LeaguePoints, StringFormat='({0} LP)'}"
+                                       FontSize="14"
+                                       Foreground="#A09B8C" />
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Stats -->
+                    <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right" Spacing="4">
+                        <TextBlock Text="{Binding Summoner.WinRate, StringFormat='Вінрейт: {0}%'}"
+                                   FontSize="20"
+                                   FontWeight="Bold"
+                                   Foreground="#0AC8B9"
+                                   HorizontalAlignment="Right" />
+                        <TextBlock Text="{Binding Summoner.Wins, StringFormat='Перемог: {0}'}"
+                                   FontSize="13"
+                                   Foreground="#0397AB"
+                                   HorizontalAlignment="Right" />
+                        <TextBlock Text="{Binding Summoner.Losses, StringFormat='Поразок: {0}'}"
+                                   FontSize="13"
+                                   Foreground="#E84057"
+                                   HorizontalAlignment="Right" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Recent Matches Title -->
+            <TextBlock Text="ОСТАННІ МАТЧІ З РЕЙТИНГОВОЇ ЧЕРГИ (SOLO/DUO)"
+                       FontWeight="Bold"
+                       FontSize="14"
+                       Foreground="#C8AA6E"
+                       LetterSpacing="1.2"
+                       Margin="0,10,0,0" />
+
+            <!-- Matches List -->
+            <ItemsControl ItemsSource="{Binding RecentMatches}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Background="#1E2328"
+                                CornerRadius="6"
+                                Padding="16"
+                                Margin="0,0,0,10"
+                                BorderThickness="2"
+                                BorderBrush="#2F3640">
+                            <Grid ColumnDefinitions="140, 180, *, Auto">
+                                <!-- Match basic info -->
+                                <StackPanel Grid.Column="0" Spacing="4">
+                                    <Border Background="#091428"
+                                            CornerRadius="4"
+                                            Padding="6,3"
+                                            HorizontalAlignment="Left">
+                                        <TextBlock Text="{Binding MatchId}"
+                                                   FontSize="11"
+                                                   Foreground="#A09B8C" />
+                                    </Border>
+                                    <TextBlock Text="{Binding FormattedDuration, StringFormat='Тривалість: {0}'}"
+                                               FontSize="12"
+                                               Foreground="#F0E6D2" />
+                                    <TextBlock Text="{Binding GameVersion, StringFormat='Патч: {0}'}"
+                                               FontSize="11"
+                                               Foreground="#785A28" />
+                                </StackPanel>
+
+                                <!-- Winning Team status -->
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
+                                    <TextBlock Text="{Binding WinningTeam, StringFormat='Переможець: {0} Team'}"
+                                               FontWeight="Bold"
+                                               FontSize="14"
+                                               Foreground="#C8AA6E" />
+                                    <TextBlock Text="Ranked Solo/Duo 5v5"
+                                               FontSize="12"
+                                               Foreground="#A09B8C" />
+                                </StackPanel>
+
+                                <!-- Participants Mini List -->
+                                <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Participants.Count, StringFormat='Учасників: {0} (Сині 5 vs Червоні 5)'}"
+                                               FontSize="13"
+                                               Foreground="#F0E6D2" />
+                                    <TextBlock Text="Всі метрики та KDA гравців збережені у локальній SQLite базі"
+                                               FontSize="11"
+                                               Foreground="#A09B8C" />
+                                </StackPanel>
+
+                                <!-- Status Badge -->
+                                <Border Grid.Column="3"
+                                        Background="#0AC8B9"
+                                        CornerRadius="4"
+                                        Padding="10,6"
+                                        VerticalAlignment="Center">
+                                    <TextBlock Text="АНАЛІТИКА ГОТОВА"
+                                               FontSize="11"
+                                               FontWeight="Bold"
+                                               Foreground="#010A13" />
+                                </Border>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
