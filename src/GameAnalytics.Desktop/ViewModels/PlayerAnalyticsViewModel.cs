@@ -114,6 +114,30 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
     private bool _hasSessionData;
 
     [ObservableProperty]
+    private int _sessionNetLp;
+
+    [ObservableProperty]
+    private string _sessionNetLpText = "0 LP";
+
+    [ObservableProperty]
+    private string _sessionNetLpColor = "#8A93A5";
+
+    [ObservableProperty]
+    private string _nextTierProgressText = string.Empty;
+
+    [ObservableProperty]
+    private int _nextTierProgressValue = 0;
+
+    [ObservableProperty]
+    private bool _hasRankProgress;
+
+    [ObservableProperty]
+    private GlobalCoachingReport? _coachingReport;
+
+    [ObservableProperty]
+    private bool _hasCoachingData;
+
+    [ObservableProperty]
     private int _momentumScore = 50;
 
     [ObservableProperty]
@@ -153,6 +177,8 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
     private string _statusMessage = "Введіть Riot ID (наприклад, Qu4dyz #qu4) та оберіть сервер";
 
     private int _currentMatchCount = 10;
+    private List<Match> _rawMatches = new();
+    internal List<Match> RawMatches { get => _rawMatches; set => _rawMatches = value; }
 
     // Internal constructor for unit testing
     internal PlayerAnalyticsViewModel()
@@ -305,6 +331,7 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
                 }
                 await BitmapAssetValueConverter.PreloadImagesAsync(iconsToPreload);
 
+                _rawMatches = matches.ToList();
                 RecentMatches.Clear();
                 foreach (var m in matches)
                 {
@@ -366,6 +393,7 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
             }
             await BitmapAssetValueConverter.PreloadImagesAsync(iconsToPreload);
 
+            _rawMatches = matches.ToList();
             RecentMatches.Clear();
             foreach (var m in matches)
             {
@@ -445,6 +473,7 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
         }
 
         CalculateSessionSummary(FilteredRecentMatches);
+        UpdateCoachingReport();
     }
 
     internal void CalculateSessionSummary(IEnumerable<PlayerMatchItemViewModel> matchesList)
@@ -453,6 +482,10 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
         if (list.Count == 0)
         {
             HasSessionData = false;
+            SessionNetLp = 0;
+            SessionNetLpText = "0 LP";
+            SessionNetLpColor = "#8A93A5";
+            HasRankProgress = false;
             TopRecentChampions.Clear();
             return;
         }
@@ -466,6 +499,26 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
         SessionWins = regularMatches.Count(m => m.IsVictory);
         SessionLosses = regularMatches.Count(m => !m.IsVictory);
         SessionWinRate = regularMatches.Count > 0 ? Math.Round((double)SessionWins / regularMatches.Count * 100, 1) : 0;
+
+        // Net Session LP calculation
+        var rankedMatches = list.Where(m => m.HasLpChange).ToList();
+        var netLp = rankedMatches.Sum(m => m.LpDelta);
+        SessionNetLp = netLp;
+        SessionNetLpText = netLp > 0 ? $"+{netLp} LP" : (netLp < 0 ? $"{netLp} LP" : "0 LP");
+        SessionNetLpColor = netLp > 0 ? "#0AC8B9" : (netLp < 0 ? "#E84057" : "#8A93A5");
+
+        if (Summoner != null)
+        {
+            var lp = Summoner.LeaguePoints;
+            NextTierProgressValue = Math.Clamp(lp, 0, 100);
+            var nextTierName = GetNextTierName(Summoner.Tier, Summoner.Rank);
+            NextTierProgressText = $"{lp} / 100 LP до {nextTierName}";
+            HasRankProgress = true;
+        }
+        else
+        {
+            HasRankProgress = false;
+        }
 
         SessionRecordText = remakeCount > 0
             ? $"{SessionTotalGames} ігор: {SessionWins}W - {SessionLosses}L ({remakeCount} ремейк)"
@@ -532,6 +585,67 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
         {
             PreferredRoleText = "ARAM 🎲 (100%)";
         }
+    }
+
+    internal void UpdateCoachingReport()
+    {
+        if (_rawMatches.Count == 0)
+        {
+            HasCoachingData = false;
+            CoachingReport = null;
+            return;
+        }
+
+        IEnumerable<Match> matches = _rawMatches;
+        if (SelectedQueueFilter == "Normal Draft")
+        {
+            matches = matches.Where(m => m.QueueName.Contains("Normal", StringComparison.OrdinalIgnoreCase) || m.QueueName.Contains("Draft", StringComparison.OrdinalIgnoreCase));
+        }
+        else if (SelectedQueueFilter == "Ranked Solo")
+        {
+            matches = matches.Where(m => m.QueueName.Contains("Ranked", StringComparison.OrdinalIgnoreCase) || m.QueueName.Contains("Solo", StringComparison.OrdinalIgnoreCase));
+        }
+        else if (SelectedQueueFilter == "ARAM")
+        {
+            matches = matches.Where(m => m.QueueName.Contains("ARAM", StringComparison.OrdinalIgnoreCase));
+        }
+
+        var list = matches.ToList();
+        if (list.Count == 0)
+        {
+            HasCoachingData = false;
+            CoachingReport = null;
+            return;
+        }
+
+        var report = GlobalCoachingAnalyzer.Analyze(list, Summoner?.Puuid ?? GameName);
+        CoachingReport = report;
+        HasCoachingData = report != null && report.TotalMatchesAnalyzed > 0;
+    }
+
+    private static string GetNextTierName(GameTier tier, string rank)
+    {
+        var cleanRank = rank?.Trim().ToUpperInvariant() ?? "IV";
+        return cleanRank switch
+        {
+            "IV" => $"{tier} III",
+            "III" => $"{tier} II",
+            "II" => $"{tier} I",
+            "I" => tier switch
+            {
+                GameTier.Iron => "Bronze IV",
+                GameTier.Bronze => "Silver IV",
+                GameTier.Silver => "Gold IV",
+                GameTier.Gold => "Platinum IV",
+                GameTier.Platinum => "Emerald IV",
+                GameTier.Emerald => "Diamond IV",
+                GameTier.Diamond => "Master",
+                GameTier.Master => "Grandmaster",
+                GameTier.Grandmaster => "Challenger",
+                _ => "Peak Rank"
+            },
+            _ => $"{tier} {cleanRank}"
+        };
     }
 
     private static string GetTierColor(GameTier tier) => tier switch

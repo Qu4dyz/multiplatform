@@ -724,6 +724,202 @@ public class DataLayerTests
         Assert.True(winningRedDetailed.HasBadge);
         Assert.Equal("MVP", winningRedDetailed.BadgeText);
     }
+
+    [Fact]
+    public void GlobalCoachingAnalyzer_Analyze_CalculatesPillarsAndGeneratesCoachingReport()
+    {
+        var puuid = "coach-player-1";
+        var matches = new List<Match>();
+
+        for (int i = 0; i < 4; i++)
+        {
+            var match = new Match
+            {
+                MatchId = $"coach-{i}",
+                GameDurationSeconds = 1800,
+                QueueId = 420,
+                WinningTeam = TeamSide.Blue,
+                Participants = new List<Participant>
+                {
+                    new()
+                    {
+                        Puuid = puuid,
+                        SummonerName = "ProJungler#EUW",
+                        Position = Position.Jungle,
+                        TeamSide = TeamSide.Blue,
+                        Win = true,
+                        Kills = 7,
+                        Deaths = 2,
+                        Assists = 8,
+                        TotalMinionsKilled = 220,
+                        TotalDamageDealtToChampions = 22000
+                    },
+                    new()
+                    {
+                        Puuid = "teammate",
+                        SummonerName = "Mid#EUW",
+                        Position = Position.Middle,
+                        TeamSide = TeamSide.Blue,
+                        Win = true,
+                        Kills = 5,
+                        Deaths = 3,
+                        Assists = 6,
+                        TotalDamageDealtToChampions = 18000
+                    }
+                }
+            };
+            matches.Add(match);
+        }
+
+        var report = GlobalCoachingAnalyzer.Analyze(matches, puuid);
+
+        Assert.NotNull(report);
+        Assert.Equal(Position.Jungle, report.PrimaryRole);
+        Assert.Equal("JGL", report.RoleName);
+        Assert.Equal(4, report.TotalMatchesAnalyzed);
+        Assert.True(report.OverallScore >= 60, "High performing jungler should score well");
+        Assert.NotEmpty(report.OverallGrade);
+        Assert.NotEmpty(report.CoachAdvice);
+
+        // Check pillars
+        Assert.NotNull(report.Combat);
+        Assert.Equal("⚔️", report.Combat.Icon);
+        Assert.NotNull(report.Economy);
+        Assert.Equal("🌾", report.Economy.Icon);
+        Assert.True(report.Economy.Score > 70, "7.3 CS/M exceeds 6.8 benchmark");
+        Assert.NotNull(report.Objectives);
+        Assert.NotNull(report.Survival);
+        Assert.True(report.Survival.Score >= 70, "2 deaths is very safe");
+    }
+
+    [Fact]
+    public void GlobalCoachingAnalyzer_CalculateLpDelta_RankedGamesYieldAccurateLp()
+    {
+        var rankedMatch = new Match { QueueId = 420 };
+        var normalMatch = new Match { QueueId = 400 };
+
+        // Ranked Win
+        var (winDelta, winText, winBg, winFg) = GlobalCoachingAnalyzer.CalculateLpDelta(rankedMatch, isVictory: true, isRemake: false, isMvp: false, isAce: false);
+        Assert.InRange(winDelta, 20, 24);
+        Assert.StartsWith("+", winText);
+        Assert.Equal("#0AC8B9", winFg);
+
+        // Ranked Win with MVP bonus
+        var (mvpDelta, mvpText, _, _) = GlobalCoachingAnalyzer.CalculateLpDelta(rankedMatch, isVictory: true, isRemake: false, isMvp: true, isAce: false);
+        Assert.True(mvpDelta >= winDelta);
+
+        // Ranked Loss
+        var (lossDelta, lossText, lossBg, lossFg) = GlobalCoachingAnalyzer.CalculateLpDelta(rankedMatch, isVictory: false, isRemake: false, isMvp: false, isAce: false);
+        Assert.InRange(lossDelta, -20, -17);
+        Assert.StartsWith("-", lossText);
+        Assert.Equal("#E84057", lossFg);
+
+        // Ranked Loss with ACE mitigation
+        var (aceDelta, _, _, _) = GlobalCoachingAnalyzer.CalculateLpDelta(rankedMatch, isVictory: false, isRemake: false, isMvp: false, isAce: true);
+        Assert.True(aceDelta > lossDelta);
+
+        // Remake
+        var (remakeDelta, remakeText, _, _) = GlobalCoachingAnalyzer.CalculateLpDelta(rankedMatch, isVictory: false, isRemake: true, isMvp: false, isAce: false);
+        Assert.Equal(0, remakeDelta);
+        Assert.Equal("0 LP", remakeText);
+
+        // Normal queue
+        var (normDelta, normText, _, _) = GlobalCoachingAnalyzer.CalculateLpDelta(normalMatch, isVictory: true, isRemake: false, isMvp: false, isAce: false);
+        Assert.Equal(0, normDelta);
+        Assert.Equal("—", normText);
+    }
+
+    [Fact]
+    public void PlayerMatchItemViewModel_FromMatch_ComputesMatchGradesAndLpDeltas()
+    {
+        var match = new Match
+        {
+            MatchId = "test-lp-grade",
+            GameDurationSeconds = 1800,
+            QueueId = 420,
+            WinningTeam = TeamSide.Blue,
+            Participants = new List<Participant>
+            {
+                new()
+                {
+                    Puuid = "star-puuid",
+                    SummonerName = "StarLaner#EUW",
+                    TeamSide = TeamSide.Blue,
+                    Position = Position.Middle,
+                    Win = true,
+                    Kills = 12,
+                    Deaths = 1,
+                    Assists = 9,
+                    TotalMinionsKilled = 250,
+                    TotalDamageDealtToChampions = 35000
+                },
+                new()
+                {
+                    Puuid = "rival-puuid",
+                    SummonerName = "Rival#EUW",
+                    TeamSide = TeamSide.Red,
+                    Position = Position.Middle,
+                    Win = false,
+                    Kills = 2,
+                    Deaths = 8,
+                    Assists = 3,
+                    TotalMinionsKilled = 120,
+                    TotalDamageDealtToChampions = 12000
+                }
+            }
+        };
+
+        var vm = PlayerMatchItemViewModel.FromMatch(match, "star-puuid");
+
+        Assert.True(vm.HasLpChange);
+        Assert.StartsWith("+", vm.LpChangeText);
+        Assert.NotEmpty(vm.MatchGrade);
+        Assert.Contains(vm.MatchGrade, new[] { "S+", "S", "A" });
+        Assert.True(vm.HasCoachingBadge);
+
+        // Detailed participant grade checks
+        var starDetailed = vm.BlueTeamDetailed.First(p => p.FullRiotId == "StarLaner#EUW");
+        Assert.NotEmpty(starDetailed.MatchGrade);
+        Assert.NotEmpty(starDetailed.MatchGradeColor);
+
+        var rivalDetailed = vm.RedTeamDetailed.First(p => p.FullRiotId == "Rival#EUW");
+        Assert.NotEmpty(rivalDetailed.MatchGrade);
+        Assert.NotEmpty(rivalDetailed.MatchGradeColor);
+    }
+
+    [Fact]
+    public void PlayerAnalyticsViewModel_CalculateSessionSummary_TracksNetLpAndPromoProgress()
+    {
+        var vm = new PlayerAnalyticsViewModel();
+        vm.Summoner = new SummonerProfile
+        {
+            GameName = "Qu4dyz",
+            TagLine = "qu4",
+            Tier = GameTier.Emerald,
+            Rank = "II",
+            LeaguePoints = 78
+        };
+
+        var matches = new List<PlayerMatchItemViewModel>
+        {
+            new() { MatchId = "1", GameModeText = "Ranked Solo", IsVictory = true, IsRemake = false, LpDelta = 22, LpChangeText = "+22 LP", ChampionName = "Ahri", Kills = 8, Deaths = 2, Assists = 5 },
+            new() { MatchId = "2", GameModeText = "Ranked Solo", IsVictory = true, IsRemake = false, LpDelta = 24, LpChangeText = "+24 LP", ChampionName = "Ahri", Kills = 10, Deaths = 1, Assists = 7 },
+            new() { MatchId = "3", GameModeText = "Ranked Solo", IsVictory = false, IsRemake = false, LpDelta = -19, LpChangeText = "-19 LP", ChampionName = "Zed", Kills = 3, Deaths = 6, Assists = 2 },
+            new() { MatchId = "4", GameModeText = "Normal Draft", IsVictory = true, IsRemake = false, LpDelta = 0, LpChangeText = "—", ChampionName = "Lux", Kills = 4, Deaths = 3, Assists = 10 }
+        };
+
+        vm.CalculateSessionSummary(matches);
+
+        // Net LP should be 22 + 24 - 19 = 27 LP
+        Assert.Equal(27, vm.SessionNetLp);
+        Assert.Equal("+27 LP", vm.SessionNetLpText);
+        Assert.Equal("#0AC8B9", vm.SessionNetLpColor);
+
+        // Promo progress: 78 LP, Emerald II -> Emerald I
+        Assert.True(vm.HasRankProgress);
+        Assert.Equal(78, vm.NextTierProgressValue);
+        Assert.Contains("78 / 100 LP до Emerald I", vm.NextTierProgressText);
+    }
 }
 
 

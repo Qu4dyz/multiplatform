@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GameAnalytics.Core.Entities;
 using GameAnalytics.Core.Enums;
+using GameAnalytics.ML.Engine;
 
 namespace GameAnalytics.Desktop.ViewModels;
 
@@ -54,6 +55,9 @@ public class DetailedParticipantViewModel
     public string BadgeBg { get; set; } = "Transparent";
     public bool HasBadge => !string.IsNullOrEmpty(BadgeText);
 
+    public string MatchGrade { get; set; } = "B";
+    public string MatchGradeColor { get; set; } = "#5383E8";
+
     public System.Windows.Input.ICommand? SelectPlayerCommand { get; set; }
 }
 
@@ -89,6 +93,20 @@ public partial class PlayerMatchItemViewModel : ObservableObject
     public string PerformanceBadgeBg { get; set; } = "Transparent";
     public string PerformanceBadgeFg { get; set; } = "#010A13";
     public bool HasPerformanceBadge => !string.IsNullOrEmpty(PerformanceBadgeText);
+
+    // LP Tracking (Ranked games)
+    public int LpDelta { get; set; }
+    public string LpChangeText { get; set; } = string.Empty;
+    public string LpChangeBg { get; set; } = "Transparent";
+    public string LpChangeFg { get; set; } = "#8A93A5";
+    public bool HasLpChange => !string.IsNullOrEmpty(LpChangeText) && LpChangeText != "—";
+
+    // JungleKingdom Match Grade & Coaching Tag
+    public string MatchGrade { get; set; } = "B";
+    public string MatchGradeBg { get; set; } = "#5383E8";
+    public string MatchGradeFg { get; set; } = "#FFFFFF";
+    public string CoachingBadgeText { get; set; } = string.Empty;
+    public bool HasCoachingBadge => !string.IsNullOrEmpty(CoachingBadgeText);
 
     public string GameModeText { get; set; } = "Normal Draft";
     public string FormattedDuration { get; set; } = string.Empty;
@@ -249,20 +267,41 @@ public partial class PlayerMatchItemViewModel : ObservableObject
         var mvpParticipant = winners.OrderByDescending(p => p.TotalDamageDealtToChampions).FirstOrDefault();
         var aceParticipant = losers.OrderByDescending(p => p.TotalDamageDealtToChampions).FirstOrDefault();
 
+        var playerIsMvp = false;
+        var playerIsAce = false;
+
         if (!isRemake && match.Participants.Count >= 6)
         {
             if (player != null && mvpParticipant == player && player.TotalDamageDealtToChampions > 0)
             {
+                playerIsMvp = true;
                 vm.PerformanceBadgeText = "MVP";
                 vm.PerformanceBadgeBg = "#C8AA6E";
                 vm.PerformanceBadgeFg = "#010A13";
             }
             else if (player != null && aceParticipant == player && player.TotalDamageDealtToChampions > 0)
             {
+                playerIsAce = true;
                 vm.PerformanceBadgeText = "ACE";
                 vm.PerformanceBadgeBg = "#E84057";
                 vm.PerformanceBadgeFg = "#FFFFFF";
             }
+        }
+
+        // Calculate LP Delta (Ranked games)
+        var (lpDelta, lpText, lpBg, lpFg) = GlobalCoachingAnalyzer.CalculateLpDelta(match, isVictory, isRemake, playerIsMvp, playerIsAce);
+        vm.LpDelta = lpDelta;
+        vm.LpChangeText = lpText;
+        vm.LpChangeBg = lpBg;
+        vm.LpChangeFg = lpFg;
+
+        // Evaluate Single Match Grade and Coaching Tag
+        if (player != null)
+        {
+            var (grade, gradeColor, tag) = GlobalCoachingAnalyzer.EvaluateSingleMatch(match, player, isVictory, isRemake);
+            vm.MatchGrade = grade;
+            vm.MatchGradeBg = gradeColor;
+            vm.CoachingBadgeText = tag;
         }
 
         // Populate Blue and Red participants (both compact and detailed)
@@ -299,6 +338,8 @@ public partial class PlayerMatchItemViewModel : ObservableObject
             var badgeText = isMvp ? "MVP" : (isAce ? "ACE" : string.Empty);
             var badgeBg = isMvp ? "#C8AA6E" : (isAce ? "#E84057" : "Transparent");
 
+            var (pGrade, pGradeColor, _) = GlobalCoachingAnalyzer.EvaluateSingleMatch(match, p, p.Win, isRemake);
+
             vm.BlueTeamDetailed.Add(new DetailedParticipantViewModel
             {
                 SummonerName = shortName,
@@ -308,6 +349,8 @@ public partial class PlayerMatchItemViewModel : ObservableObject
                 IsCurrentPlayer = isCurrent,
                 BadgeText = badgeText,
                 BadgeBg = badgeBg,
+                MatchGrade = pGrade,
+                MatchGradeColor = pGradeColor,
                 PositionName = pRoleName,
                 PositionIcon = pRoleIcon,
                 Kills = p.Kills,
@@ -364,6 +407,8 @@ public partial class PlayerMatchItemViewModel : ObservableObject
             var badgeText = isMvp ? "MVP" : (isAce ? "ACE" : string.Empty);
             var badgeBg = isMvp ? "#C8AA6E" : (isAce ? "#E84057" : "Transparent");
 
+            var (pGrade, pGradeColor, _) = GlobalCoachingAnalyzer.EvaluateSingleMatch(match, p, p.Win, isRemake);
+
             vm.RedTeamDetailed.Add(new DetailedParticipantViewModel
             {
                 SummonerName = shortName,
@@ -373,6 +418,8 @@ public partial class PlayerMatchItemViewModel : ObservableObject
                 IsCurrentPlayer = isCurrent,
                 BadgeText = badgeText,
                 BadgeBg = badgeBg,
+                MatchGrade = pGrade,
+                MatchGradeColor = pGradeColor,
                 PositionName = pRoleName,
                 PositionIcon = pRoleIcon,
                 Kills = p.Kills,

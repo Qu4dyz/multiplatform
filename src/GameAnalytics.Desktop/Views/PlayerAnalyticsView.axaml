@@ -289,6 +289,23 @@
                                            FontWeight="SemiBold" />
                             </Border>
                         </StackPanel>
+
+                        <!-- Promo / Next Tier Progress -->
+                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="0,3,0,0" IsVisible="{Binding HasRankProgress}">
+                            <ProgressBar Value="{Binding NextTierProgressValue}"
+                                         Minimum="0"
+                                         Maximum="100"
+                                         Height="5"
+                                         Width="120"
+                                         Foreground="#C8AA6E"
+                                         Background="#091428"
+                                         VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding NextTierProgressText}"
+                                       FontSize="11"
+                                       FontWeight="SemiBold"
+                                       Foreground="#8A93A5"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
                     </StackPanel>
 
                     <!-- Right: WinRate & Record Badge -->
@@ -353,10 +370,23 @@
                                    FontSize="13"
                                    FontWeight="Bold"
                                    Foreground="#F0E6D2" />
-                        <TextBlock Text="{Binding SessionWinRate, StringFormat='{}{0:F1}% WR'}"
-                                   FontSize="22"
-                                   FontWeight="Bold"
-                                   Foreground="#0AC8B9" />
+                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding SessionWinRate, StringFormat='{}{0:F1}% WR'}"
+                                       FontSize="22"
+                                       FontWeight="Bold"
+                                       Foreground="#0AC8B9" />
+                            <Border Background="#091428"
+                                    CornerRadius="4"
+                                    Padding="8,2"
+                                    BorderBrush="#252D3D"
+                                    BorderThickness="1"
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="{Binding SessionNetLpText}"
+                                           FontSize="13"
+                                           FontWeight="Bold"
+                                           Foreground="{Binding SessionNetLpColor}" />
+                            </Border>
+                        </StackPanel>
                         <!-- Mini Win/Loss Bar -->
                         <ProgressBar Value="{Binding SessionWins}"
                                      Minimum="0"
@@ -557,6 +587,207 @@
                 </Grid>
             </Border>
 
+            <!-- 2.7 JUNGLEKINGDOM GLOBAL COACHING & ROLE MASTERY DASHBOARD -->
+            <Border Background="#101726"
+                    CornerRadius="10"
+                    Padding="20,16"
+                    BorderBrush="#2A3750"
+                    BorderThickness="1"
+                    IsVisible="{Binding HasCoachingData}">
+                <StackPanel Spacing="14">
+                    <!-- Header with Role & Overall Score -->
+                    <Grid ColumnDefinitions="*, Auto">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                            <TextBlock Text="👑 JUNGLEKINGDOM COACHING &amp; ROLE MASTERY"
+                                       FontSize="13"
+                                       FontWeight="Bold"
+                                       Foreground="#C8AA6E"
+                                       LetterSpacing="1.2"
+                                       VerticalAlignment="Center" />
+                            <Border Background="#091428" CornerRadius="4" Padding="8,3" BorderBrush="#0AC8B9" BorderThickness="1" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <TextBlock Text="АНАЛІТИКА ЛІНІЇ:" FontSize="10" Foreground="#8A93A5" FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding CoachingReport.RoleName}" FontSize="10" Foreground="#0AC8B9" FontWeight="Bold" />
+                                    <TextBlock Text="{Binding CoachingReport.RoleIcon}" FontSize="10" />
+                                </StackPanel>
+                            </Border>
+                            <Border Background="#091428" CornerRadius="4" Padding="6,2" BorderBrush="#252D3D" BorderThickness="1" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding CoachingReport.TotalMatchesAnalyzed, StringFormat='Матчів: {0}'}" FontSize="10" Foreground="#8A93A5" FontWeight="SemiBold" />
+                            </Border>
+                        </StackPanel>
+
+                        <!-- Overall Grade Badge -->
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                            <TextBlock Text="ЗАГАЛЬНА ОЦІНКА МАЙСТЕРНОСТІ:"
+                                       FontSize="11"
+                                       FontWeight="Bold"
+                                       Foreground="#8A93A5"
+                                       VerticalAlignment="Center" />
+                            <Border Background="{Binding CoachingReport.OverallGradeColor}"
+                                    CornerRadius="6"
+                                    Padding="10,4"
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="{Binding CoachingReport.OverallGrade}"
+                                           FontSize="15"
+                                           FontWeight="Bold"
+                                           Foreground="#010A13" />
+                            </Border>
+                            <TextBlock Text="{Binding CoachingReport.OverallScore, StringFormat='{}{0} / 100'}"
+                                       FontSize="14"
+                                       FontWeight="Bold"
+                                       Foreground="#F0E6D2"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- 4 Skill Pillar Cards (Combat, Economy, Objectives, Survival) -->
+                    <Grid ColumnDefinitions="*, *, *, *" Margin="0,2">
+                        <!-- Pillar 1: Combat -->
+                        <Border Grid.Column="0"
+                                Background="#0A101D"
+                                CornerRadius="8"
+                                Padding="12,10"
+                                Margin="0,0,6,0"
+                                BorderBrush="#1C283E"
+                                BorderThickness="1">
+                            <StackPanel Spacing="6">
+                                <Grid ColumnDefinitions="*, Auto">
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="5">
+                                        <TextBlock Text="{Binding CoachingReport.Combat.Icon}" FontSize="14" />
+                                        <TextBlock Text="{Binding CoachingReport.Combat.PillarName}" FontSize="11" FontWeight="Bold" Foreground="#F0E6D2" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                    <Border Grid.Column="1" Background="{Binding CoachingReport.Combat.GradeColor}" CornerRadius="3" Padding="5,1">
+                                        <TextBlock Text="{Binding CoachingReport.Combat.Grade}" FontSize="10" FontWeight="Bold" Foreground="#010A13" />
+                                    </Border>
+                                </Grid>
+                                <TextBlock Text="{Binding CoachingReport.Combat.PlayerValueText}" FontSize="14" FontWeight="Bold" Foreground="#FFFFFF" />
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <TextBlock Text="{Binding CoachingReport.Combat.BenchmarkText}" FontSize="10" Foreground="#8A93A5" VerticalAlignment="Center" />
+                                    <Border Background="#121A28" CornerRadius="3" Padding="4,1">
+                                        <TextBlock Text="{Binding CoachingReport.Combat.DiffText}" FontSize="9" FontWeight="Bold" Foreground="{Binding CoachingReport.Combat.DiffColor}" />
+                                    </Border>
+                                </StackPanel>
+                                <ProgressBar Value="{Binding CoachingReport.Combat.Score}" Minimum="0" Maximum="100" Height="4" CornerRadius="2" Foreground="{Binding CoachingReport.Combat.GradeColor}" Background="#1F283A" />
+                                <TextBlock Text="{Binding CoachingReport.Combat.Description}" FontSize="10" Foreground="#8A93A5" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Pillar 2: Economy / Farm -->
+                        <Border Grid.Column="1"
+                                Background="#0A101D"
+                                CornerRadius="8"
+                                Padding="12,10"
+                                Margin="3,0,3,0"
+                                BorderBrush="#1C283E"
+                                BorderThickness="1">
+                            <StackPanel Spacing="6">
+                                <Grid ColumnDefinitions="*, Auto">
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="5">
+                                        <TextBlock Text="{Binding CoachingReport.Economy.Icon}" FontSize="14" />
+                                        <TextBlock Text="{Binding CoachingReport.Economy.PillarName}" FontSize="11" FontWeight="Bold" Foreground="#F0E6D2" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                    <Border Grid.Column="1" Background="{Binding CoachingReport.Economy.GradeColor}" CornerRadius="3" Padding="5,1">
+                                        <TextBlock Text="{Binding CoachingReport.Economy.Grade}" FontSize="10" FontWeight="Bold" Foreground="#010A13" />
+                                    </Border>
+                                </Grid>
+                                <TextBlock Text="{Binding CoachingReport.Economy.PlayerValueText}" FontSize="14" FontWeight="Bold" Foreground="#FFFFFF" />
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <TextBlock Text="{Binding CoachingReport.Economy.BenchmarkText}" FontSize="10" Foreground="#8A93A5" VerticalAlignment="Center" />
+                                    <Border Background="#121A28" CornerRadius="3" Padding="4,1">
+                                        <TextBlock Text="{Binding CoachingReport.Economy.DiffText}" FontSize="9" FontWeight="Bold" Foreground="{Binding CoachingReport.Economy.DiffColor}" />
+                                    </Border>
+                                </StackPanel>
+                                <ProgressBar Value="{Binding CoachingReport.Economy.Score}" Minimum="0" Maximum="100" Height="4" CornerRadius="2" Foreground="{Binding CoachingReport.Economy.GradeColor}" Background="#1F283A" />
+                                <TextBlock Text="{Binding CoachingReport.Economy.Description}" FontSize="10" Foreground="#8A93A5" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Pillar 3: Map & Objectives -->
+                        <Border Grid.Column="2"
+                                Background="#0A101D"
+                                CornerRadius="8"
+                                Padding="12,10"
+                                Margin="3,0,3,0"
+                                BorderBrush="#1C283E"
+                                BorderThickness="1">
+                            <StackPanel Spacing="6">
+                                <Grid ColumnDefinitions="*, Auto">
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="5">
+                                        <TextBlock Text="{Binding CoachingReport.Objectives.Icon}" FontSize="14" />
+                                        <TextBlock Text="{Binding CoachingReport.Objectives.PillarName}" FontSize="11" FontWeight="Bold" Foreground="#F0E6D2" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                    <Border Grid.Column="1" Background="{Binding CoachingReport.Objectives.GradeColor}" CornerRadius="3" Padding="5,1">
+                                        <TextBlock Text="{Binding CoachingReport.Objectives.Grade}" FontSize="10" FontWeight="Bold" Foreground="#010A13" />
+                                    </Border>
+                                </Grid>
+                                <TextBlock Text="{Binding CoachingReport.Objectives.PlayerValueText}" FontSize="14" FontWeight="Bold" Foreground="#FFFFFF" />
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <TextBlock Text="{Binding CoachingReport.Objectives.BenchmarkText}" FontSize="10" Foreground="#8A93A5" VerticalAlignment="Center" />
+                                    <Border Background="#121A28" CornerRadius="3" Padding="4,1">
+                                        <TextBlock Text="{Binding CoachingReport.Objectives.DiffText}" FontSize="9" FontWeight="Bold" Foreground="{Binding CoachingReport.Objectives.DiffColor}" />
+                                    </Border>
+                                </StackPanel>
+                                <ProgressBar Value="{Binding CoachingReport.Objectives.Score}" Minimum="0" Maximum="100" Height="4" CornerRadius="2" Foreground="{Binding CoachingReport.Objectives.GradeColor}" Background="#1F283A" />
+                                <TextBlock Text="{Binding CoachingReport.Objectives.Description}" FontSize="10" Foreground="#8A93A5" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Pillar 4: Survival -->
+                        <Border Grid.Column="3"
+                                Background="#0A101D"
+                                CornerRadius="8"
+                                Padding="12,10"
+                                Margin="6,0,0,0"
+                                BorderBrush="#1C283E"
+                                BorderThickness="1">
+                            <StackPanel Spacing="6">
+                                <Grid ColumnDefinitions="*, Auto">
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="5">
+                                        <TextBlock Text="{Binding CoachingReport.Survival.Icon}" FontSize="14" />
+                                        <TextBlock Text="{Binding CoachingReport.Survival.PillarName}" FontSize="11" FontWeight="Bold" Foreground="#F0E6D2" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                    <Border Grid.Column="1" Background="{Binding CoachingReport.Survival.GradeColor}" CornerRadius="3" Padding="5,1">
+                                        <TextBlock Text="{Binding CoachingReport.Survival.Grade}" FontSize="10" FontWeight="Bold" Foreground="#010A13" />
+                                    </Border>
+                                </Grid>
+                                <TextBlock Text="{Binding CoachingReport.Survival.PlayerValueText}" FontSize="14" FontWeight="Bold" Foreground="#FFFFFF" />
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <TextBlock Text="{Binding CoachingReport.Survival.BenchmarkText}" FontSize="10" Foreground="#8A93A5" VerticalAlignment="Center" />
+                                    <Border Background="#121A28" CornerRadius="3" Padding="4,1">
+                                        <TextBlock Text="{Binding CoachingReport.Survival.DiffText}" FontSize="9" FontWeight="Bold" Foreground="{Binding CoachingReport.Survival.DiffColor}" />
+                                    </Border>
+                                </StackPanel>
+                                <ProgressBar Value="{Binding CoachingReport.Survival.Score}" Minimum="0" Maximum="100" Height="4" CornerRadius="2" Foreground="{Binding CoachingReport.Survival.GradeColor}" Background="#1F283A" />
+                                <TextBlock Text="{Binding CoachingReport.Survival.Description}" FontSize="10" Foreground="#8A93A5" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- Coaching Advice Box -->
+                    <Border Background="#091428"
+                            CornerRadius="6"
+                            Padding="12,10"
+                            BorderBrush="#1E2B3E"
+                            BorderThickness="1">
+                        <Grid ColumnDefinitions="Auto, *" VerticalAlignment="Center">
+                            <TextBlock Grid.Column="0" Text="🎓" FontSize="24" VerticalAlignment="Top" Margin="0,2,12,0" />
+                            <StackPanel Grid.Column="1" Spacing="3">
+                                <TextBlock Text="РЕКОМЕНДАЦІЇ ТРЕНЕРА JUNGLEKINGDOM:"
+                                           FontSize="11"
+                                           FontWeight="Bold"
+                                           Foreground="#C8AA6E"
+                                           LetterSpacing="1.0" />
+                                <TextBlock Text="{Binding CoachingReport.CoachAdvice}"
+                                           FontSize="12"
+                                           Foreground="#F0E6D2"
+                                           TextWrapping="Wrap"
+                                           LineHeight="18" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+            </Border>
+
             <!-- 3. RECENT MATCHES SECTION HEADER & QUEUE FILTER -->
             <Grid ColumnDefinitions="*, Auto, Auto" Margin="0,4,0,0">
                 <TextBlock Grid.Column="0"
@@ -616,11 +847,22 @@
                                                        FontWeight="Bold"
                                                        FontSize="12"
                                                        Foreground="#F0E6D2" />
-                                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                            <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
                                                 <TextBlock Text="{Binding ResultText}"
                                                            FontWeight="Bold"
                                                            FontSize="17"
                                                            Foreground="{Binding ResultColor}" />
+                                                <!-- Performance Grade Badge (S+, S, A, B, C, D) -->
+                                                <Border Background="{Binding MatchGradeBg}"
+                                                        CornerRadius="4"
+                                                        Padding="5,1"
+                                                        VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding MatchGrade}"
+                                                               FontSize="10"
+                                                               FontWeight="Bold"
+                                                               Foreground="#010A13" />
+                                                </Border>
+                                                <!-- MVP / ACE Badge -->
                                                 <Border Background="{Binding PerformanceBadgeBg}"
                                                         CornerRadius="4"
                                                         Padding="5,1"
@@ -632,6 +874,17 @@
                                                                Foreground="{Binding PerformanceBadgeFg}" />
                                                 </Border>
                                             </StackPanel>
+                                            <!-- LP Change Pill -->
+                                            <Border Background="{Binding LpChangeBg}"
+                                                    CornerRadius="3"
+                                                    Padding="5,1"
+                                                    HorizontalAlignment="Left"
+                                                    IsVisible="{Binding HasLpChange}">
+                                                <TextBlock Text="{Binding LpChangeText}"
+                                                           FontSize="10"
+                                                           FontWeight="Bold"
+                                                           Foreground="{Binding LpChangeFg}" />
+                                            </Border>
                                             <TextBlock Text="{Binding FormattedDuration}"
                                                        FontSize="11"
                                                        Foreground="#8A93A5" />
@@ -672,23 +925,36 @@
                                                 </Border>
                                             </Grid>
 
-                                            <!-- Champion Name & Position Pill -->
+                                            <!-- Champion Name & Position Pill & Coaching Badge -->
                                             <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center" Spacing="4">
                                                 <TextBlock Text="{Binding ChampionName}"
                                                            FontWeight="Bold"
                                                            FontSize="15"
                                                            Foreground="#F0E6D2" />
-                                                <Border Background="#091428"
-                                                        CornerRadius="4"
-                                                        Padding="6,2"
-                                                        HorizontalAlignment="Left"
-                                                        BorderBrush="#252D3D"
-                                                        BorderThickness="1">
-                                                    <StackPanel Orientation="Horizontal" Spacing="4">
-                                                        <TextBlock Text="{Binding PositionIcon}" FontSize="11" />
-                                                        <TextBlock Text="{Binding PositionName}" FontSize="10" Foreground="#8A93A5" FontWeight="Bold" />
-                                                    </StackPanel>
-                                                </Border>
+                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                    <Border Background="#091428"
+                                                            CornerRadius="4"
+                                                            Padding="6,2"
+                                                            HorizontalAlignment="Left"
+                                                            BorderBrush="#252D3D"
+                                                            BorderThickness="1">
+                                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                                            <TextBlock Text="{Binding PositionIcon}" FontSize="11" />
+                                                            <TextBlock Text="{Binding PositionName}" FontSize="10" Foreground="#8A93A5" FontWeight="Bold" />
+                                                        </StackPanel>
+                                                    </Border>
+                                                    <Border Background="#1A2638"
+                                                            CornerRadius="4"
+                                                            Padding="5,2"
+                                                            BorderBrush="#2C3B52"
+                                                            BorderThickness="1"
+                                                            IsVisible="{Binding HasCoachingBadge}">
+                                                        <TextBlock Text="{Binding CoachingBadgeText}"
+                                                                   FontSize="10"
+                                                                   FontWeight="SemiBold"
+                                                                   Foreground="#0AC8B9" />
+                                                    </Border>
+                                                </StackPanel>
                                             </StackPanel>
                                         </Grid>
 
@@ -884,6 +1150,16 @@
                                                                             <Border Width="28" Height="28" CornerRadius="14" ClipToBounds="True" Background="#091428" BorderBrush="#252D3D" BorderThickness="1">
                                                                                 <Image Source="{Binding ChampionIconUrl, Converter={StaticResource BitmapAssetConverter}}" Width="28" Height="28" Stretch="UniformToFill" />
                                                                             </Border>
+                                                                            <!-- Match Grade Pill -->
+                                                                            <Border Background="{Binding MatchGradeColor}"
+                                                                                    CornerRadius="3"
+                                                                                    Padding="4,1"
+                                                                                    VerticalAlignment="Center">
+                                                                                <TextBlock Text="{Binding MatchGrade}"
+                                                                                           FontSize="9"
+                                                                                           FontWeight="Bold"
+                                                                                           Foreground="#010A13" />
+                                                                            </Border>
                                                                             <Border Background="{Binding BadgeBg}"
                                                                                     CornerRadius="3"
                                                                                     Padding="4,1"
@@ -1000,6 +1276,16 @@
                                                                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                                                                             <Border Width="28" Height="28" CornerRadius="14" ClipToBounds="True" Background="#091428" BorderBrush="#252D3D" BorderThickness="1">
                                                                                 <Image Source="{Binding ChampionIconUrl, Converter={StaticResource BitmapAssetConverter}}" Width="28" Height="28" Stretch="UniformToFill" />
+                                                                            </Border>
+                                                                            <!-- Match Grade Pill -->
+                                                                            <Border Background="{Binding MatchGradeColor}"
+                                                                                    CornerRadius="3"
+                                                                                    Padding="4,1"
+                                                                                    VerticalAlignment="Center">
+                                                                                <TextBlock Text="{Binding MatchGrade}"
+                                                                                           FontSize="9"
+                                                                                           FontWeight="Bold"
+                                                                                           Foreground="#010A13" />
                                                                             </Border>
                                                                             <Border Background="{Binding BadgeBg}"
                                                                                     CornerRadius="3"
