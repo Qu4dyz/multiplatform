@@ -48,6 +48,7 @@ riot_api_key.txt
 *.zip.tmp
 models/*.zip
 !models/.gitkeep
+!src/GameAnalytics.Desktop/models/fasttree_model.zip
 
 ## OS generated files
 .DS_Store

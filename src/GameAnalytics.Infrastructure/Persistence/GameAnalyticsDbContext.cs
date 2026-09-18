@@ -13,13 +13,28 @@ public class GameAnalyticsDbContext : DbContext
 
     public GameAnalyticsDbContext()
     {
-        _dbPath = Path.Combine(AppContext.BaseDirectory, "game_analytics.db");
+        _dbPath = ResolveDatabasePath();
     }
 
     public GameAnalyticsDbContext(DbContextOptions<GameAnalyticsDbContext> options)
         : base(options)
     {
-        _dbPath = Path.Combine(AppContext.BaseDirectory, "game_analytics.db");
+        _dbPath = ResolveDatabasePath();
+    }
+
+    private static string ResolveDatabasePath()
+    {
+        var baseDir = AppContext.BaseDirectory;
+        var appPath = Path.Combine(baseDir, "game_analytics.db");
+        if (File.Exists(appPath)) return appPath;
+
+        var projPath = Path.Combine(Directory.GetCurrentDirectory(), "src", "GameAnalytics.Desktop", "game_analytics.db");
+        if (File.Exists(projPath)) return projPath;
+
+        var rootPath = Path.Combine(Directory.GetCurrentDirectory(), "game_analytics.db");
+        if (File.Exists(rootPath)) return rootPath;
+
+        return appPath;
     }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
