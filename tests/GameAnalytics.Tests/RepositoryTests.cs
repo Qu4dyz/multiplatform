@@ -99,5 +99,51 @@ public class RepositoryTests
         // Cleanup
         context.Database.EnsureDeleted();
     }
+
+    [Fact]
+    public async Task SaveMatchAsync_PersistsQueueIdAndChampLevel()
+    {
+        // Arrange
+        using var context = CreateTestContext();
+        var repo = new MatchRepository(context);
+
+        var match = new Match
+        {
+            MatchId = "EUW1_7983198392",
+            QueueId = 400,
+            GameDurationSeconds = 1920,
+            GameVersion = "14.18.1",
+            WinningTeam = TeamSide.Blue,
+            Participants = new List<Participant>
+            {
+                new()
+                {
+                    Puuid = "puuid-ambessa",
+                    SummonerName = "Qu4dyz#qu4",
+                    ChampionName = "Ambessa",
+                    ChampLevel = 18,
+                    Kills = 18,
+                    Deaths = 3,
+                    Assists = 9,
+                    Win = true,
+                    TeamSide = TeamSide.Blue
+                }
+            }
+        };
+
+        // Act
+        await repo.SaveMatchAsync(match);
+        var fetched = await repo.GetMatchByMatchIdAsync("EUW1_7983198392");
+
+        // Assert
+        Assert.NotNull(fetched);
+        Assert.Equal(400, fetched.QueueId);
+        Assert.Equal("Normal Draft", fetched.QueueName);
+        Assert.Single(fetched.Participants);
+        Assert.Equal(18, fetched.Participants[0].ChampLevel);
+
+        // Cleanup
+        context.Database.EnsureDeleted();
+    }
 }
 

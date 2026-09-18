@@ -13,6 +13,22 @@ public class MatchRepository : IMatchRepository
     {
         _context = context;
         _context.Database.EnsureCreated();
+        ApplyMissingColumns();
+    }
+
+    private void ApplyMissingColumns()
+    {
+        try
+        {
+            _context.Database.ExecuteSqlRaw("ALTER TABLE Matches ADD COLUMN QueueId INTEGER NOT NULL DEFAULT 420;");
+        }
+        catch { /* Column already exists */ }
+
+        try
+        {
+            _context.Database.ExecuteSqlRaw("ALTER TABLE Participants ADD COLUMN ChampLevel INTEGER NOT NULL DEFAULT 1;");
+        }
+        catch { /* Column already exists */ }
     }
 
     public async Task<IReadOnlyList<Match>> GetAllMatchesAsync(CancellationToken ct = default)
