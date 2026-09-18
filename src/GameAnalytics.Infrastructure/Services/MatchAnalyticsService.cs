@@ -121,7 +121,7 @@ public class MatchAnalyticsService : IMatchAnalyticsService
                 {
                     var p = match.Participants.FirstOrDefault(x => x.Puuid == profile.Puuid || x.SummonerName.Equals(profile.GameName, StringComparison.OrdinalIgnoreCase));
                     var isWin = p?.Win ?? (match.WinningTeam == GameAnalytics.Core.Enums.TeamSide.Blue);
-                    var delta = match.IsRemake ? 0 : (isWin ? (profile.WinRate >= 54 ? 21 : 20) : (profile.WinRate >= 54 ? -19 : -20));
+                    var delta = match.IsRemake ? 0 : (isWin ? 20 : -20);
 
                     await _matchRepository.SaveMatchLpRecordAsync(new PlayerMatchLpRecord
                     {
@@ -153,7 +153,7 @@ public class MatchAnalyticsService : IMatchAnalyticsService
                 {
                     var p = match.Participants.FirstOrDefault(x => x.Puuid == profile.Puuid || x.SummonerName.Equals(profile.GameName, StringComparison.OrdinalIgnoreCase));
                     var isWin = p?.Win ?? (match.WinningTeam == GameAnalytics.Core.Enums.TeamSide.Blue);
-                    var delta = match.IsRemake ? 0 : (isWin ? (profile.WinRate >= 54 ? 21 : 20) : (profile.WinRate >= 54 ? -19 : -20));
+                    var delta = match.IsRemake ? 0 : (isWin ? 20 : -20);
 
                     await _matchRepository.SaveMatchLpRecordAsync(new PlayerMatchLpRecord
                     {
