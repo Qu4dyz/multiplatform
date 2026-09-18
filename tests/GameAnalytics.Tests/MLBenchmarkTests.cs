@@ -77,3 +77,4 @@ public class MLBenchmarkTests
         Assert.True(sdcaPrediction.BlueWinProbability > 0.5);
     }
 }
+

@@ -6,3 +6,4 @@ public enum MLAlgorithmType
     FastForest,                // Random Forest ensemble
     SdcaLogisticRegression     // Stochastic Dual Coordinate Ascent Logistic Regression
 }
+

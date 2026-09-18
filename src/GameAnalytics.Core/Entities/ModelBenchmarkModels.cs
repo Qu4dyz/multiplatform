@@ -36,3 +36,4 @@ public class ModelBenchmarkReport
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;
     public int TotalSamplesUsed { get; set; }
 }
+
