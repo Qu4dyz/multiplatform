@@ -152,6 +152,68 @@
                     </Grid>
                 </StackPanel>
             </Border>
+
+            <!-- Cloud VPS Sync & ML Model Hub Card -->
+            <Border Background="#121820" CornerRadius="8" Padding="20" BorderBrush="#0AC8B9" BorderThickness="1.5">
+                <StackPanel Spacing="16">
+                    <Grid ColumnDefinitions="*, Auto">
+                        <StackPanel Grid.Column="0" Spacing="4">
+                            <TextBlock Text="☁️ ХМАРНА СИНХРОНІЗАЦІЯ З VPS (CLOUD SYNC HUB)"
+                                       FontWeight="Bold"
+                                       FontSize="14"
+                                       Foreground="#0AC8B9"
+                                       LetterSpacing="1.2" />
+                            <TextBlock Text="Миттєве отримання свіжих вагів натренованої моделі FastTree та бази реальних ігор з віддаленого сервера в один клік"
+                                       FontSize="12"
+                                       Foreground="#A09B8C" />
+                        </StackPanel>
+
+                        <Button Grid.Column="1"
+                                Command="{Binding CheckVpsStatusCommand}"
+                                Content="🔍 Перевірити зв'язок"
+                                FontSize="12"
+                                Background="#2F3640"
+                                Foreground="#F0E6D2"
+                                Padding="12,6"
+                                Cursor="Hand" />
+                    </Grid>
+
+                    <Grid ColumnDefinitions="140, *" RowDefinitions="Auto, Auto">
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="VPS Endpoint URL:" FontSize="12" Foreground="#A09B8C" VerticalAlignment="Center" />
+                        <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding VpsServerUrl}" Height="34" FontSize="13" />
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Статус сервера:" FontSize="12" Foreground="#A09B8C" VerticalAlignment="Center" Margin="0,10,0,0" />
+                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding VpsStatusBadge}" FontSize="12" FontWeight="SemiBold" Foreground="#0AC8B9" VerticalAlignment="Center" Margin="0,10,0,0" />
+                    </Grid>
+
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <Button Command="{Binding SyncModelFromVpsCommand}"
+                                IsEnabled="{Binding !IsSyncingModel}"
+                                Content="📥 Завантажити свіжу ML-модель з VPS"
+                                Height="38"
+                                Padding="16,0"
+                                Background="#0AC8B9"
+                                Foreground="#010A13"
+                                FontWeight="Bold"
+                                Cursor="Hand" />
+
+                        <Button Command="{Binding SyncDatabaseFromVpsCommand}"
+                                IsEnabled="{Binding !IsSyncingDatabase}"
+                                Content="🗄 Синхронізувати базу матчів SQLite"
+                                Height="38"
+                                Padding="16,0"
+                                Background="#2F3640"
+                                Foreground="#F0E6D2"
+                                FontWeight="SemiBold"
+                                Cursor="Hand" />
+                    </StackPanel>
+
+                    <TextBlock Text="{Binding VpsSyncMessage}"
+                               FontSize="12"
+                               Foreground="#C8AA6E"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

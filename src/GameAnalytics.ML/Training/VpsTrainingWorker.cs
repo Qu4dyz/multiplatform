@@ -10,6 +10,9 @@ public class VpsTrainingWorker
     private readonly IMatchRepository _matchRepo;
     private readonly IPredictionEngine _predictionEngine;
 
+    public IPredictionEngine PredictionEngine => _predictionEngine;
+    public int CurrentEpoch { get; private set; } = 1;
+
     public VpsTrainingWorker(
         IRiotApiClient apiClient,
         IMatchRepository matchRepo,
@@ -37,6 +40,7 @@ public class VpsTrainingWorker
         var collector = new RealMatchDatasetCollector(_apiClient, _matchRepo);
 
         int epoch = 1;
+        CurrentEpoch = epoch;
         log($"[VPS ML Trainer] Запуск автономного тренувального демона на VPS...");
         log($"[VPS ML Trainer] Початковий гравець (seed PUUID): {seedPuuid}");
 
@@ -69,6 +73,7 @@ public class VpsTrainingWorker
                 }
 
                 epoch++;
+                CurrentEpoch = epoch;
                 log($"[VPS ML Trainer] Очікування {delay.TotalMinutes} хв до наступного циклу навчання...");
                 await Task.Delay(delay, ct);
             }
