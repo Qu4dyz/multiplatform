@@ -342,6 +342,34 @@
                                    Foreground="#C8AA6E"
                                    LetterSpacing="1.2" />
 
+                        <!-- Live Client LoL Bar -->
+                        <Border Background="#121820" CornerRadius="6" Padding="12" BorderBrush="#0AC8B9" BorderThickness="1">
+                            <StackPanel Spacing="8">
+                                <Grid ColumnDefinitions="*, Auto">
+                                    <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock Text="🎮 LIVE CLIENT LOL (СКАСУВАННЯ В РЕАЛЬНОМУ ЧАСІ)"
+                                                   FontWeight="Bold"
+                                                   FontSize="12"
+                                                   Foreground="#0AC8B9" />
+                                        <TextBlock Text="{Binding LiveGameStatusText}"
+                                                   FontSize="11"
+                                                   Foreground="#F0E6D2"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <Button Grid.Column="1"
+                                            Command="{Binding ScanLiveGameCommand}"
+                                            IsEnabled="{Binding !IsCheckingLiveGame}"
+                                            Content="📡 Зчитати з LoL (2999)"
+                                            Background="#0397AB"
+                                            Foreground="White"
+                                            FontWeight="SemiBold"
+                                            FontSize="11"
+                                            Padding="12,6"
+                                            Cursor="Hand" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
                         <!-- Algorithm Selector -->
                         <StackPanel Spacing="4">
                             <TextBlock Text="Активний алгоритм машинного навчання:" FontSize="12" Foreground="#A09B8C" />
