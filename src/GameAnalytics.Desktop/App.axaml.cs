@@ -48,8 +48,10 @@ public partial class App : Application
         services.AddDbContext<GameAnalyticsDbContext>();
         services.AddScoped<IMatchRepository, MatchRepository>();
 
-        // HTTP Client & Riot API
+        // HTTP Client, Rate Limiter & Riot API
+        services.AddSingleton<RiotRateLimiter>();
         services.AddHttpClient<IRiotApiClient, RiotApiClient>();
+        services.AddHttpClient<IDataDragonService, DataDragonService>();
         services.AddSingleton(new RiotApiOptions
         {
             ApiKey = string.Empty, // Defaults to Mock Mode for testing & offline defense

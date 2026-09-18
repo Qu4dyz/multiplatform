@@ -7,6 +7,7 @@ public interface IRiotApiClient
     Task<SummonerProfile?> GetSummonerByRiotIdAsync(string gameName, string tagLine, CancellationToken ct = default);
     Task<IReadOnlyList<string>> GetRecentMatchIdsByPuuidAsync(string puuid, int count = 10, CancellationToken ct = default);
     Task<Match?> GetMatchDetailsAsync(string matchId, CancellationToken ct = default);
+    Task<MatchTimelineData?> GetMatchTimelineAsync(string matchId, CancellationToken ct = default);
 }
 
 public interface IMatchRepository
@@ -29,6 +30,7 @@ public interface IMatchAnalyticsService
     Task<SummonerProfile?> FetchAndCacheSummonerAsync(string gameName, string tagLine, CancellationToken ct = default);
     Task<IReadOnlyList<Match>> FetchAndSaveRecentMatchesAsync(string puuid, int count = 10, CancellationToken ct = default);
     Task<IReadOnlyList<Match>> GetSavedMatchHistoryAsync(CancellationToken ct = default);
+    Task<MatchTimelineData?> GetMatchTimelineAsync(string matchId, CancellationToken ct = default);
     PredictionResult PredictOutcome(MatchInputFeatures features);
 }
 

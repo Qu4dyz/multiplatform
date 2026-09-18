@@ -54,6 +54,11 @@ public class MatchAnalyticsService : IMatchAnalyticsService
         return await _matchRepository.GetAllMatchesAsync(ct);
     }
 
+    public async Task<MatchTimelineData?> GetMatchTimelineAsync(string matchId, CancellationToken ct = default)
+    {
+        return await _apiClient.GetMatchTimelineAsync(matchId, ct);
+    }
+
     public PredictionResult PredictOutcome(MatchInputFeatures features)
     {
         return _predictionEngine.PredictMatchOutcome(features);

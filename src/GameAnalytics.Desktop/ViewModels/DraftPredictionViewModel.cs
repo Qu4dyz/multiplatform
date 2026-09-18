@@ -9,6 +9,16 @@ namespace GameAnalytics.Desktop.ViewModels;
 public partial class DraftPredictionViewModel : ViewModelBase
 {
     private readonly IMatchAnalyticsService _analyticsService;
+    private readonly IDataDragonService _dataDragonService;
+
+    [ObservableProperty]
+    private System.Collections.ObjectModel.ObservableCollection<ChampionInfo> _availableChampions = new();
+
+    [ObservableProperty]
+    private ChampionInfo? _selectedChampion;
+
+    [ObservableProperty]
+    private string _patchVersion = "14.18.1";
 
     [ObservableProperty]
     private bool _blueFirstBlood = true;
@@ -49,10 +59,30 @@ public partial class DraftPredictionViewModel : ViewModelBase
     [ObservableProperty]
     private bool _isCalculated;
 
-    public DraftPredictionViewModel(IMatchAnalyticsService analyticsService)
+    public DraftPredictionViewModel(IMatchAnalyticsService analyticsService, IDataDragonService dataDragonService)
     {
         _analyticsService = analyticsService;
+        _dataDragonService = dataDragonService;
+        _ = LoadChampionsAsync();
         CalculatePrediction();
+    }
+
+    private async Task LoadChampionsAsync()
+    {
+        try
+        {
+            PatchVersion = await _dataDragonService.GetLatestGameVersionAsync();
+            var list = await _dataDragonService.GetAllChampionsAsync();
+            AvailableChampions.Clear();
+            foreach (var champ in list)
+            {
+                AvailableChampions.Add(champ);
+            }
+        }
+        catch
+        {
+            // Handled via fallback
+        }
     }
 
     [RelayCommand]
