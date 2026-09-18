@@ -1,0 +1,4 @@
+{
+  "name": "GameAnalytics (.NET 9 / Avalonia)",
+  "install": "bash .cursor/install.sh"
+}
