@@ -136,5 +136,12 @@ public class MatchInputFeatures
     public int BlueHeralds { get; set; }
     public int RedHeralds { get; set; }
     public int HeraldDiff => BlueHeralds - RedHeralds;
+
+    // Dragon Soul & Team Scaling Features
+    public DragonSoulType SoulType { get; set; } = DragonSoulType.None;
+    public TeamSide SoulOwner { get; set; } = TeamSide.Blue;
+    public bool HasDragonSoul => SoulType != DragonSoulType.None && (BlueDragonCount >= 4 || RedDragonCount >= 4);
+
+    public double BlueScalingAdvantage { get; set; } // Positive = Blue scales better in late game, Negative = Red scales better
 }
 

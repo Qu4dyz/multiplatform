@@ -5,6 +5,7 @@ using GameAnalytics.Core.Enums;
 using GameAnalytics.Core.Helpers;
 using GameAnalytics.Desktop.Converters;
 using GameAnalytics.ML.Engine;
+using Avalonia.Input;
 
 namespace GameAnalytics.Desktop.ViewModels;
 
@@ -210,6 +211,73 @@ public partial class PlayerMatchItemViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _isLoadingTimeline;
+
+    [ObservableProperty]
+    private string _exportStatusMessage = string.Empty;
+
+    [ObservableProperty]
+    private bool _isExporting;
+
+    [RelayCommand]
+    public async Task CopyCoachReportAsync()
+    {
+        if (TacticalReport == null || _underlyingMatch == null || _underlyingPlayer == null) return;
+
+        IsExporting = true;
+        try
+        {
+            var report = CoachReportExporter.GenerateMarkdownReport(_underlyingMatch, _underlyingPlayer, TacticalReport);
+
+            if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop &&
+                desktop.MainWindow?.Clipboard != null)
+            {
+                var data = new DataTransfer();
+                data.Add(DataTransferItem.CreateText(report));
+                await desktop.MainWindow.Clipboard.SetDataAsync(data);
+                ExportStatusMessage = "✅ Повний звіт тренера скопійовано в буфер обміну!";
+            }
+            else
+            {
+                ExportStatusMessage = "📋 Текст звіту згенеровано.";
+            }
+        }
+        catch (Exception ex)
+        {
+            ExportStatusMessage = $"❌ Помилка копіювання: {ex.Message}";
+        }
+        finally
+        {
+            IsExporting = false;
+        }
+    }
+
+    [RelayCommand]
+    public async Task SaveCoachReportToFileAsync()
+    {
+        if (TacticalReport == null || _underlyingMatch == null || _underlyingPlayer == null) return;
+
+        IsExporting = true;
+        try
+        {
+            var report = CoachReportExporter.GenerateMarkdownReport(_underlyingMatch, _underlyingPlayer, TacticalReport);
+            var reportsDir = Path.Combine(Directory.GetCurrentDirectory(), "reports");
+            if (!Directory.Exists(reportsDir)) Directory.CreateDirectory(reportsDir);
+
+            var safeMatchId = MatchId.Replace(":", "_").Replace("/", "_");
+            var filePath = Path.Combine(reportsDir, $"coach_report_{safeMatchId}.md");
+            await File.WriteAllTextAsync(filePath, report);
+
+            ExportStatusMessage = $"✅ Звіт тренера збережено у: reports/coach_report_{safeMatchId}.md";
+        }
+        catch (Exception ex)
+        {
+            ExportStatusMessage = $"❌ Помилка збереження: {ex.Message}";
+        }
+        finally
+        {
+            IsExporting = false;
+        }
+    }
 
     public async Task EnsureRealTimelineLoadedAsync()
     {

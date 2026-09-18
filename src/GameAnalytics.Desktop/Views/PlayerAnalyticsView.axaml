@@ -1436,13 +1436,33 @@
                                             <StackPanel Spacing="12" IsVisible="{Binding IsTacticalTabActive}">
                                                 <!-- Overall Tactical Verdict & Key Takeaway Banner -->
                                                 <Border Background="#101726" CornerRadius="8" BorderBrush="#2A3750" BorderThickness="1" Padding="14,12">
-                                                    <Grid ColumnDefinitions="Auto, *">
+                                                    <Grid ColumnDefinitions="Auto, *, Auto">
                                                         <Border Grid.Column="0" Background="{Binding TacticalReport.MatchGradeColor}" CornerRadius="6" Width="44" Height="44" Margin="0,0,14,0">
                                                             <TextBlock Text="{Binding TacticalReport.MatchGrade}" FontSize="20" FontWeight="Bold" Foreground="#010A13" HorizontalAlignment="Center" VerticalAlignment="Center" />
                                                         </Border>
                                                         <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
                                                             <TextBlock Text="{Binding TacticalReport.OverallMatchVerdict}" FontSize="13" FontWeight="Bold" Foreground="#F0E6D2" TextWrapping="Wrap" />
                                                             <TextBlock Text="{Binding TacticalReport.KeyTakeaway}" FontSize="12" Foreground="#8A93A5" TextWrapping="Wrap" />
+                                                            <TextBlock Text="{Binding ExportStatusMessage}" FontSize="11" Foreground="#0AC8B9" FontWeight="SemiBold" IsVisible="{Binding ExportStatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                        </StackPanel>
+                                                        <!-- Export Actions -->
+                                                        <StackPanel Grid.Column="2" Spacing="6" VerticalAlignment="Center" Margin="10,0,0,0">
+                                                            <Button Command="{Binding CopyCoachReportCommand}"
+                                                                    Content="📋 Скопіювати звіт"
+                                                                    FontSize="11"
+                                                                    Background="#1F2A3D"
+                                                                    Foreground="#0AC8B9"
+                                                                    FontWeight="SemiBold"
+                                                                    Padding="10,5"
+                                                                    Cursor="Hand" />
+                                                            <Button Command="{Binding SaveCoachReportToFileCommand}"
+                                                                    Content="💾 Зберегти у файл"
+                                                                    FontSize="11"
+                                                                    Background="#1A2230"
+                                                                    Foreground="#C8AA6E"
+                                                                    FontWeight="SemiBold"
+                                                                    Padding="10,5"
+                                                                    Cursor="Hand" />
                                                         </StackPanel>
                                                     </Grid>
                                                 </Border>

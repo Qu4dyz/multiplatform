@@ -229,6 +229,56 @@ public class MatchPredictionEngine : IPredictionEngine
                     : $"Середній вінрейт піків Червоних вищий ({features.RedTeamAvgWinRate:F1}% проти {features.BlueTeamAvgWinRate:F1}%)");
             }
 
+            // Dragon Soul Factor & Probability Adjustment
+            if (features.HasDragonSoul)
+            {
+                var isBlueSoul = features.SoulOwner == TeamSide.Blue;
+                var soulName = features.SoulType switch
+                {
+                    DragonSoulType.Infernal => "Вогняна (Infernal)",
+                    DragonSoulType.Mountain => "Гірська (Mountain)",
+                    DragonSoulType.Ocean => "Морська (Ocean)",
+                    DragonSoulType.Cloud => "Хмарна (Cloud)",
+                    DragonSoulType.Hextech => "Гекстекова (Hextech)",
+                    DragonSoulType.Chemtech => "Хімічна (Chemtech)",
+                    _ => "Драконяча"
+                };
+
+                var soulImpact = features.SoulType switch
+                {
+                    DragonSoulType.Infernal => "+вибухова додаткова шкода по площі",
+                    DragonSoulType.Mountain => "+масові щити та блокування шкоди",
+                    DragonSoulType.Ocean => "+постійне відновлення здоров'я та мани у бою",
+                    DragonSoulType.Cloud => "+критична швидкість пересування та мобільність",
+                    DragonSoulType.Hextech => "+ланцюгові блискавки та сповільнення ворогів",
+                    DragonSoulType.Chemtech => "+висока стійкість та сплеск шкоди при низькому HP",
+                    _ => "+колосальне підсилення характеристик"
+                };
+
+                var teamName = isBlueSoul ? "Синьої" : "Червоної";
+                factors.Add($"🐉 Драконяча душа: {soulName} під контролем {teamName} команди ({soulImpact})");
+
+                // Competitive LoL soul modifier (~15% win probability swing)
+                blueProb = Math.Clamp(blueProb + (isBlueSoul ? 0.15f : -0.15f), 0.05f, 0.95f);
+            }
+
+            // Late-game Scaling Factor & Probability Adjustment
+            if (Math.Abs(features.BlueScalingAdvantage) >= 5.0)
+            {
+                var isBlueScaling = features.BlueScalingAdvantage > 0;
+                var diff = Math.Abs(features.BlueScalingAdvantage);
+
+                factors.Add(isBlueScaling
+                    ? $"Скейлінг композиції: Сині мають кращий лейт-гейм (+{diff:F0}% Late Power). Затягування гри вигідне Синім."
+                    : $"Скейлінг композиції: Червоні мають кращий лейт-гейм (+{diff:F0}% Late Power). Синім необхідно реалізувати ранній темп.");
+
+                blueProb = Math.Clamp(blueProb + (float)(features.BlueScalingAdvantage * 0.0025f), 0.05f, 0.95f);
+            }
+
+            redProb = 1.0f - blueProb;
+            predictedWinner = blueProb >= 0.5f ? TeamSide.Blue : TeamSide.Red;
+            confidence = Math.Abs(blueProb - 0.5f) * 2.0;
+
             if (factors.Count == 0)
             {
                 factors.Add("Рівна гра на ранній стадії (відсутня значна перевага за ключовими об'єктами)");
