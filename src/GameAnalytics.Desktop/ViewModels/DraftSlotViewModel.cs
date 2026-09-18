@@ -39,3 +39,4 @@ public partial class DraftSlotViewModel : ObservableObject
         };
     }
 }
+

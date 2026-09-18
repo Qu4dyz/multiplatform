@@ -116,3 +116,4 @@ public partial class SettingsViewModel : ViewModelBase
         }
     }
 }
+

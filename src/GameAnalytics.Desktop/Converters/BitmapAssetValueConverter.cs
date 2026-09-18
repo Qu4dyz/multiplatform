@@ -75,3 +75,4 @@ public class BitmapAssetValueConverter : IValueConverter
         throw new NotSupportedException();
     }
 }
+
