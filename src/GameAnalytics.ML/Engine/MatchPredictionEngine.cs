@@ -87,6 +87,15 @@ public class MatchPredictionEngine : IPredictionEngine
         }
     }
 
+    public bool ReloadModel()
+    {
+        lock (_lock)
+        {
+            InitializeModel();
+            return IsTrainedOnRealData;
+        }
+    }
+
     public void SetActiveAlgorithm(MLAlgorithmType algorithm)
     {
         if (ActiveAlgorithm == algorithm && _predictionEngine != null)
@@ -180,6 +189,27 @@ public class MatchPredictionEngine : IPredictionEngine
                 factors.Add(features.VoidgrubDiff > 0
                     ? $"Контроль личинок безодні: +{features.VoidgrubDiff} на користь Синіх (прискорене знесення веж)"
                     : $"Контроль личинок безодні: +{-features.VoidgrubDiff} на користь Червоних (прискорене знесення веж)");
+            }
+
+            if (features.HeraldDiff != 0)
+            {
+                factors.Add(features.HeraldDiff > 0
+                    ? "Герольд безодні під контролем Синьої команди (високий потенціал пушу)"
+                    : "Герольд безодні під контролем Червоної команди (високий потенціал пушу)");
+            }
+
+            if (Math.Abs(features.CsDiffAt15) >= 20)
+            {
+                factors.Add(features.CsDiffAt15 > 0
+                    ? $"Перевага за фармом (CS) на 15 хв: +{features.CsDiffAt15} на користь Синіх"
+                    : $"Відставання за фармом (CS) на 15 хв: {features.CsDiffAt15} на користь Червоних");
+            }
+
+            if (Math.Abs(features.XpDiffAt15) >= 700)
+            {
+                factors.Add(features.XpDiffAt15 > 0
+                    ? $"Перевага за досвідом (XP) на 15 хв: +{features.XpDiffAt15:N0} на користь Синіх (перевага за рівнями)"
+                    : $"Відставання за досвідом (XP) на 15 хв: {features.XpDiffAt15:N0} на користь Червоних (перевага за рівнями)");
             }
 
             if (features.BlueFirstTower)

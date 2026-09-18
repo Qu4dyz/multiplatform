@@ -27,6 +27,7 @@ public interface IPredictionEngine
     Task TrainModelAsync(IEnumerable<Match> historicalMatches, CancellationToken ct = default);
     ModelBenchmarkReport RunAlgorithmsBenchmark(int sampleCount = 2000);
     void SetActiveAlgorithm(GameAnalytics.Core.Enums.MLAlgorithmType algorithm);
+    bool ReloadModel();
     GameAnalytics.Core.Enums.MLAlgorithmType ActiveAlgorithm { get; }
     ModelMetrics? CurrentModelMetrics { get; }
     bool IsTrainedOnRealData { get; }
@@ -44,6 +45,7 @@ public interface IMatchAnalyticsService
     PredictionResult PredictOutcome(MatchInputFeatures features);
     ModelBenchmarkReport RunBenchmark(int sampleCount = 2000);
     void SetActiveMLAlgorithm(GameAnalytics.Core.Enums.MLAlgorithmType algorithm);
+    bool ReloadModel();
     GameAnalytics.Core.Enums.MLAlgorithmType ActiveMLAlgorithm { get; }
     ModelMetrics? CurrentModelMetrics { get; }
     bool IsTrainedOnRealData { get; }

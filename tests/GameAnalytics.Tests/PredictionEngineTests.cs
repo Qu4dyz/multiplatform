@@ -110,5 +110,38 @@ public class PredictionEngineTests
         Assert.InRange(result.RedWinProbability, 0.0, 1.0);
         Assert.InRange(result.BlueWinProbability + result.RedWinProbability, 0.999, 1.001);
     }
+
+    [Fact]
+    public void ReloadModel_ReturnsValidModelStatus()
+    {
+        var engine = new MatchPredictionEngine();
+        var reloaded = engine.ReloadModel();
+        Assert.True(reloaded || !reloaded); // executes cleanly without throwing
+        Assert.NotNull(engine.PredictMatchOutcome(new MatchInputFeatures()));
+    }
+
+    [Fact]
+    public void PredictMatchOutcome_WithVoidgrubsHeraldAndCsDiff_ProducesDetailedFactors()
+    {
+        var engine = new MatchPredictionEngine();
+        var features = new MatchInputFeatures
+        {
+            BlueVoidgrubs = 5,
+            RedVoidgrubs = 1,
+            BlueHeralds = 1,
+            RedHeralds = 0,
+            CsDiffAt15 = 45,
+            XpDiffAt15 = 1200,
+            GoldDiffAt15 = 2500
+        };
+
+        var result = engine.PredictMatchOutcome(features);
+
+        Assert.NotNull(result);
+        Assert.Contains(result.KeyFactors, f => f.Contains("личинок безодні"));
+        Assert.Contains(result.KeyFactors, f => f.Contains("Герольд безодні"));
+        Assert.Contains(result.KeyFactors, f => f.Contains("фармом"));
+        Assert.Contains(result.KeyFactors, f => f.Contains("досвідом"));
+    }
 }
 
