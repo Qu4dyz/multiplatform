@@ -61,3 +61,4 @@ public class TeamStats
     public int GoldAt15 { get; set; }
     public int KillsAt15 { get; set; }
 }
+

@@ -128,3 +128,4 @@ public partial class DraftPredictionViewModel : ViewModelBase
         CalculatePrediction();
     }
 }
+

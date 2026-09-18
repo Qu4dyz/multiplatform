@@ -258,3 +258,4 @@ public class RiotApiClient : IRiotApiClient
         [property: JsonPropertyName("tagLine")] string TagLine
     );
 }
+

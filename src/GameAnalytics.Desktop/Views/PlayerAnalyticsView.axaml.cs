@@ -9,3 +9,4 @@ public partial class PlayerAnalyticsView : UserControl
         InitializeComponent();
     }
 }
+

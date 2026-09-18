@@ -9,3 +9,4 @@ public class RiotApiOptions
     public string RoutingRegion { get; set; } = "europe";     // europe, americas, asia, sea
     public bool UseMockFallback { get; set; } = true;
 }
+

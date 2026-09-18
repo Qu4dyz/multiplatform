@@ -48,3 +48,4 @@ public class MatchInputFeatures
     public int BlueTowerCount { get; set; }
     public int RedTowerCount { get; set; }
 }
+

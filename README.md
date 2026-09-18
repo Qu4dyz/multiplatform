@@ -142,3 +142,4 @@ dotnet run --project src/GameAnalytics.Desktop
 - Для нових функцій створюйте окремі гілки: `git checkout -b feature/назва-фічі`.
 - Перед відправкою змін переконайтеся у відсутності помилок: `dotnet build`.
 - Використовуйте шаблони Issues у розділі [GitHub Issues](https://github.com/Qu4dyz/multiplatform/issues).
+

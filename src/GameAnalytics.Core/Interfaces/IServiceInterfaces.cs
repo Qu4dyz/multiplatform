@@ -31,3 +31,4 @@ public interface IMatchAnalyticsService
     Task<IReadOnlyList<Match>> GetSavedMatchHistoryAsync(CancellationToken ct = default);
     PredictionResult PredictOutcome(MatchInputFeatures features);
 }
+

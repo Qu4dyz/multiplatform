@@ -9,3 +9,4 @@ public partial class DraftPredictionView : UserControl
         InitializeComponent();
     }
 }
+

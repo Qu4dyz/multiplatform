@@ -84,3 +84,4 @@ public class PredictionEngineTests
         Assert.InRange(result.BlueWinProbability + result.RedWinProbability, 0.999, 1.001);
     }
 }
+

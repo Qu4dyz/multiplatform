@@ -59,3 +59,4 @@ public class MatchAnalyticsService : IMatchAnalyticsService
         return _predictionEngine.PredictMatchOutcome(features);
     }
 }
+

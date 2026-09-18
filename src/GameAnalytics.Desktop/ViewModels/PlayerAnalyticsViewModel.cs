@@ -79,3 +79,4 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
         }
     }
 }
+
