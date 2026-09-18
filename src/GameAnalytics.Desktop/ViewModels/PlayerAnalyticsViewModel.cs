@@ -222,6 +222,29 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    public async Task SelectPlayerAsync(string? riotId)
+    {
+        if (string.IsNullOrWhiteSpace(riotId)) return;
+
+        var clean = riotId.Trim();
+        if (clean.Contains('#'))
+        {
+            var parts = clean.Split('#', 2);
+            GameName = parts[0].Trim();
+            if (parts.Length > 1 && !string.IsNullOrWhiteSpace(parts[1]))
+            {
+                TagLine = parts[1].Trim();
+            }
+        }
+        else
+        {
+            GameName = clean;
+        }
+
+        await SearchPlayerAsync();
+    }
+
+    [RelayCommand]
     public async Task SearchPlayerAsync()
     {
         // Parse "Name#TAG" if entered into GameName input
@@ -285,7 +308,7 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
                 RecentMatches.Clear();
                 foreach (var m in matches)
                 {
-                    RecentMatches.Add(PlayerMatchItemViewModel.FromMatch(m, profile.Puuid, profile.GameName));
+                    RecentMatches.Add(PlayerMatchItemViewModel.FromMatch(m, profile.Puuid, profile.GameName, SelectPlayerCommand));
                 }
 
                 ApplyQueueFilter();
@@ -346,7 +369,7 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
             RecentMatches.Clear();
             foreach (var m in matches)
             {
-                RecentMatches.Add(PlayerMatchItemViewModel.FromMatch(m, Summoner.Puuid, Summoner.GameName));
+                RecentMatches.Add(PlayerMatchItemViewModel.FromMatch(m, Summoner.Puuid, Summoner.GameName, SelectPlayerCommand));
             }
 
             ApplyQueueFilter();

@@ -439,5 +439,81 @@ public class DataLayerTests
         vm.ToggleExpand();
         Assert.False(vm.IsExpanded);
     }
+
+    [Fact]
+    public void PlayerMatchItemViewModel_MapsFullRiotId_AndClickableCommand()
+    {
+        var match = new Match
+        {
+            MatchId = "TEST_MATCH_CLICK",
+            GameDurationSeconds = 1800,
+            GameCreation = DateTime.UtcNow.AddHours(-1)
+        };
+
+        match.Participants.Add(new Participant
+        {
+            Puuid = "current-player",
+            SummonerName = "Qu4dyz#qu4",
+            ChampionName = "Ambessa",
+            TeamSide = TeamSide.Blue,
+            Kills = 10, Deaths = 2, Assists = 8
+        });
+
+        match.Participants.Add(new Participant
+        {
+            Puuid = "other-player",
+            SummonerName = "Tiramisu55#cook",
+            ChampionName = "Gragas",
+            TeamSide = TeamSide.Blue,
+            Kills = 5, Deaths = 4, Assists = 12
+        });
+
+        string? clickedRiotId = null;
+        var relayCmd = new CommunityToolkit.Mvvm.Input.RelayCommand<string?>(id => clickedRiotId = id);
+
+        var vm = PlayerMatchItemViewModel.FromMatch(match, "current-player", "Qu4dyz", relayCmd);
+
+        // Check current player
+        var currentParticipant = vm.BlueTeamDetailed.First(p => p.IsCurrentPlayer);
+        Assert.Equal("Qu4dyz#qu4", currentParticipant.FullRiotId);
+        Assert.Contains("(Ви)", currentParticipant.ToolTipText);
+
+        // Check other player
+        var otherParticipant = vm.BlueTeamDetailed.First(p => !p.IsCurrentPlayer);
+        Assert.Equal("Tiramisu55#cook", otherParticipant.FullRiotId);
+        Assert.Contains("Tiramisu55#cook", otherParticipant.ToolTipText);
+        Assert.NotNull(otherParticipant.SelectPlayerCommand);
+
+        // Execute command and verify callback
+        otherParticipant.SelectPlayerCommand.Execute(otherParticipant.FullRiotId);
+        Assert.Equal("Tiramisu55#cook", clickedRiotId);
+
+        // Also verify mini roster participant
+        var otherMini = vm.BlueTeam.First(p => !p.IsCurrentPlayer);
+        Assert.Equal("Tiramisu55#cook", otherMini.FullRiotId);
+        Assert.NotNull(otherMini.SelectPlayerCommand);
+    }
+
+    [Fact]
+    public async Task PlayerAnalyticsViewModel_SelectPlayer_ParsesNameAndTag()
+    {
+        var vm = new PlayerAnalyticsViewModel
+        {
+            GameName = "OldName",
+            TagLine = "OldTag"
+        };
+
+        // Act with Name#Tag
+        await vm.SelectPlayerAsync("Desired Faye#EUW");
+
+        Assert.Equal("Desired Faye", vm.GameName);
+        Assert.Equal("EUW", vm.TagLine);
+
+        // Act with Name only
+        await vm.SelectPlayerAsync("Bofur");
+        Assert.Equal("Bofur", vm.GameName);
+        Assert.Equal("EUW", vm.TagLine); // Keeps existing tag
+    }
 }
+
 

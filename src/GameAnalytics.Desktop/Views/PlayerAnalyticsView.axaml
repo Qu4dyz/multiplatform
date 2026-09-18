@@ -41,6 +41,23 @@
             <Setter Property="RenderTransform" Value="scale(1.01)" />
             <Setter Property="BorderBrush" Value="#C8AA6E" />
         </Style>
+
+        <!-- Player Nickname Link Button -->
+        <Style Selector="Button.player-link">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+        </Style>
+        <Style Selector="Button.player-link:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Button.player-link:pointerover TextBlock">
+            <Setter Property="Foreground" Value="#0AC8B9" />
+            <Setter Property="TextDecorations" Value="Underline" />
+        </Style>
     </UserControl.Styles>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -754,7 +771,21 @@
                                                                        Foreground="{Binding NameColor}"
                                                                        FontWeight="{Binding NameWeight}"
                                                                        TextTrimming="CharacterEllipsis"
-                                                                       MaxWidth="80" />
+                                                                       MaxWidth="80"
+                                                                       IsVisible="{Binding IsCurrentPlayer}"
+                                                                       ToolTip.Tip="{Binding ToolTipText}" />
+                                                            <Button Classes="player-link"
+                                                                    Command="{Binding SelectPlayerCommand}"
+                                                                    CommandParameter="{Binding FullRiotId}"
+                                                                    IsVisible="{Binding !IsCurrentPlayer}"
+                                                                    ToolTip.Tip="{Binding ToolTipText}">
+                                                                <TextBlock Text="{Binding DisplayName}"
+                                                                           FontSize="10"
+                                                                           Foreground="{Binding NameColor}"
+                                                                           FontWeight="{Binding NameWeight}"
+                                                                           TextTrimming="CharacterEllipsis"
+                                                                           MaxWidth="80" />
+                                                            </Button>
                                                         </StackPanel>
                                                     </DataTemplate>
                                                 </ItemsControl.ItemTemplate>
@@ -773,7 +804,21 @@
                                                                        Foreground="{Binding NameColor}"
                                                                        FontWeight="{Binding NameWeight}"
                                                                        TextTrimming="CharacterEllipsis"
-                                                                       MaxWidth="80" />
+                                                                       MaxWidth="80"
+                                                                       IsVisible="{Binding IsCurrentPlayer}"
+                                                                       ToolTip.Tip="{Binding ToolTipText}" />
+                                                            <Button Classes="player-link"
+                                                                    Command="{Binding SelectPlayerCommand}"
+                                                                    CommandParameter="{Binding FullRiotId}"
+                                                                    IsVisible="{Binding !IsCurrentPlayer}"
+                                                                    ToolTip.Tip="{Binding ToolTipText}">
+                                                                <TextBlock Text="{Binding DisplayName}"
+                                                                           FontSize="10"
+                                                                           Foreground="{Binding NameColor}"
+                                                                           FontWeight="{Binding NameWeight}"
+                                                                           TextTrimming="CharacterEllipsis"
+                                                                           MaxWidth="80" />
+                                                            </Button>
                                                         </StackPanel>
                                                     </DataTemplate>
                                                 </ItemsControl.ItemTemplate>
@@ -808,7 +853,7 @@
                                             <Border Background="#0F1726" CornerRadius="6" BorderBrush="#1C2B42" BorderThickness="1" Padding="8">
                                                 <StackPanel Spacing="4">
                                                     <!-- Team Header -->
-                                                    <Grid ColumnDefinitions="210, 95, 120, 80, *" Margin="4,2">
+                                                    <Grid ColumnDefinitions="220, 85, 130, 110, *" Margin="4,2">
                                                         <TextBlock Grid.Column="0" Text="🔷 СИНЯ КОМАНДА" FontWeight="Bold" FontSize="11" Foreground="#5383E8" />
                                                         <TextBlock Grid.Column="1" Text="KDA" FontWeight="Bold" FontSize="10" Foreground="#8A93A5" />
                                                         <TextBlock Grid.Column="2" Text="ШКОДА ЧЕМПІОНАМ" FontWeight="Bold" FontSize="10" Foreground="#8A93A5" />
@@ -820,8 +865,8 @@
                                                         <ItemsControl.ItemTemplate>
                                                             <DataTemplate x:DataType="vm:DetailedParticipantViewModel">
                                                                 <Border Background="#0D131F" CornerRadius="4" Padding="6,4" Margin="0,1">
-                                                                    <Grid ColumnDefinitions="210, 95, 120, 80, *">
-                                                                        <!-- Player Info -->
+                                                                    <Grid ColumnDefinitions="220, 85, 130, 110, *">
+                                                                        <!-- Player Info with Clickable Link -->
                                                                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                                                                             <Border Width="24" Height="24" CornerRadius="12" ClipToBounds="True" Background="#091428" BorderBrush="#252D3D" BorderThickness="1">
                                                                                 <Image Source="{Binding ChampionIconUrl, Converter={StaticResource BitmapAssetConverter}}" Width="24" Height="24" Stretch="UniformToFill" />
@@ -829,11 +874,26 @@
                                                                             <TextBlock Text="{Binding PositionIcon}" FontSize="11" VerticalAlignment="Center" />
                                                                             <TextBlock Text="{Binding DisplayName}"
                                                                                        FontSize="11"
-                                                                                       FontWeight="{Binding NameWeight}"
+                                                                                       FontWeight="Bold"
                                                                                        Foreground="{Binding NameColor}"
                                                                                        VerticalAlignment="Center"
                                                                                        TextTrimming="CharacterEllipsis"
-                                                                                       MaxWidth="120" />
+                                                                                       MaxWidth="125"
+                                                                                       IsVisible="{Binding IsCurrentPlayer}"
+                                                                                       ToolTip.Tip="{Binding ToolTipText}" />
+                                                                            <Button Classes="player-link"
+                                                                                    Command="{Binding SelectPlayerCommand}"
+                                                                                    CommandParameter="{Binding FullRiotId}"
+                                                                                    IsVisible="{Binding !IsCurrentPlayer}"
+                                                                                    ToolTip.Tip="{Binding ToolTipText}">
+                                                                                <TextBlock Text="{Binding DisplayName}"
+                                                                                           FontSize="11"
+                                                                                           FontWeight="{Binding NameWeight}"
+                                                                                           Foreground="{Binding NameColor}"
+                                                                                           VerticalAlignment="Center"
+                                                                                           TextTrimming="CharacterEllipsis"
+                                                                                           MaxWidth="125" />
+                                                                            </Button>
                                                                             <TextBlock Text="{Binding ChampLevelText, StringFormat='lvl {0}'}" FontSize="9" Foreground="#657182" VerticalAlignment="Center" />
                                                                         </StackPanel>
 
@@ -843,10 +903,21 @@
                                                                             <TextBlock Text="{Binding KdaRatioText}" FontSize="9" Foreground="#8A93A5" />
                                                                         </StackPanel>
 
-                                                                        <!-- Damage bar -->
-                                                                        <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="2">
+                                                                        <!-- Damage bar (strictly bounded) -->
+                                                                        <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="2" ClipToBounds="True">
                                                                             <TextBlock Text="{Binding DamageText}" FontSize="10" FontWeight="Bold" Foreground="#E84057" />
-                                                                            <ProgressBar Value="{Binding DamagePercentOfMax}" Minimum="0" Maximum="100" Height="4" Width="85" Foreground="#E84057" Background="#1F2633" HorizontalAlignment="Left" />
+                                                                            <ProgressBar Value="{Binding DamagePercentOfMax}"
+                                                                                         Minimum="0"
+                                                                                         Maximum="100"
+                                                                                         MinWidth="0"
+                                                                                         Width="85"
+                                                                                         MaxWidth="85"
+                                                                                         Height="4"
+                                                                                         ClipToBounds="True"
+                                                                                         CornerRadius="2"
+                                                                                         Foreground="#E84057"
+                                                                                         Background="#1F2633"
+                                                                                         HorizontalAlignment="Left" />
                                                                         </StackPanel>
 
                                                                         <!-- Farm & Gold -->
@@ -889,7 +960,7 @@
                                             <Border Background="#1A1116" CornerRadius="6" BorderBrush="#421C27" BorderThickness="1" Padding="8">
                                                 <StackPanel Spacing="4">
                                                     <!-- Team Header -->
-                                                    <Grid ColumnDefinitions="210, 95, 120, 80, *" Margin="4,2">
+                                                    <Grid ColumnDefinitions="220, 85, 130, 110, *" Margin="4,2">
                                                         <TextBlock Grid.Column="0" Text="🛑 ЧЕРВОНА КОМАНДА" FontWeight="Bold" FontSize="11" Foreground="#E84057" />
                                                         <TextBlock Grid.Column="1" Text="KDA" FontWeight="Bold" FontSize="10" Foreground="#8A93A5" />
                                                         <TextBlock Grid.Column="2" Text="ШКОДА ЧЕМПІОНАМ" FontWeight="Bold" FontSize="10" Foreground="#8A93A5" />
@@ -901,8 +972,8 @@
                                                         <ItemsControl.ItemTemplate>
                                                             <DataTemplate x:DataType="vm:DetailedParticipantViewModel">
                                                                 <Border Background="#160E13" CornerRadius="4" Padding="6,4" Margin="0,1">
-                                                                    <Grid ColumnDefinitions="210, 95, 120, 80, *">
-                                                                        <!-- Player Info -->
+                                                                    <Grid ColumnDefinitions="220, 85, 130, 110, *">
+                                                                        <!-- Player Info with Clickable Link -->
                                                                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                                                                             <Border Width="24" Height="24" CornerRadius="12" ClipToBounds="True" Background="#091428" BorderBrush="#252D3D" BorderThickness="1">
                                                                                 <Image Source="{Binding ChampionIconUrl, Converter={StaticResource BitmapAssetConverter}}" Width="24" Height="24" Stretch="UniformToFill" />
@@ -910,11 +981,26 @@
                                                                             <TextBlock Text="{Binding PositionIcon}" FontSize="11" VerticalAlignment="Center" />
                                                                             <TextBlock Text="{Binding DisplayName}"
                                                                                        FontSize="11"
-                                                                                       FontWeight="{Binding NameWeight}"
+                                                                                       FontWeight="Bold"
                                                                                        Foreground="{Binding NameColor}"
                                                                                        VerticalAlignment="Center"
                                                                                        TextTrimming="CharacterEllipsis"
-                                                                                       MaxWidth="120" />
+                                                                                       MaxWidth="125"
+                                                                                       IsVisible="{Binding IsCurrentPlayer}"
+                                                                                       ToolTip.Tip="{Binding ToolTipText}" />
+                                                                            <Button Classes="player-link"
+                                                                                    Command="{Binding SelectPlayerCommand}"
+                                                                                    CommandParameter="{Binding FullRiotId}"
+                                                                                    IsVisible="{Binding !IsCurrentPlayer}"
+                                                                                    ToolTip.Tip="{Binding ToolTipText}">
+                                                                                <TextBlock Text="{Binding DisplayName}"
+                                                                                           FontSize="11"
+                                                                                           FontWeight="{Binding NameWeight}"
+                                                                                           Foreground="{Binding NameColor}"
+                                                                                           VerticalAlignment="Center"
+                                                                                           TextTrimming="CharacterEllipsis"
+                                                                                           MaxWidth="125" />
+                                                                            </Button>
                                                                             <TextBlock Text="{Binding ChampLevelText, StringFormat='lvl {0}'}" FontSize="9" Foreground="#657182" VerticalAlignment="Center" />
                                                                         </StackPanel>
 
@@ -924,10 +1010,21 @@
                                                                             <TextBlock Text="{Binding KdaRatioText}" FontSize="9" Foreground="#8A93A5" />
                                                                         </StackPanel>
 
-                                                                        <!-- Damage bar -->
-                                                                        <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="2">
+                                                                        <!-- Damage bar (strictly bounded) -->
+                                                                        <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="2" ClipToBounds="True">
                                                                             <TextBlock Text="{Binding DamageText}" FontSize="10" FontWeight="Bold" Foreground="#E84057" />
-                                                                            <ProgressBar Value="{Binding DamagePercentOfMax}" Minimum="0" Maximum="100" Height="4" Width="85" Foreground="#E84057" Background="#1F2633" HorizontalAlignment="Left" />
+                                                                            <ProgressBar Value="{Binding DamagePercentOfMax}"
+                                                                                         Minimum="0"
+                                                                                         Maximum="100"
+                                                                                         MinWidth="0"
+                                                                                         Width="85"
+                                                                                         MaxWidth="85"
+                                                                                         Height="4"
+                                                                                         ClipToBounds="True"
+                                                                                         CornerRadius="2"
+                                                                                         Foreground="#E84057"
+                                                                                         Background="#1F2633"
+                                                                                         HorizontalAlignment="Left" />
                                                                         </StackPanel>
 
                                                                         <!-- Farm & Gold -->

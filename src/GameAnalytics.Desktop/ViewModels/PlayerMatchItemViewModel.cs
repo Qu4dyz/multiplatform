@@ -15,6 +15,7 @@ public class ItemSlotViewModel
 public class DetailedParticipantViewModel
 {
     public string SummonerName { get; set; } = string.Empty;
+    public string FullRiotId { get; set; } = string.Empty;
     public string ChampionName { get; set; } = string.Empty;
     public string ChampionIconUrl => $"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/champion/{ChampionName}.png";
     public int ChampLevel { get; set; } = 1;
@@ -47,11 +48,15 @@ public class DetailedParticipantViewModel
     public string NameWeight => IsCurrentPlayer ? "Bold" : "Normal";
     public string IndicatorText => IsCurrentPlayer ? "◆ " : "";
     public string DisplayName => $"{IndicatorText}{SummonerName}";
+    public string ToolTipText => IsCurrentPlayer ? $"{FullRiotId} (Ви)" : $"Переглянути профіль {FullRiotId} (клікніть)";
+
+    public System.Windows.Input.ICommand? SelectPlayerCommand { get; set; }
 }
 
 public class MiniParticipantViewModel
 {
     public string SummonerName { get; set; } = string.Empty;
+    public string FullRiotId { get; set; } = string.Empty;
     public string ChampionName { get; set; } = string.Empty;
     public string ChampionIconUrl => $"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/champion/{ChampionName}.png";
     public bool IsCurrentPlayer { get; set; }
@@ -60,6 +65,9 @@ public class MiniParticipantViewModel
     public string DisplayName => $"{IndicatorText}{SummonerName}";
     public string NameColor => IsCurrentPlayer ? "#C8AA6E" : "#8A93A5";
     public string NameWeight => IsCurrentPlayer ? "Bold" : "Normal";
+    public string ToolTipText => IsCurrentPlayer ? $"{FullRiotId} (Ви)" : $"Переглянути профіль {FullRiotId} (клікніть)";
+
+    public System.Windows.Input.ICommand? SelectPlayerCommand { get; set; }
 }
 
 public partial class PlayerMatchItemViewModel : ObservableObject
@@ -141,7 +149,7 @@ public partial class PlayerMatchItemViewModel : ObservableObject
         IsExpanded = !IsExpanded;
     }
 
-    public static PlayerMatchItemViewModel FromMatch(Match match, string searchedPuuidOrName, string fallbackName = "")
+    public static PlayerMatchItemViewModel FromMatch(Match match, string searchedPuuidOrName, string fallbackName = "", System.Windows.Input.ICommand? selectPlayerCommand = null)
     {
         var cleanSearched = searchedPuuidOrName?.Trim() ?? string.Empty;
         var cleanFallback = fallbackName?.Trim() ?? string.Empty;
@@ -226,13 +234,16 @@ public partial class PlayerMatchItemViewModel : ObservableObject
         {
             var isCurrent = p == player;
             var shortName = ExtractShortName(p.SummonerName);
+            var fullRiotId = string.IsNullOrWhiteSpace(p.SummonerName) ? shortName : p.SummonerName;
 
             vm.BlueTeam.Add(new MiniParticipantViewModel
             {
                 SummonerName = shortName,
+                FullRiotId = fullRiotId,
                 ChampionName = p.ChampionName,
                 IsCurrentPlayer = isCurrent,
-                FormattedKda = $"{p.Kills}/{p.Deaths}/{p.Assists}"
+                FormattedKda = $"{p.Kills}/{p.Deaths}/{p.Assists}",
+                SelectPlayerCommand = selectPlayerCommand
             });
 
             var (pRoleName, pRoleIcon) = isAram
@@ -250,6 +261,7 @@ public partial class PlayerMatchItemViewModel : ObservableObject
             vm.BlueTeamDetailed.Add(new DetailedParticipantViewModel
             {
                 SummonerName = shortName,
+                FullRiotId = fullRiotId,
                 ChampionName = p.ChampionName,
                 ChampLevel = p.ChampLevel > 0 ? p.ChampLevel : 1,
                 IsCurrentPlayer = isCurrent,
@@ -271,7 +283,8 @@ public partial class PlayerMatchItemViewModel : ObservableObject
                     new() { ItemId = p.Item4 },
                     new() { ItemId = p.Item5 }
                 },
-                Trinket = new ItemSlotViewModel { ItemId = p.Item6 }
+                Trinket = new ItemSlotViewModel { ItemId = p.Item6 },
+                SelectPlayerCommand = selectPlayerCommand
             });
         }
 
@@ -279,13 +292,16 @@ public partial class PlayerMatchItemViewModel : ObservableObject
         {
             var isCurrent = p == player;
             var shortName = ExtractShortName(p.SummonerName);
+            var fullRiotId = string.IsNullOrWhiteSpace(p.SummonerName) ? shortName : p.SummonerName;
 
             vm.RedTeam.Add(new MiniParticipantViewModel
             {
                 SummonerName = shortName,
+                FullRiotId = fullRiotId,
                 ChampionName = p.ChampionName,
                 IsCurrentPlayer = isCurrent,
-                FormattedKda = $"{p.Kills}/{p.Deaths}/{p.Assists}"
+                FormattedKda = $"{p.Kills}/{p.Deaths}/{p.Assists}",
+                SelectPlayerCommand = selectPlayerCommand
             });
 
             var (pRoleName, pRoleIcon) = isAram
@@ -303,6 +319,7 @@ public partial class PlayerMatchItemViewModel : ObservableObject
             vm.RedTeamDetailed.Add(new DetailedParticipantViewModel
             {
                 SummonerName = shortName,
+                FullRiotId = fullRiotId,
                 ChampionName = p.ChampionName,
                 ChampLevel = p.ChampLevel > 0 ? p.ChampLevel : 1,
                 IsCurrentPlayer = isCurrent,
@@ -324,7 +341,8 @@ public partial class PlayerMatchItemViewModel : ObservableObject
                     new() { ItemId = p.Item4 },
                     new() { ItemId = p.Item5 }
                 },
-                Trinket = new ItemSlotViewModel { ItemId = p.Item6 }
+                Trinket = new ItemSlotViewModel { ItemId = p.Item6 },
+                SelectPlayerCommand = selectPlayerCommand
             });
         }
 
