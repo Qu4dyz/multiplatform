@@ -99,26 +99,18 @@
 /root/multiplatform/src/GameAnalytics.Desktop/bin/Release/net9.0/models/fasttree_model.zip
 ```
 
-### Команда для завантаження на свій ПК (через PowerShell на Windows):
+> 💡 **Увага:** Ми вже завантажили свіжовчену модель `fasttree_model.zip` та повну базу `game_analytics.db` (580 матчів) прямо у репозиторій у папку `src/GameAnalytics.Desktop/models/`!
+> При `git pull` у твоєму проєкті вони вже будуть доступні одразу.
 
-Відкрий термінал PowerShell на своєму комп'ютері та виконай команду:
+### Команда для ручного оновлення прямо з VPS (через PowerShell на Windows у будь-який момент):
 
 ```powershell
-# Створюємо локальну папку для моделей, якщо вона ще не створена
-New-Item -ItemType Directory -Force -Path "src\GameAnalytics.Desktop\bin\Debug\net9.0\models", "src\GameAnalytics.Desktop\bin\Release\net9.0\models"
+# Завантажити свіжу модель з VPS за допомогою SSH-ключа або пароля
+scp -i "$HOME\.ssh\av_vps_ed25519" root@45.77.53.46:/root/multiplatform/src/GameAnalytics.Desktop/bin/Release/net9.0/models/fasttree_model.zip src\GameAnalytics.Desktop\models\fasttree_model.zip
 
-# Завантажуємо натреновану модель fasttree_model.zip з VPS
-scp -i "$HOME\.ssh\av_vps_ed25519" root@45.77.53.46:/root/multiplatform/src/GameAnalytics.Desktop/bin/Release/net9.0/models/fasttree_model.zip src\GameAnalytics.Desktop\bin\Debug\net9.0\models\fasttree_model.zip
-
-# Копіюємо її також у конфігурацію Release
-Copy-Item src\GameAnalytics.Desktop\bin\Debug\net9.0\models\fasttree_model.zip src\GameAnalytics.Desktop\bin\Release\net9.0\models\fasttree_model.zip
+# Або завантажити базу з 580+ іграми:
+scp -i "$HOME\.ssh\av_vps_ed25519" root@45.77.53.46:/root/multiplatform/src/GameAnalytics.Desktop/bin/Release/net9.0/game_analytics.db src\GameAnalytics.Desktop\game_analytics.db
 ```
-
-> **Опціонально (завантажити повну базу 440+ матчів з сервера на свій ПК):**
-> ```powershell
-> scp -i "$HOME\.ssh\av_vps_ed25519" root@45.77.53.46:/root/multiplatform/src/GameAnalytics.Desktop/bin/Release/net9.0/game_analytics.db src\GameAnalytics.Desktop\bin\Debug\net9.0\game_analytics.db
-> ```
-> Після цього у вкладці «Історія матчів» у твоєму додатку з'являться всі сотні зібраних серверних матчів!
 
 ---
 
