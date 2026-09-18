@@ -11,7 +11,7 @@ public static class GlobalCoachingAnalyzer
 
         if (matches == null || matches.Count == 0)
         {
-            report.CoachAdvice = "Зіграйте кілька матчів для формування персонального аналітичного профілю JungleKingdom.";
+            report.CoachAdvice = "Зіграйте кілька матчів для формування персонального аналітичного профілю.";
             return report;
         }
 

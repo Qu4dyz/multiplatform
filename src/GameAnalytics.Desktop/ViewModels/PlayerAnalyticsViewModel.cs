@@ -349,9 +349,16 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
 
                 _rawMatches = matches.ToList();
                 RecentMatches.Clear();
+                var currentTier = Summoner?.Tier ?? GameTier.Emerald;
                 foreach (var m in matches)
                 {
-                    RecentMatches.Add(PlayerMatchItemViewModel.FromMatch(m, profile.Puuid, profile.GameName, SelectPlayerCommand));
+                    RecentMatches.Add(PlayerMatchItemViewModel.FromMatch(
+                        m, 
+                        profile.Puuid, 
+                        profile.GameName, 
+                        SelectPlayerCommand, 
+                        currentTier, 
+                        mId => _analyticsService.GetMatchTimelineAsync(mId)));
                 }
 
                 ApplyQueueFilter();
@@ -412,9 +419,19 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
 
             _rawMatches = matches.ToList();
             RecentMatches.Clear();
+            var moreTier = Summoner?.Tier ?? GameTier.Emerald;
+            var currentPuuid = Summoner?.Puuid ?? string.Empty;
+            var currentGameName = Summoner?.GameName ?? string.Empty;
+            var currentFullName = Summoner?.FullName ?? "Player";
             foreach (var m in matches)
             {
-                RecentMatches.Add(PlayerMatchItemViewModel.FromMatch(m, Summoner.Puuid, Summoner.GameName, SelectPlayerCommand));
+                RecentMatches.Add(PlayerMatchItemViewModel.FromMatch(
+                    m, 
+                    currentPuuid, 
+                    currentGameName, 
+                    SelectPlayerCommand, 
+                    moreTier, 
+                    mId => _analyticsService.GetMatchTimelineAsync(mId)));
             }
 
             ApplyQueueFilter();
@@ -426,7 +443,7 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
             }
             else
             {
-                StatusMessage = $"Завантажено {RecentMatches.Count} матчів для {Summoner.FullName}.";
+                StatusMessage = $"Завантажено {RecentMatches.Count} матчів для {currentFullName}.";
             }
         }
         catch (Exception ex)

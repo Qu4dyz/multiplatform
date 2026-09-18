@@ -5,7 +5,10 @@ namespace GameAnalytics.ML.Engine;
 
 public static class MatchTacticalAnalyzer
 {
-    public static MatchTacticalReport AnalyzeMatchTactics(Match match, Participant player, string tierName = "Emerald")
+    public static MatchTacticalReport AnalyzeMatchTactics(Match match, Participant player, string tierName)
+        => AnalyzeMatchTactics(match, player, null, GameTier.Emerald, tierName);
+
+    public static MatchTacticalReport AnalyzeMatchTactics(Match match, Participant player, MatchTimelineData? timeline = null, GameTier tier = GameTier.Emerald, string? tierName = null)
     {
         var report = new MatchTacticalReport
         {
@@ -15,6 +18,7 @@ public static class MatchTacticalAnalyzer
             IsVictory = player.Win
         };
 
+        var displayTier = !string.IsNullOrWhiteSpace(tierName) ? tierName : tier.ToString();
         var durMin = match.GameDurationSeconds > 0 ? match.GameDurationSeconds / 60.0 : 25.0;
         var csPerMin = Math.Round(player.TotalMinionsKilled / Math.Max(1.0, durMin), 1);
 
@@ -25,7 +29,7 @@ public static class MatchTacticalAnalyzer
         var teamDmg = match.Participants.Where(p => p.TeamSide == teamSide).Sum(p => p.TotalDamageDealtToChampions);
         var dmgShare = teamDmg > 0 ? Math.Round((double)player.TotalDamageDealtToChampions / teamDmg * 100, 1) : 20.0;
 
-        var benchmark = RoleBenchmark.GetBenchmark(player.Position);
+        var benchmark = RoleBenchmark.GetBenchmark(player.Position, tier);
 
         var (roleName, roleIcon) = player.Position switch
         {
@@ -51,7 +55,7 @@ public static class MatchTacticalAnalyzer
             Category = "Економіка та Фарм",
             MetricName = "Темп добивання (CS/хв)",
             ActualValueText = $"{csPerMin:F1} CS/хв",
-            BenchmarkValueText = $"{benchmark.TargetCsPerMin:F1} CS/хв ({tierName})",
+            BenchmarkValueText = $"{benchmark.TargetCsPerMin:F1} CS/хв ({displayTier})",
             EvaluationText = csDiff >= 0 ? $"+{csDiff:F1} CS/хв (Вище норми)" : $"{csDiff:F1} CS/хв (Дефіцит)",
             ImpactColor = csDiff >= 0 ? "#0AC8B9" : "#E84057",
             IsPositive = csDiff >= 0,
@@ -67,7 +71,7 @@ public static class MatchTacticalAnalyzer
             Category = "Командна взаємодія",
             MetricName = "Участь у кілах (KP%)",
             ActualValueText = $"{kp}% KP",
-            BenchmarkValueText = $"{benchmark.TargetKillParticipation}% KP ({tierName})",
+            BenchmarkValueText = $"{benchmark.TargetKillParticipation}% KP ({displayTier})",
             EvaluationText = kpDiff >= 0 ? $"+{kpDiff}% (Висока активність)" : $"{kpDiff}% (Ізоляція)",
             ImpactColor = kpDiff >= 0 ? "#0AC8B9" : (kpDiff >= -10 ? "#C8AA6E" : "#E84057"),
             IsPositive = kpDiff >= 0,
@@ -83,7 +87,7 @@ public static class MatchTacticalAnalyzer
             Category = "Бойова ефективність",
             MetricName = "Частка шкоди команди",
             ActualValueText = $"{dmgShare:F1}% команди",
-            BenchmarkValueText = $"{benchmark.TargetDamageSharePercent:F1}% ({tierName})",
+            BenchmarkValueText = $"{benchmark.TargetDamageSharePercent:F1}% ({displayTier})",
             EvaluationText = dmgDiff >= 0 ? $"+{dmgDiff:F1}% (Головний керрі)" : $"{dmgDiff:F1}% (Низький внесок)",
             ImpactColor = dmgDiff >= 0 ? "#0AC8B9" : "#E84057",
             IsPositive = dmgDiff >= 0,
@@ -99,7 +103,7 @@ public static class MatchTacticalAnalyzer
             Category = "Виживання та Ризик",
             MetricName = "Кількість смертей",
             ActualValueText = $"{player.Deaths} смертей",
-            BenchmarkValueText = $"< {benchmark.MaxTargetDeaths:F1} ({tierName})",
+            BenchmarkValueText = $"< {benchmark.MaxTargetDeaths:F1} ({displayTier})",
             EvaluationText = deathDiff >= 0 ? $"{deathDiff:F1} смертей менше ліміту" : $"+{Math.Abs(deathDiff):F1} зайвих смертей",
             ImpactColor = deathDiff >= 0 ? "#0AC8B9" : "#E84057",
             IsPositive = deathDiff >= 0,
@@ -108,9 +112,21 @@ public static class MatchTacticalAnalyzer
                 : "Надлишкові смерті передавали ворожій команді золото за стріки та відкривали нейтральні об'єкти."
         });
 
-        // 2. MINUTE-BY-MINUTE TIMELINE (Play-by-play tactical milestones)
-        // Minute 03:15
-        if (player.Position == Position.Jungle)
+        // 2. MINUTE-BY-MINUTE TIMELINE (Play-by-play real events from Riot Timeline API or tactical milestones)
+        var playerParticipantId = player.ParticipantId > 0
+            ? player.ParticipantId
+            : match.Participants.IndexOf(player) + 1;
+
+        if (timeline != null && timeline.RealEvents.Count > 0)
+        {
+            report.TimelineEvents = BuildRealTimelineEvents(match, player, timeline, playerParticipantId);
+        }
+
+        if (report.TimelineEvents.Count == 0)
+        {
+            // Fallback: simulated tactical milestones
+            // Minute 03:15
+            if (player.Position == Position.Jungle)
         {
             if (csPerMin >= 6.8)
             {
@@ -299,6 +315,7 @@ public static class MatchTacticalAnalyzer
                 IsMistake = !player.Win
             });
         }
+        }
 
         // 3. SYNTHESIZE OVERALL MATCH VERDICT
         if (player.Win)
@@ -329,5 +346,169 @@ public static class MatchTacticalAnalyzer
 
         return report;
     }
+
+    private static List<TacticalTimelineEvent> BuildRealTimelineEvents(Match match, Participant player, MatchTimelineData timeline, int playerParticipantId)
+    {
+        var list = new List<TacticalTimelineEvent>();
+        var playerTeamSide = player.TeamSide;
+        var playerTeamId = playerTeamSide == TeamSide.Blue ? 100 : 200;
+
+        string GetChampName(int pId)
+        {
+            var p = match.Participants.FirstOrDefault(x => (x.ParticipantId > 0 ? x.ParticipantId : match.Participants.IndexOf(x) + 1) == pId);
+            return p != null && !string.IsNullOrWhiteSpace(p.ChampionName) ? p.ChampionName : $"Гравець #{pId}";
+        }
+
+        var relevant = timeline.RealEvents
+            .Where(e => e.KillerId == playerParticipantId ||
+                        e.VictimId == playerParticipantId ||
+                        e.AssistingParticipantIds.Contains(playerParticipantId) ||
+                        e.EventType == "ELITE_MONSTER_KILL" ||
+                        (e.EventType == "BUILDING_KILL" && e.BuildingType.Contains("TOWER", StringComparison.OrdinalIgnoreCase)))
+            .OrderBy(e => e.TimestampMs)
+            .ToList();
+
+        foreach (var ev in relevant)
+        {
+            var min = ev.TimestampMs / 60000;
+            var sec = (ev.TimestampMs % 60000) / 1000;
+            var tsText = $"{min:D2}:{sec:D2}";
+            var (phaseName, phaseColor) = min < 14
+                ? ("Рання гра (0-14хв)", "#5383E8")
+                : (min < 25 ? ("Мід-гейм (14-25хв)", "#C8AA6E") : ("Лейт-гейм (25+хв)", "#E84057"));
+
+            if (ev.EventType == "CHAMPION_KILL")
+            {
+                if (ev.KillerId == playerParticipantId)
+                {
+                    var victimChamp = GetChampName(ev.VictimId);
+                    list.Add(new TacticalTimelineEvent
+                    {
+                        Minute = min,
+                        TimestampText = tsText,
+                        PhaseName = phaseName,
+                        PhaseBadgeColor = phaseColor,
+                        Icon = "⚔️",
+                        Title = $"Вбивство {victimChamp}",
+                        Description = ev.AssistingParticipantIds.Count == 0
+                            ? "Чистий соло-кіл на карті. Відмінна дуель без втрати позиції."
+                            : $"Успішний бій або ганк за сприяння {ev.AssistingParticipantIds.Count} союзників.",
+                        ImpactText = $"+{Math.Max(300, ev.Bounty)}G темп",
+                        ImpactColor = "#0AC8B9",
+                        IsMistake = false
+                    });
+                }
+                else if (ev.VictimId == playerParticipantId)
+                {
+                    var killerChamp = GetChampName(ev.KillerId);
+                    list.Add(new TacticalTimelineEvent
+                    {
+                        Minute = min,
+                        TimestampText = tsText,
+                        PhaseName = phaseName,
+                        PhaseBadgeColor = phaseColor,
+                        Icon = "💀",
+                        Title = $"Смерть від {killerChamp}",
+                        Description = "Невдале зіткнення або потрапляння під ворожий фокус. Час відродження створив вікно для ворога.",
+                        ImpactText = "Втрата темпу",
+                        ImpactColor = "#E84057",
+                        IsMistake = true
+                    });
+                }
+                else if (ev.AssistingParticipantIds.Contains(playerParticipantId))
+                {
+                    var victimChamp = GetChampName(ev.VictimId);
+                    list.Add(new TacticalTimelineEvent
+                    {
+                        Minute = min,
+                        TimestampText = tsText,
+                        PhaseName = phaseName,
+                        PhaseBadgeColor = phaseColor,
+                        Icon = "🤝",
+                        Title = $"Асист: усунення {victimChamp}",
+                        Description = "Своєчасне стягування та допомога команді в ліквідації ворожої цілі.",
+                        ImpactText = "+150G асист",
+                        ImpactColor = "#0AC8B9",
+                        IsMistake = false
+                    });
+                }
+            }
+            else if (ev.EventType == "ELITE_MONSTER_KILL")
+            {
+                var isOurTeam = ev.KillerTeamId == playerTeamId ||
+                                (ev.KillerId > 0 && ((ev.KillerId <= 5 && playerTeamSide == TeamSide.Blue) || (ev.KillerId > 5 && playerTeamSide == TeamSide.Red)));
+                var monsterLabel = FormatMonsterName(ev.MonsterType, ev.MonsterSubType);
+
+                list.Add(new TacticalTimelineEvent
+                {
+                    Minute = min,
+                    TimestampText = tsText,
+                    PhaseName = phaseName,
+                    PhaseBadgeColor = phaseColor,
+                    Icon = isOurTeam ? "🐉" : "⚠️",
+                    Title = isOurTeam ? $"Взяття об'єкта: {monsterLabel}" : $"Втрата об'єкта: {monsterLabel}",
+                    Description = isOurTeam
+                        ? $"Команда надійно забрала {monsterLabel}. Посилення бафів та контроль нейтральних зон."
+                        : $"Вороги забрали {monsterLabel}. Варто готувати віжен на річці за хвилину до появи.",
+                    ImpactText = isOurTeam ? "Бафф команди" : "Ворожий бафф",
+                    ImpactColor = isOurTeam ? "#0AC8B9" : "#E84057",
+                    IsMistake = !isOurTeam
+                });
+            }
+            else if (ev.EventType == "BUILDING_KILL")
+            {
+                var isOurTeamKiller = (ev.KillerId > 0 && ((ev.KillerId <= 5 && playerTeamSide == TeamSide.Blue) || (ev.KillerId > 5 && playerTeamSide == TeamSide.Red)));
+                var laneLabel = FormatLane(ev.LaneType);
+
+                list.Add(new TacticalTimelineEvent
+                {
+                    Minute = min,
+                    TimestampText = tsText,
+                    PhaseName = phaseName,
+                    PhaseBadgeColor = phaseColor,
+                    Icon = isOurTeamKiller ? "🏰" : "📉",
+                    Title = isOurTeamKiller ? $"Знищення ворожої вежі ({laneLabel})" : $"Втрата союзної вежі ({laneLabel})",
+                    Description = isOurTeamKiller
+                        ? $"Знищено зовнішнє укріплення супротивника. Отримано відкритий простір для роумінгу."
+                        : $"Втрата лінії оборони. Зменшення безпечної зони фарму.",
+                    ImpactText = isOurTeamKiller ? "Зняття захисту" : "Втрата карти",
+                    ImpactColor = isOurTeamKiller ? "#0AC8B9" : "#E84057",
+                    IsMistake = !isOurTeamKiller
+                });
+            }
+        }
+
+        return list.Take(25).ToList();
+    }
+
+    private static string FormatMonsterName(string monsterType, string subType)
+    {
+        if (monsterType.Equals("DRAGON", StringComparison.OrdinalIgnoreCase))
+        {
+            return subType.ToUpperInvariant() switch
+            {
+                "EARTH_DRAGON" => "Гірський Дракон",
+                "WATER_DRAGON" => "Морський Дракон",
+                "FIRE_DRAGON" => "Вогняний Дракон",
+                "AIR_DRAGON" => "Хмарний Дракон",
+                "HEXTECH_DRAGON" => "Хекстековий Дракон",
+                "CHEMTECH_DRAGON" => "Хімтековий Дракон",
+                "ELDER_DRAGON" => "Старший Дракон",
+                _ => "Дракон"
+            };
+        }
+        if (monsterType.Equals("BARON_NASHOR", StringComparison.OrdinalIgnoreCase)) return "Барон Нашор";
+        if (monsterType.Equals("RIFTHERALD", StringComparison.OrdinalIgnoreCase)) return "Герольд Безодні";
+        if (monsterType.Equals("HORDE", StringComparison.OrdinalIgnoreCase)) return "Личинки Безодні";
+        return monsterType;
+    }
+
+    private static string FormatLane(string laneType) => laneType.ToUpperInvariant() switch
+    {
+        "TOP_LANE" => "Топ",
+        "MID_LANE" => "Мід",
+        "BOT_LANE" => "Бот",
+        _ => "Лінія"
+    };
 }
 

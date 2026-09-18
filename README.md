@@ -4,7 +4,7 @@
 [![.NET 9](https://img.shields.io/badge/.NET-9.0-purple.svg)](https://dotnet.microsoft.com/)
 [![Avalonia UI](https://img.shields.io/badge/GUI-Avalonia%20UI%2011-blue.svg)](https://avaloniaui.net/)
 [![ML.NET](https://img.shields.io/badge/ML-ML.NET%204.0%2F5.0-orange.svg)](https://dotnet.microsoft.com/apps/machinelearning-ai/ml-dotnet)
-[![Tests](https://img.shields.io/badge/Tests-48%20Passing-brightgreen.svg)](tests/GameAnalytics.Tests)
+[![Tests](https://img.shields.io/badge/Tests-50%20Passing-brightgreen.svg)](tests/GameAnalytics.Tests)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20(Ubuntu%2FDebian)-green.svg)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 

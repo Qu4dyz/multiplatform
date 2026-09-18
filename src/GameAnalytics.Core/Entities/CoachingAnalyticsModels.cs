@@ -25,6 +25,33 @@ public class RoleBenchmark
     public double MaxTargetDeaths { get; set; }
     public double TargetDamageSharePercent { get; set; }
 
+    public static RoleBenchmark GetBenchmark(Position position, GameTier tier)
+    {
+        var baseBenchmark = GetBenchmark(position);
+        var tierMultiplier = tier switch
+        {
+            GameTier.Challenger or GameTier.Grandmaster => 1.12,
+            GameTier.Master => 1.08,
+            GameTier.Diamond => 1.04,
+            GameTier.Emerald => 1.00,
+            GameTier.Platinum => 0.94,
+            GameTier.Gold => 0.88,
+            GameTier.Silver => 0.82,
+            GameTier.Bronze or GameTier.Iron => 0.75,
+            _ => 1.00
+        };
+
+        return new RoleBenchmark
+        {
+            Position = position,
+            TargetCsPerMin = Math.Round(baseBenchmark.TargetCsPerMin * (position == Position.Utility ? 1.0 : tierMultiplier), 1),
+            TargetKillParticipation = (int)Math.Round(baseBenchmark.TargetKillParticipation * Math.Min(1.1, tierMultiplier)),
+            TargetDpm = Math.Round(baseBenchmark.TargetDpm * tierMultiplier, 0),
+            MaxTargetDeaths = Math.Round(baseBenchmark.MaxTargetDeaths / tierMultiplier, 1),
+            TargetDamageSharePercent = baseBenchmark.TargetDamageSharePercent
+        };
+    }
+
     public static RoleBenchmark GetBenchmark(Position position) => position switch
     {
         Position.Jungle => new RoleBenchmark

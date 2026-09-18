@@ -41,6 +41,7 @@ public class Participant
     public string SummonerName { get; set; } = string.Empty;
     public string ChampionName { get; set; } = string.Empty;
     public int ChampionId { get; set; }
+    public int ParticipantId { get; set; }
     public int ChampLevel { get; set; } = 1;
     public TeamSide TeamSide { get; set; }
     public Position Position { get; set; }

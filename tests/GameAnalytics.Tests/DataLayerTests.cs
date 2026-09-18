@@ -1187,6 +1187,55 @@ public class DataLayerTests
             if (File.Exists(tempLocal)) File.Delete(tempLocal);
         }
     }
+
+    [Fact]
+    public void RoleBenchmark_TierScaling_AdjustsTargetsAccurately()
+    {
+        var master = RoleBenchmark.GetBenchmark(Position.Jungle, GameTier.Master);
+        var silver = RoleBenchmark.GetBenchmark(Position.Jungle, GameTier.Silver);
+
+        Assert.True(master.TargetCsPerMin > silver.TargetCsPerMin);
+        Assert.True(master.TargetDpm > silver.TargetDpm);
+        Assert.True(master.MaxTargetDeaths < silver.MaxTargetDeaths);
+    }
+
+    [Fact]
+    public void MatchTacticalAnalyzer_WithRealTimeline_BuildsExactEvents()
+    {
+        var match = new Match
+        {
+            MatchId = "TEST_MATCH",
+            GameDurationSeconds = 1800,
+            Participants = new List<Participant>
+            {
+                new() { ParticipantId = 1, ChampionName = "Ambessa", TeamSide = TeamSide.Blue, Kills = 5, Deaths = 1, Assists = 3, TotalMinionsKilled = 180 },
+                new() { ParticipantId = 6, ChampionName = "Wukong", TeamSide = TeamSide.Red, Kills = 1, Deaths = 4, Assists = 2, TotalMinionsKilled = 140 }
+            }
+        };
+
+        var player = match.Participants[0];
+
+        var timeline = new MatchTimelineData
+        {
+            MatchId = "TEST_MATCH",
+            RealEvents = new List<TimelineEventRecord>
+            {
+                new() { TimestampMs = 330000, EventType = "CHAMPION_KILL", KillerId = 1, VictimId = 6, Bounty = 300 },
+                new() { TimestampMs = 720000, EventType = "ELITE_MONSTER_KILL", KillerId = 1, KillerTeamId = 100, MonsterType = "DRAGON", MonsterSubType = "FIRE_DRAGON" },
+                new() { TimestampMs = 1200000, EventType = "BUILDING_KILL", KillerId = 1, BuildingType = "TOWER_BUILDING", LaneType = "MID_LANE" }
+            }
+        };
+
+        var report = MatchTacticalAnalyzer.AnalyzeMatchTactics(match, player, timeline, GameTier.Diamond);
+
+        Assert.NotNull(report);
+        Assert.Equal(3, report.TimelineEvents.Count);
+        Assert.Contains("Вбивство Wukong", report.TimelineEvents[0].Title);
+        Assert.Equal("05:30", report.TimelineEvents[0].TimestampText);
+        Assert.Contains("Вогняний Дракон", report.TimelineEvents[1].Title);
+        Assert.Equal("12:00", report.TimelineEvents[1].TimestampText);
+        Assert.Contains("Знищення", report.TimelineEvents[2].Title);
+    }
 }
 
 

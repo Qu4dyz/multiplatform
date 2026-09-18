@@ -25,6 +25,9 @@ public class MatchTimelineData
     public bool BlueFirstTower { get; set; }
     public bool BlueFirstDragon { get; set; }
 
+    public List<TimelineEventRecord> RealEvents { get; set; } = new();
+    public bool HasRealTimelineEvents => RealEvents.Count > 0;
+
     public MatchInputFeatures ToInputFeatures(float blueAvgWinRate = 50.0f, float redAvgWinRate = 50.0f)
     {
         return new MatchInputFeatures
@@ -42,5 +45,20 @@ public class MatchTimelineData
             RedDragonCount = DragonsAt15Red
         };
     }
+}
+
+public class TimelineEventRecord
+{
+    public int TimestampMs { get; set; }
+    public string EventType { get; set; } = string.Empty;
+    public int KillerId { get; set; }
+    public int VictimId { get; set; }
+    public List<int> AssistingParticipantIds { get; set; } = new();
+    public string MonsterType { get; set; } = string.Empty;
+    public string MonsterSubType { get; set; } = string.Empty;
+    public string BuildingType { get; set; } = string.Empty;
+    public string LaneType { get; set; } = string.Empty;
+    public int KillerTeamId { get; set; }
+    public int Bounty { get; set; }
 }
 

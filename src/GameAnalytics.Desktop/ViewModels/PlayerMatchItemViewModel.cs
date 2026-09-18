@@ -132,7 +132,7 @@ public partial class PlayerMatchItemViewModel : ObservableObject
     public string LpChangeFg { get; set; } = "#8A93A5";
     public bool HasLpChange => !string.IsNullOrEmpty(LpChangeText) && LpChangeText != "-";
 
-    // JungleKingdom Match Grade & Coaching Tag
+    // Match Grade & Coaching Tag
     public string MatchGrade { get; set; } = "B";
     public string MatchGradeBg { get; set; } = "#5383E8";
     public string MatchGradeFg { get; set; } = "#FFFFFF";
@@ -197,8 +197,43 @@ public partial class PlayerMatchItemViewModel : ObservableObject
     public List<DetailedParticipantViewModel> BlueTeamDetailed { get; set; } = new();
     public List<DetailedParticipantViewModel> RedTeamDetailed { get; set; } = new();
 
-    // Tactical Breakdown & Peer Gap Analysis (JungleKingdom style)
-    public MatchTacticalReport? TacticalReport { get; set; }
+    // Tactical Breakdown & Peer Gap Analysis
+    [ObservableProperty]
+    private MatchTacticalReport? _tacticalReport;
+
+    private Match? _underlyingMatch;
+    private Participant? _underlyingPlayer;
+    private GameTier _playerTier = GameTier.Emerald;
+    private Func<string, Task<MatchTimelineData?>>? _loadTimelineFunc;
+    private bool _hasLoadedRealTimeline;
+
+    [ObservableProperty]
+    private bool _isLoadingTimeline;
+
+    public async Task EnsureRealTimelineLoadedAsync()
+    {
+        if (_hasLoadedRealTimeline || _loadTimelineFunc == null || _underlyingMatch == null || _underlyingPlayer == null)
+            return;
+
+        _hasLoadedRealTimeline = true;
+        IsLoadingTimeline = true;
+        try
+        {
+            var tl = await _loadTimelineFunc(MatchId);
+            if (tl != null && tl.RealEvents.Count > 0)
+            {
+                TacticalReport = MatchTacticalAnalyzer.AnalyzeMatchTactics(_underlyingMatch, _underlyingPlayer, tl, _playerTier);
+            }
+        }
+        catch
+        {
+            // Keep fallback tactical report
+        }
+        finally
+        {
+            IsLoadingTimeline = false;
+        }
+    }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsScoreboardTabActive))]
@@ -221,7 +256,11 @@ public partial class PlayerMatchItemViewModel : ObservableObject
     public void ShowScoreboardTab() => ActiveDetailTab = 0;
 
     [RelayCommand]
-    public void ShowTacticalTab() => ActiveDetailTab = 1;
+    public async Task ShowTacticalTab()
+    {
+        ActiveDetailTab = 1;
+        await EnsureRealTimelineLoadedAsync();
+    }
 
     // Accordion Expansion state
     [ObservableProperty]
@@ -233,12 +272,22 @@ public partial class PlayerMatchItemViewModel : ObservableObject
     public string ExpandButtonColor => IsExpanded ? "#C8AA6E" : "#8A93A5";
 
     [RelayCommand]
-    public void ToggleExpand()
+    public async Task ToggleExpand()
     {
         IsExpanded = !IsExpanded;
+        if (IsExpanded && IsTacticalTabActive)
+        {
+            await EnsureRealTimelineLoadedAsync();
+        }
     }
 
-    public static PlayerMatchItemViewModel FromMatch(Match match, string searchedPuuidOrName, string fallbackName = "", System.Windows.Input.ICommand? selectPlayerCommand = null)
+    public static PlayerMatchItemViewModel FromMatch(
+        Match match, 
+        string searchedPuuidOrName, 
+        string fallbackName = "", 
+        System.Windows.Input.ICommand? selectPlayerCommand = null,
+        GameTier playerTier = GameTier.Emerald,
+        Func<string, Task<MatchTimelineData?>>? loadTimelineFunc = null)
     {
         var cleanSearched = searchedPuuidOrName?.Trim() ?? string.Empty;
         var cleanFallback = fallbackName?.Trim() ?? string.Empty;
@@ -365,8 +414,13 @@ public partial class PlayerMatchItemViewModel : ObservableObject
             vm.MatchGradeBg = gradeColor;
             vm.CoachingBadgeText = tag;
 
-            // Generate tactical play-by-play & gap analysis
-            vm.TacticalReport = MatchTacticalAnalyzer.AnalyzeMatchTactics(match, player);
+            vm._underlyingMatch = match;
+            vm._underlyingPlayer = player;
+            vm._playerTier = playerTier;
+            vm._loadTimelineFunc = loadTimelineFunc;
+
+            // Generate tactical play-by-play & gap analysis with tier scaling
+            vm.TacticalReport = MatchTacticalAnalyzer.AnalyzeMatchTactics(match, player, null, playerTier);
         }
 
         // Load main champion and item icons

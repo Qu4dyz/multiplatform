@@ -354,7 +354,7 @@
                 </Grid>
             </Border>
 
-            <!-- 2.5 RECENT GAMES SESSION OVERVIEW (OP.GG style) -->
+            <!-- 2.5 RECENT GAMES SESSION OVERVIEW -->
             <Border Background="#121824"
                     CornerRadius="10"
                     Padding="18"
@@ -590,7 +590,7 @@
                 </Grid>
             </Border>
 
-            <!-- 2.7 JUNGLEKINGDOM GLOBAL COACHING & ROLE MASTERY DASHBOARD -->
+            <!-- 2.7 GLOBAL COACHING & ROLE MASTERY DASHBOARD -->
             <Border Background="#101726"
                     CornerRadius="10"
                     Padding="20,16"
@@ -601,7 +601,7 @@
                     <!-- Header with Role & Overall Score -->
                     <Grid ColumnDefinitions="*, Auto">
                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                            <TextBlock Text="👑 JUNGLEKINGDOM COACHING &amp; ROLE MASTERY"
+                            <TextBlock Text="👑 ТАКТИЧНИЙ КОУЧИНГ ТА АНАЛІТИКА РОЛІ"
                                        FontSize="13"
                                        FontWeight="Bold"
                                        Foreground="#C8AA6E"
@@ -775,7 +775,7 @@
                         <Grid ColumnDefinitions="Auto, *" VerticalAlignment="Center">
                             <TextBlock Grid.Column="0" Text="🎓" FontSize="24" VerticalAlignment="Top" Margin="0,2,12,0" />
                             <StackPanel Grid.Column="1" Spacing="3">
-                                <TextBlock Text="РЕКОМЕНДАЦІЇ ТРЕНЕРА JUNGLEKINGDOM:"
+                                <TextBlock Text="РЕКОМЕНДАЦІЇ ТРЕНЕРА:"
                                            FontSize="11"
                                            FontWeight="Bold"
                                            Foreground="#C8AA6E"
@@ -825,7 +825,7 @@
                 </Border>
             </Grid>
 
-            <!-- 4. MODERN MATCH CARDS LIST (OP.GG / U.GG style with Accordion) -->
+            <!-- 4. MODERN MATCH CARDS LIST (with Accordion) -->
             <ItemsControl ItemsSource="{Binding FilteredRecentMatches}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:PlayerMatchItemViewModel">
@@ -981,7 +981,7 @@
                                                                Foreground="{Binding KillParticipationColor}" />
                                                 </Border>
                                             </StackPanel>
-                                            <!-- Coaching Badge (JungleKingdom badge: Hard Carry, CS Monster, etc.) -->
+                                             <!-- Coaching Badge (e.g. Hard Carry, CS Monster, etc.) -->
                                             <Border Background="#1A2638"
                                                     CornerRadius="4"
                                                     Padding="6,2"
@@ -1167,7 +1167,7 @@
                                                         FontSize="11"
                                                         FontWeight="Bold"
                                                         Cursor="Hand">
-                                                    ⏱️ Похвилинний тактичний розбір гри (JungleKingdom)
+                                                    ⏱️ Похвилинний тактичний розбір гри
                                                 </Button>
                                             </StackPanel>
 
@@ -1432,7 +1432,7 @@
                                                 </Border>
                                             </StackPanel>
 
-                                            <!-- TAB 2: JUNGLEKINGDOM TACTICAL REPORT & GAP ANALYSIS -->
+                                            <!-- TAB 2: TACTICAL REPORT & GAP ANALYSIS -->
                                             <StackPanel Spacing="12" IsVisible="{Binding IsTacticalTabActive}">
                                                 <!-- Overall Tactical Verdict & Key Takeaway Banner -->
                                                 <Border Background="#101726" CornerRadius="8" BorderBrush="#2A3750" BorderThickness="1" Padding="14,12">
@@ -1476,9 +1476,12 @@
                                                     </ItemsControl>
                                                 </StackPanel>
 
-                                                <!-- Play-by-play Minute-by-Minute Timeline (JungleKingdom style) -->
+                                                <!-- Play-by-play Minute-by-Minute Timeline -->
                                                 <StackPanel Spacing="8">
-                                                    <TextBlock Text="⏱️ ПОХВИЛИННИЙ РОЗБІР КЛЮЧОВИХ РІШЕНЬ (JUNGLEKINGDOM PLAY-BY-PLAY)" FontSize="12" FontWeight="Bold" Foreground="#C8AA6E" LetterSpacing="1.1" />
+                                                    <Grid ColumnDefinitions="*, Auto">
+                                                        <TextBlock Grid.Column="0" Text="⏱️ ПОХВИЛИННИЙ РОЗБІР КЛЮЧОВИХ РІШЕНЬ (PLAY-BY-PLAY)" FontSize="12" FontWeight="Bold" Foreground="#C8AA6E" LetterSpacing="1.1" />
+                                                        <TextBlock Grid.Column="1" Text="⏳ Завантаження подій Riot Timeline..." FontSize="11" Foreground="#0AC8B9" IsVisible="{Binding IsLoadingTimeline}" />
+                                                    </Grid>
                                                     <ItemsControl ItemsSource="{Binding TacticalReport.TimelineEvents}">
                                                         <ItemsControl.ItemTemplate>
                                                             <DataTemplate>

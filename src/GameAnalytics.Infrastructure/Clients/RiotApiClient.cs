@@ -361,6 +361,7 @@ public class RiotApiClient : IRiotApiClient
                         : (p.SummonerName ?? "Player"),
                     ChampionName = p.ChampionName ?? "Champion",
                     ChampionId = p.ChampionId,
+                    ParticipantId = p.ParticipantId > 0 ? p.ParticipantId : (info.Participants.IndexOf(p) + 1),
                     ChampLevel = p.ChampLevel > 0 ? p.ChampLevel : 1,
                     Position = ParsePosition(p.TeamPosition),
                     TeamSide = side,
@@ -391,14 +392,17 @@ public class RiotApiClient : IRiotApiClient
         {
             if (root.TryGetProperty("info", out var infoElem) && infoElem.TryGetProperty("frames", out var framesElem))
             {
+                var result = new MatchTimelineData { MatchId = matchId };
                 var frameCount = framesElem.GetArrayLength();
+
+                // Frame 15 snapshot for gold
                 var targetIndex = Math.Min(15, frameCount - 1);
-                var frame = framesElem[targetIndex];
+                var frame15 = framesElem[targetIndex];
 
                 int goldBlue = 0;
                 int goldRed = 0;
 
-                if (frame.TryGetProperty("participantFrames", out var pFrames))
+                if (frame15.TryGetProperty("participantFrames", out var pFrames))
                 {
                     for (int i = 1; i <= 10; i++)
                     {
@@ -411,21 +415,133 @@ public class RiotApiClient : IRiotApiClient
                     }
                 }
 
-                return new MatchTimelineData
+                result.GoldAt15Blue = goldBlue > 0 ? goldBlue : 24500;
+                result.GoldAt15Red = goldRed > 0 ? goldRed : 23800;
+
+                bool firstBloodSet = false;
+                bool firstTowerSet = false;
+                bool firstDragonSet = false;
+
+                const int fifteenMinMs = 15 * 60 * 1000;
+
+                // Process all frames to collect real events
+                for (int fIdx = 0; fIdx < frameCount; fIdx++)
                 {
-                    MatchId = matchId,
-                    GoldAt15Blue = goldBlue > 0 ? goldBlue : 24500,
-                    GoldAt15Red = goldRed > 0 ? goldRed : 23800,
-                    KillsAt15Blue = 8,
-                    KillsAt15Red = 6,
-                    TowersAt15Blue = 1,
-                    TowersAt15Red = 0,
-                    DragonsAt15Blue = 1,
-                    DragonsAt15Red = 0,
-                    BlueFirstBlood = true,
-                    BlueFirstTower = true,
-                    BlueFirstDragon = true
-                };
+                    var curFrame = framesElem[fIdx];
+                    if (!curFrame.TryGetProperty("events", out var eventsElem)) continue;
+
+                    foreach (var ev in eventsElem.EnumerateArray())
+                    {
+                        if (!ev.TryGetProperty("type", out var typeProp)) continue;
+                        var evType = typeProp.GetString() ?? string.Empty;
+                        var ts = ev.TryGetProperty("timestamp", out var tsProp) ? tsProp.GetInt32() : 0;
+
+                        if (evType == "CHAMPION_KILL")
+                        {
+                            var killerId = ev.TryGetProperty("killerId", out var kProp) ? kProp.GetInt32() : 0;
+                            var victimId = ev.TryGetProperty("victimId", out var vProp) ? vProp.GetInt32() : 0;
+                            var bounty = ev.TryGetProperty("bounty", out var bProp) ? bProp.GetInt32() : 0;
+
+                            var assists = new List<int>();
+                            if (ev.TryGetProperty("assistingParticipantIds", out var assistsElem))
+                            {
+                                foreach (var a in assistsElem.EnumerateArray())
+                                {
+                                    assists.Add(a.GetInt32());
+                                }
+                            }
+
+                            result.RealEvents.Add(new TimelineEventRecord
+                            {
+                                TimestampMs = ts,
+                                EventType = evType,
+                                KillerId = killerId,
+                                VictimId = victimId,
+                                AssistingParticipantIds = assists,
+                                Bounty = bounty
+                            });
+
+                            if (!firstBloodSet && killerId > 0)
+                            {
+                                result.BlueFirstBlood = killerId <= 5;
+                                firstBloodSet = true;
+                            }
+
+                            if (ts <= fifteenMinMs)
+                            {
+                                if (killerId <= 5) result.KillsAt15Blue++;
+                                else result.KillsAt15Red++;
+                            }
+                        }
+                        else if (evType == "ELITE_MONSTER_KILL")
+                        {
+                            var monsterType = ev.TryGetProperty("monsterType", out var mTypeProp) ? mTypeProp.GetString() ?? string.Empty : string.Empty;
+                            var monsterSubType = ev.TryGetProperty("monsterSubType", out var mSubProp) ? mSubProp.GetString() ?? string.Empty : string.Empty;
+                            var killerId = ev.TryGetProperty("killerId", out var kProp) ? kProp.GetInt32() : 0;
+                            var killerTeamId = ev.TryGetProperty("killerTeamId", out var ktProp) ? ktProp.GetInt32() : 0;
+
+                            result.RealEvents.Add(new TimelineEventRecord
+                            {
+                                TimestampMs = ts,
+                                EventType = evType,
+                                KillerId = killerId,
+                                KillerTeamId = killerTeamId,
+                                MonsterType = monsterType,
+                                MonsterSubType = monsterSubType
+                            });
+
+                            if (monsterType.Equals("DRAGON", StringComparison.OrdinalIgnoreCase))
+                            {
+                                var isBlueDragon = killerTeamId == 100 || killerId <= 5;
+                                if (!firstDragonSet)
+                                {
+                                    result.BlueFirstDragon = isBlueDragon;
+                                    firstDragonSet = true;
+                                }
+
+                                if (ts <= fifteenMinMs)
+                                {
+                                    if (isBlueDragon) result.DragonsAt15Blue++;
+                                    else result.DragonsAt15Red++;
+                                }
+                            }
+                        }
+                        else if (evType == "BUILDING_KILL")
+                        {
+                            var buildingType = ev.TryGetProperty("buildingType", out var bTypeProp) ? bTypeProp.GetString() ?? string.Empty : string.Empty;
+                            var laneType = ev.TryGetProperty("laneType", out var laneProp) ? laneProp.GetString() ?? string.Empty : string.Empty;
+                            var killerId = ev.TryGetProperty("killerId", out var kProp) ? kProp.GetInt32() : 0;
+                            var teamId = ev.TryGetProperty("teamId", out var tProp) ? tProp.GetInt32() : 0;
+
+                            result.RealEvents.Add(new TimelineEventRecord
+                            {
+                                TimestampMs = ts,
+                                EventType = evType,
+                                KillerId = killerId,
+                                BuildingType = buildingType,
+                                LaneType = laneType
+                            });
+
+                            if (buildingType.Contains("TOWER", StringComparison.OrdinalIgnoreCase))
+                            {
+                                var blueDestroyed = teamId == 200 || killerId <= 5;
+                                if (!firstTowerSet)
+                                {
+                                    result.BlueFirstTower = blueDestroyed;
+                                    firstTowerSet = true;
+                                }
+
+                                if (ts <= fifteenMinMs)
+                                {
+                                    if (blueDestroyed) result.TowersAt15Blue++;
+                                    else result.TowersAt15Red++;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                return result;
             }
         }
         catch
@@ -579,6 +695,7 @@ public class RiotApiClient : IRiotApiClient
                 SummonerName = i == 3 ? "Qu4dyz#EUW" : $"Player_{i + 1}",
                 ChampionName = champ.Item1,
                 ChampionId = 100 + i,
+                ParticipantId = i + 1,
                 ChampLevel = random.Next(11, 18),
                 Position = champ.Item2,
                 TeamSide = isBlue ? TeamSide.Blue : TeamSide.Red,
@@ -735,6 +852,9 @@ public class RiotApiClient : IRiotApiClient
 
         [JsonPropertyName("championId")]
         public int ChampionId { get; set; }
+
+        [JsonPropertyName("participantId")]
+        public int ParticipantId { get; set; }
 
         [JsonPropertyName("championName")]
         public string? ChampionName { get; set; }
