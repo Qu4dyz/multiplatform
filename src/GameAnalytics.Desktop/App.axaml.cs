@@ -10,6 +10,7 @@ using GameAnalytics.Infrastructure.Persistence;
 using GameAnalytics.Infrastructure.Repositories;
 using GameAnalytics.Infrastructure.Services;
 using GameAnalytics.ML.Engine;
+using GameAnalytics.ML.Training;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace GameAnalytics.Desktop;
@@ -67,6 +68,7 @@ public partial class App : Application
 
         // Domain Services
         services.AddScoped<IMatchAnalyticsService, MatchAnalyticsService>();
+        services.AddScoped<VpsTrainingWorker>();
 
         // ViewModels
         services.AddTransient<PlayerAnalyticsViewModel>();

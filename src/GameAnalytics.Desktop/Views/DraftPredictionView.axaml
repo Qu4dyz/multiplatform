@@ -583,6 +583,24 @@
 
                         <Separator Background="#2F3640" Height="1" />
 
+                        <!-- Model Training on Real Data Bar -->
+                        <Border Background="#101726" CornerRadius="6" Padding="12,10" BorderBrush="#1F2D44" BorderThickness="1">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="{Binding TrainingStatusText}" FontSize="12" FontWeight="SemiBold" Foreground="#0AC8B9" TextWrapping="Wrap" />
+                                <Button Command="{Binding RetrainOnRealDataCommand}"
+                                        IsEnabled="{Binding !IsRetraining}"
+                                        Content="🚀 Перенавчити модель на реальних матчах з бази"
+                                        Height="34"
+                                        Background="#1E283A"
+                                        Foreground="#F0E6D2"
+                                        FontSize="11"
+                                        FontWeight="SemiBold"
+                                        HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Center"
+                                        Cursor="Hand" />
+                            </StackPanel>
+                        </Border>
+
                         <!-- Benchmark Section -->
                         <Button Command="{Binding RunBenchmarkCommand}"
                                 Content="🔬 Запустити бенчмарк 3-х алгоритмів (ML.NET)"

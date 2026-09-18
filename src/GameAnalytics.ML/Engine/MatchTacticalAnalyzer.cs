@@ -356,7 +356,9 @@ public static class MatchTacticalAnalyzer
         string GetChampName(int pId)
         {
             var p = match.Participants.FirstOrDefault(x => (x.ParticipantId > 0 ? x.ParticipantId : match.Participants.IndexOf(x) + 1) == pId);
-            return p != null && !string.IsNullOrWhiteSpace(p.ChampionName) ? p.ChampionName : $"Гравець #{pId}";
+            return p != null && !string.IsNullOrWhiteSpace(p.ChampionName) 
+                ? GameAnalytics.Core.Helpers.ChampionNameHelper.ToDisplayName(p.ChampionName) 
+                : $"Гравець #{pId}";
         }
 
         var relevant = timeline.RealEvents
@@ -438,6 +440,21 @@ public static class MatchTacticalAnalyzer
                 var isOurTeam = ev.KillerTeamId == playerTeamId ||
                                 (ev.KillerId > 0 && ((ev.KillerId <= 5 && playerTeamSide == TeamSide.Blue) || (ev.KillerId > 5 && playerTeamSide == TeamSide.Red)));
                 var monsterLabel = FormatMonsterName(ev.MonsterType, ev.MonsterSubType);
+
+                // Group Voidgrubs (HORDE) in the same wave/camp to avoid duplicate spam
+                if (ev.MonsterType.Equals("HORDE", StringComparison.OrdinalIgnoreCase) && list.Count > 0)
+                {
+                    var last = list[^1];
+                    if (last.Title.Contains("Личинки Безодні") && Math.Abs(last.Minute - min) <= 1 && last.IsMistake == !isOurTeam)
+                    {
+                        var currentCount = last.Title.Contains("(x2)") ? 3 : 2;
+                        last.Title = isOurTeam ? $"Взяття об'єкта: Личинки Безодні (x{currentCount})" : $"Втрата об'єкта: Личинки Безодні (x{currentCount})";
+                        last.Description = isOurTeam
+                            ? $"Команда надійно забрала {currentCount} Личинки Безодні. Посилення бафів та контроль нейтральних зон."
+                            : $"Вороги забрали {currentCount} Личинки Безодні. Варто готувати віжен на річці за хвилину до появи.";
+                        continue;
+                    }
+                }
 
                 list.Add(new TacticalTimelineEvent
                 {

@@ -4,7 +4,7 @@
 [![.NET 9](https://img.shields.io/badge/.NET-9.0-purple.svg)](https://dotnet.microsoft.com/)
 [![Avalonia UI](https://img.shields.io/badge/GUI-Avalonia%20UI%2011-blue.svg)](https://avaloniaui.net/)
 [![ML.NET](https://img.shields.io/badge/ML-ML.NET%204.0%2F5.0-orange.svg)](https://dotnet.microsoft.com/apps/machinelearning-ai/ml-dotnet)
-[![Tests](https://img.shields.io/badge/Tests-52%20Passing-brightgreen.svg)](tests/GameAnalytics.Tests)
+[![Tests](https://img.shields.io/badge/Tests-55%20Passing-brightgreen.svg)](tests/GameAnalytics.Tests)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20(Ubuntu%2FDebian)-green.svg)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -167,6 +167,11 @@ sudo apt install -y libx11-6 libx11-xcb1 libxcursor1 libxi6 libxrandr2 \
 4. **Launch the desktop application:**
    ```bash
    dotnet run --project src/GameAnalytics.Desktop
+   ```
+
+5. **Run autonomous ML training daemon on VPS (headless):**
+   ```bash
+   dotnet run --project src/GameAnalytics.Desktop -- --vps-train
    ```
 
 ---

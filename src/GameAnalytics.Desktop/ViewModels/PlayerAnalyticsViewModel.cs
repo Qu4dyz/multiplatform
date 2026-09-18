@@ -180,7 +180,7 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(LoadMoreButtonText))]
     private bool _isLoadingMore;
 
-    public string LoadMoreButtonText => IsLoadingMore ? "ЗАВАНТАЖЕННЯ..." : "ЗАВАНТАЖИТИ ЩЕ 5 МАТЧІВ";
+    public string LoadMoreButtonText => IsLoadingMore ? "ЗАВАНТАЖЕННЯ..." : "ЗАВАНТАЖИТИ ЩЕ 10 МАТЧІВ";
 
     [ObservableProperty]
     private bool _canLoadMore = true;
@@ -188,7 +188,7 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
     [ObservableProperty]
     private string _statusMessage = "Введіть Riot ID (наприклад, Qu4dyz #qu4) та оберіть сервер";
 
-    private int _currentMatchCount = 10;
+    private int _currentMatchCount = 20;
     private List<Match> _rawMatches = new();
     internal List<Match> RawMatches { get => _rawMatches; set => _rawMatches = value; }
 
@@ -307,7 +307,7 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
         try
         {
             IsLoading = true;
-            _currentMatchCount = 10;
+            _currentMatchCount = 20;
             CanLoadMore = true;
             StatusMessage = $"Завантаження даних для {GameName}#{TagLine} ({SelectedRegion.DisplayName})...";
 
@@ -388,7 +388,7 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
         try
         {
             IsLoadingMore = true;
-            _currentMatchCount += 5;
+            _currentMatchCount += 10;
             StatusMessage = $"Завантаження наступних матчів (всього: {_currentMatchCount})...";
 
             var matches = await _analyticsService.FetchAndSaveRecentMatchesAsync(Summoner.Puuid, _currentMatchCount);

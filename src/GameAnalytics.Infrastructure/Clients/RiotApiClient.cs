@@ -359,7 +359,7 @@ public class RiotApiClient : IRiotApiClient
                     SummonerName = !string.IsNullOrWhiteSpace(p.RiotIdGameName)
                         ? $"{p.RiotIdGameName}#{p.RiotIdTagline}"
                         : (p.SummonerName ?? "Player"),
-                    ChampionName = p.ChampionName ?? "Champion",
+                    ChampionName = GameAnalytics.Core.Helpers.ChampionNameHelper.ToDisplayName(p.ChampionName ?? "Champion"),
                     ChampionId = p.ChampionId,
                     ParticipantId = p.ParticipantId > 0 ? p.ParticipantId : (info.Participants.IndexOf(p) + 1),
                     ChampLevel = p.ChampLevel > 0 ? p.ChampLevel : 1,

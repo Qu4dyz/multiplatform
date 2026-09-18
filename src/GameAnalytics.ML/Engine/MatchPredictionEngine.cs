@@ -17,6 +17,9 @@ public class MatchPredictionEngine : IPredictionEngine
 
     public MLAlgorithmType ActiveAlgorithm { get; private set; } = MLAlgorithmType.FastTree;
     public ModelMetrics? CurrentModelMetrics { get; private set; }
+    public bool IsTrainedOnRealData { get; private set; }
+    public int TrainingDatasetSize { get; private set; }
+    public DateTime? LastTrainedAt { get; private set; }
 
     public MatchPredictionEngine()
     {
@@ -189,38 +192,63 @@ public class MatchPredictionEngine : IPredictionEngine
     {
         return Task.Run(() =>
         {
-            var matchDataList = new List<MatchInputData>();
-            foreach (var match in historicalMatches)
-            {
-                var blue = match.Teams.FirstOrDefault(t => t.TeamSide == TeamSide.Blue);
-                var red = match.Teams.FirstOrDefault(t => t.TeamSide == TeamSide.Red);
-                if (blue == null || red == null) continue;
+            var matchDataList = RealMatchDatasetCollector.ExtractFeaturesFromMatches(historicalMatches);
 
-                matchDataList.Add(new MatchInputData
-                {
-                    FirstBlood = blue.FirstBlood ? 1f : 0f,
-                    FirstTower = blue.FirstTower ? 1f : 0f,
-                    FirstDragon = blue.FirstDragon ? 1f : 0f,
-                    GoldDiff15 = blue.GoldAt15 - red.GoldAt15,
-                    KillDiff15 = blue.KillsAt15 - red.KillsAt15,
-                    BlueAvgWinRate = 50.0f,
-                    RedAvgWinRate = 50.0f,
-                    TowerDiff = blue.TowerKills - red.TowerKills,
-                    DragonDiff = blue.DragonKills - red.DragonKills,
-                    Label = match.WinningTeam == TeamSide.Blue
-                });
-            }
-
-            if (matchDataList.Count >= 20)
+            if (matchDataList.Count >= 10)
             {
                 lock (_lock)
                 {
-                    var trainer = new ModelTrainer();
-                    _model = trainer.TrainPipeline(matchDataList);
                     var dataView = _mlContext.Data.LoadFromEnumerable(matchDataList);
+                    var benchmark = new ModelBenchmarkService();
+                    var pipeline = benchmark.BuildPipeline(ActiveAlgorithm);
+
+                    if (matchDataList.Count >= 20)
+                    {
+                        var split = _mlContext.Data.TrainTestSplit(dataView, testFraction: 0.2, seed: 42);
+                        _model = pipeline.Fit(split.TrainSet);
+                        var predictions = _model.Transform(split.TestSet);
+                        try
+                        {
+                            var eval = _mlContext.BinaryClassification.Evaluate(predictions, labelColumnName: "Label");
+                            CurrentModelMetrics = new ModelMetrics
+                            {
+                                AlgorithmType = ActiveAlgorithm,
+                                Accuracy = eval.Accuracy,
+                                AreaUnderRocCurve = eval.AreaUnderRocCurve,
+                                F1Score = eval.F1Score,
+                                PositivePrecision = eval.PositivePrecision,
+                                PositiveRecall = eval.PositiveRecall,
+                                LogLoss = eval.LogLoss
+                            };
+                        }
+                        catch
+                        {
+                            var nonCal = _mlContext.BinaryClassification.EvaluateNonCalibrated(predictions, labelColumnName: "Label");
+                            CurrentModelMetrics = new ModelMetrics
+                            {
+                                AlgorithmType = ActiveAlgorithm,
+                                Accuracy = nonCal.Accuracy,
+                                AreaUnderRocCurve = nonCal.AreaUnderRocCurve,
+                                F1Score = nonCal.F1Score,
+                                PositivePrecision = nonCal.PositivePrecision,
+                                PositiveRecall = nonCal.PositiveRecall,
+                                LogLoss = 0.5
+                            };
+                        }
+                    }
+                    else
+                    {
+                        _model = pipeline.Fit(dataView);
+                    }
+
+                    var trainer = new ModelTrainer();
                     var modelFile = Path.Combine(_modelDirectory, $"{ActiveAlgorithm.ToString().ToLower()}_model.zip");
                     trainer.SaveModel(_model, dataView.Schema, modelFile);
                     _predictionEngine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(_model);
+
+                    IsTrainedOnRealData = true;
+                    TrainingDatasetSize = matchDataList.Count;
+                    LastTrainedAt = DateTime.UtcNow;
                 }
             }
         }, ct);

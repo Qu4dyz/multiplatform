@@ -64,7 +64,7 @@
     </UserControl.Styles>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel Margin="24" Spacing="18" MaxWidth="1340" HorizontalAlignment="Center">
+        <StackPanel Margin="20,18" Spacing="16" MaxWidth="1420" HorizontalAlignment="Stretch">
 
             <!-- 1. RIOT ID SEARCH & REGION CONSOLE -->
             <Border Background="#121824"
@@ -514,7 +514,7 @@
                     BorderBrush="#1F2D44"
                     BorderThickness="1"
                     IsVisible="{Binding HasMomentumData}">
-                <Grid ColumnDefinitions="290, 1, *">
+                <Grid ColumnDefinitions="340, 1, *">
                     <!-- Left: Gauge & Score -->
                     <StackPanel Grid.Column="0" Spacing="6" VerticalAlignment="Center" Margin="0,0,18,0">
                         <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
@@ -843,7 +843,7 @@
                                 <!-- Card Vertical Content (Compact Row + Accordion Details) -->
                                 <StackPanel Grid.Column="1">
                                      <!-- Top Main Row -->
-                                     <Grid ColumnDefinitions="135, 140, 175, 125, 135, *, 85" Margin="14,12">
+                                     <Grid ColumnDefinitions="140, 160, 185, 130, 135, *, 90" Margin="14,12">
                                          <!-- Col 0: Match Outcome & Time -->
                                          <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
                                              <TextBlock Text="{Binding GameModeText}"
@@ -1065,7 +1065,7 @@
                                                                        Foreground="{Binding NameColor}"
                                                                        FontWeight="{Binding NameWeight}"
                                                                        TextTrimming="CharacterEllipsis"
-                                                                       MaxWidth="120"
+                                                                       MaxWidth="150"
                                                                        IsVisible="{Binding IsCurrentPlayer}"
                                                                        ToolTip.Tip="{Binding ToolTipText}" />
                                                             <Button Classes="player-link"
@@ -1078,7 +1078,7 @@
                                                                            Foreground="{Binding NameColor}"
                                                                            FontWeight="{Binding NameWeight}"
                                                                            TextTrimming="CharacterEllipsis"
-                                                                           MaxWidth="120" />
+                                                                           MaxWidth="150" />
                                                             </Button>
                                                         </StackPanel>
                                                     </DataTemplate>
@@ -1098,7 +1098,7 @@
                                                                        Foreground="{Binding NameColor}"
                                                                        FontWeight="{Binding NameWeight}"
                                                                        TextTrimming="CharacterEllipsis"
-                                                                       MaxWidth="120"
+                                                                       MaxWidth="150"
                                                                        IsVisible="{Binding IsCurrentPlayer}"
                                                                        ToolTip.Tip="{Binding ToolTipText}" />
                                                             <Button Classes="player-link"
@@ -1111,7 +1111,7 @@
                                                                            Foreground="{Binding NameColor}"
                                                                            FontWeight="{Binding NameWeight}"
                                                                            TextTrimming="CharacterEllipsis"
-                                                                           MaxWidth="120" />
+                                                                           MaxWidth="150" />
                                                             </Button>
                                                         </StackPanel>
                                                     </DataTemplate>

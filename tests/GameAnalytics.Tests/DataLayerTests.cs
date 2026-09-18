@@ -1101,13 +1101,28 @@ public class DataLayerTests
     {
         var vm = new PlayerAnalyticsViewModel();
         Assert.False(vm.IsLoadingMore);
-        Assert.Equal("ЗАВАНТАЖИТИ ЩЕ 5 МАТЧІВ", vm.LoadMoreButtonText);
+        Assert.Equal("ЗАВАНТАЖИТИ ЩЕ 10 МАТЧІВ", vm.LoadMoreButtonText);
 
         vm.IsLoadingMore = true;
         Assert.Equal("ЗАВАНТАЖЕННЯ...", vm.LoadMoreButtonText);
 
         vm.IsLoadingMore = false;
-        Assert.Equal("ЗАВАНТАЖИТИ ЩЕ 5 МАТЧІВ", vm.LoadMoreButtonText);
+        Assert.Equal("ЗАВАНТАЖИТИ ЩЕ 10 МАТЧІВ", vm.LoadMoreButtonText);
+    }
+
+    [Fact]
+    public void ChampionNameHelper_ToDisplayName_NormalizesSpecialNames()
+    {
+        Assert.Equal("Wukong", GameAnalytics.Core.Helpers.ChampionNameHelper.ToDisplayName("MonkeyKing"));
+        Assert.Equal("Wukong", GameAnalytics.Core.Helpers.ChampionNameHelper.ToDisplayName("monkeyking"));
+        Assert.Equal("Nunu & Willump", GameAnalytics.Core.Helpers.ChampionNameHelper.ToDisplayName("Nunu"));
+        Assert.Equal("Renata Glasc", GameAnalytics.Core.Helpers.ChampionNameHelper.ToDisplayName("Renata"));
+        Assert.Equal("Dr. Mundo", GameAnalytics.Core.Helpers.ChampionNameHelper.ToDisplayName("DrMundo"));
+        Assert.Equal("Ambessa", GameAnalytics.Core.Helpers.ChampionNameHelper.ToDisplayName("Ambessa"));
+
+        Assert.Equal("MonkeyKing", GameAnalytics.Core.Helpers.ChampionNameHelper.ToDDragonImageKey("Wukong"));
+        Assert.Equal("MonkeyKing", GameAnalytics.Core.Helpers.ChampionNameHelper.ToDDragonImageKey("MonkeyKing"));
+        Assert.Equal("Nunu", GameAnalytics.Core.Helpers.ChampionNameHelper.ToDDragonImageKey("Nunu & Willump"));
     }
 
     [Fact]
@@ -1209,7 +1224,7 @@ public class DataLayerTests
             Participants = new List<Participant>
             {
                 new() { ParticipantId = 1, ChampionName = "Ambessa", TeamSide = TeamSide.Blue, Kills = 5, Deaths = 1, Assists = 3, TotalMinionsKilled = 180 },
-                new() { ParticipantId = 6, ChampionName = "Wukong", TeamSide = TeamSide.Red, Kills = 1, Deaths = 4, Assists = 2, TotalMinionsKilled = 140 }
+                new() { ParticipantId = 6, ChampionName = "MonkeyKing", TeamSide = TeamSide.Red, Kills = 1, Deaths = 4, Assists = 2, TotalMinionsKilled = 140 }
             }
         };
 
@@ -1235,6 +1250,69 @@ public class DataLayerTests
         Assert.Contains("Вогняний Дракон", report.TimelineEvents[1].Title);
         Assert.Equal("12:00", report.TimelineEvents[1].TimestampText);
         Assert.Contains("Знищення", report.TimelineEvents[2].Title);
+    }
+
+    [Fact]
+    public void MatchTacticalAnalyzer_VoidgrubsConsecutiveKills_ConsolidatesIntoSingleEvent()
+    {
+        var match = new Match
+        {
+            MatchId = "GRUB_TEST",
+            GameDurationSeconds = 1800,
+            Participants = new List<Participant>
+            {
+                new() { ParticipantId = 1, ChampionName = "Ambessa", TeamSide = TeamSide.Blue, Kills = 2 }
+            }
+        };
+
+        var timeline = new MatchTimelineData
+        {
+            MatchId = "GRUB_TEST",
+            RealEvents = new List<TimelineEventRecord>
+            {
+                new() { TimestampMs = 360000, EventType = "ELITE_MONSTER_KILL", KillerId = 1, KillerTeamId = 100, MonsterType = "HORDE" },
+                new() { TimestampMs = 364000, EventType = "ELITE_MONSTER_KILL", KillerId = 1, KillerTeamId = 100, MonsterType = "HORDE" },
+                new() { TimestampMs = 368000, EventType = "ELITE_MONSTER_KILL", KillerId = 1, KillerTeamId = 100, MonsterType = "HORDE" }
+            }
+        };
+
+        var report = MatchTacticalAnalyzer.AnalyzeMatchTactics(match, match.Participants[0], timeline, GameTier.Emerald);
+
+        Assert.NotNull(report);
+        Assert.Single(report.TimelineEvents);
+        Assert.Contains("Личинки Безодні (x3)", report.TimelineEvents[0].Title);
+    }
+
+    [Fact]
+    public void RealMatchDatasetCollector_ExtractFeaturesFromMatches_ComputesFeaturesCorrectly()
+    {
+        var matches = new List<Match>
+        {
+            new Match
+            {
+                MatchId = "EUW1_1",
+                GameDurationSeconds = 1500,
+                WinningTeam = TeamSide.Blue,
+                Teams = new List<TeamStats>
+                {
+                    new TeamStats { TeamSide = TeamSide.Blue, GoldAt15 = 26000, KillsAt15 = 10, FirstBlood = true, FirstTower = true, FirstDragon = true, TowerKills = 7, DragonKills = 3 },
+                    new TeamStats { TeamSide = TeamSide.Red, GoldAt15 = 23000, KillsAt15 = 4, FirstBlood = false, FirstTower = false, FirstDragon = false, TowerKills = 2, DragonKills = 1 }
+                },
+                Participants = new List<Participant>()
+            }
+        };
+
+        var features = GameAnalytics.ML.Training.RealMatchDatasetCollector.ExtractFeaturesFromMatches(matches);
+
+        Assert.Single(features);
+        Assert.True(features[0].Label);
+        Assert.Equal(3000f, features[0].GoldDiff15);
+        Assert.Equal(6f, features[0].KillDiff15);
+        Assert.Equal(1f, features[0].FirstBlood);
+        Assert.Equal(1f, features[0].FirstTower);
+        Assert.Equal(1f, features[0].FirstDragon);
+        Assert.Equal(5f, features[0].TowerDiff);
+        Assert.Equal(2f, features[0].DragonDiff);
     }
 }
 

@@ -88,6 +88,15 @@ public partial class DraftPredictionViewModel : ViewModelBase
     [ObservableProperty]
     private bool _isBenchmarking;
 
+    [ObservableProperty]
+    private string _trainingStatusText = "🟢 ML.NET FastTree (Модель готова до передбачення)";
+
+    [ObservableProperty]
+    private bool _isRetraining;
+
+    public bool IsTrainedOnRealData => _analyticsService.IsTrainedOnRealData;
+    public int TrainingDatasetSize => _analyticsService.TrainingDatasetSize;
+
     public DraftPredictionViewModel(IMatchAnalyticsService analyticsService, IDataDragonService dataDragonService)
     {
         _analyticsService = analyticsService;
@@ -257,6 +266,36 @@ public partial class DraftPredictionViewModel : ViewModelBase
     {
         _analyticsService.SetActiveMLAlgorithm(value);
         CalculatePrediction();
+    }
+
+    [RelayCommand]
+    public async Task RetrainOnRealDataAsync()
+    {
+        IsRetraining = true;
+        TrainingStatusText = "⏳ Навчання моделі на реальних матчах з бази даних...";
+        try
+        {
+            var success = await _analyticsService.RetrainModelOnSavedMatchesAsync();
+            if (success)
+            {
+                var count = _analyticsService.TrainingDatasetSize;
+                var acc = _analyticsService.CurrentModelMetrics?.Accuracy ?? 0.85;
+                TrainingStatusText = $"🟢 Навчено на реальних даних ({count} матчів | Точність: {acc:P1})";
+            }
+            else
+            {
+                TrainingStatusText = "ℹ️ Недостатньо матчів у базі (потрібно мінімум 5). Знайдіть гравця в першій вкладці для збереження матчів.";
+            }
+            CalculatePrediction();
+        }
+        catch (Exception ex)
+        {
+            TrainingStatusText = $"Помилка навчання: {ex.Message}";
+        }
+        finally
+        {
+            IsRetraining = false;
+        }
     }
 
     [RelayCommand]

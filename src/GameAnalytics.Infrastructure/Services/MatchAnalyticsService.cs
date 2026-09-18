@@ -82,7 +82,19 @@ public class MatchAnalyticsService : IMatchAnalyticsService
         _predictionEngine.SetActiveAlgorithm(algorithm);
     }
 
+    public async Task<bool> RetrainModelOnSavedMatchesAsync(CancellationToken ct = default)
+    {
+        var matches = await _matchRepository.GetAllMatchesAsync(ct);
+        if (matches.Count < 5) return false;
+
+        await _predictionEngine.TrainModelAsync(matches, ct);
+        return _predictionEngine.IsTrainedOnRealData;
+    }
+
     public GameAnalytics.Core.Enums.MLAlgorithmType ActiveMLAlgorithm => _predictionEngine.ActiveAlgorithm;
     public ModelMetrics? CurrentModelMetrics => _predictionEngine.CurrentModelMetrics;
+    public bool IsTrainedOnRealData => _predictionEngine.IsTrainedOnRealData;
+    public int TrainingDatasetSize => _predictionEngine.TrainingDatasetSize;
+    public DateTime? LastTrainedAt => _predictionEngine.LastTrainedAt;
 }
 

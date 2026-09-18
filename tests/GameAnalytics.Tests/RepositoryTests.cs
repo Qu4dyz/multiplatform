@@ -230,22 +230,6 @@ public class RepositoryTests
                     Win INTEGER NOT NULL,
                     FOREIGN KEY (MatchEntityId) REFERENCES Matches(Id) ON DELETE CASCADE
                 );
-                CREATE TABLE TeamStats (
-                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    MatchEntityId INTEGER NOT NULL,
-                    TeamSide INTEGER NOT NULL,
-                    Win INTEGER NOT NULL,
-                    FirstBlood INTEGER NOT NULL,
-                    FirstTower INTEGER NOT NULL,
-                    FirstDragon INTEGER NOT NULL,
-                    FirstBaron INTEGER NOT NULL,
-                    TowerKills INTEGER NOT NULL,
-                    DragonKills INTEGER NOT NULL,
-                    BaronKills INTEGER NOT NULL,
-                    GoldAt15 INTEGER NOT NULL,
-                    KillsAt15 INTEGER NOT NULL,
-                    FOREIGN KEY (MatchEntityId) REFERENCES Matches(Id) ON DELETE CASCADE
-                );
             ";
             cmd.ExecuteNonQuery();
         }

@@ -134,15 +134,21 @@
                                FontSize="13"
                                Foreground="#F0E6D2" />
 
-                    <Grid ColumnDefinitions="160, *" RowDefinitions="Auto, Auto, Auto">
+                    <Grid ColumnDefinitions="160, *" RowDefinitions="Auto, Auto, Auto, Auto">
                         <TextBlock Grid.Row="0" Grid.Column="0" Text="Поточна ОС клієнта:" FontSize="12" Foreground="#A09B8C" Margin="0,0,0,6" />
                         <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding OsDescription}" FontSize="12" Foreground="#F0E6D2" />
 
                         <TextBlock Grid.Row="1" Grid.Column="0" Text="Версія .NET Core:" FontSize="12" Foreground="#A09B8C" Margin="0,0,0,6" />
                         <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding DotnetVersion, StringFormat='.NET {0}'}" FontSize="12" Foreground="#0AC8B9" FontWeight="Bold" />
 
-                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Віддалений Linux VPS:" FontSize="12" Foreground="#A09B8C" />
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Віддалений Linux VPS:" FontSize="12" Foreground="#A09B8C" Margin="0,0,0,6" />
                         <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding VpsHostInfo}" FontSize="12" Foreground="#C8AA6E" FontWeight="SemiBold" />
+
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="VPS ML Тренування:" FontSize="12" Foreground="#A09B8C" />
+                        <StackPanel Grid.Row="3" Grid.Column="1" Spacing="4">
+                            <TextBlock Text="dotnet run --project src/GameAnalytics.Desktop --vps-train" FontSize="11" Foreground="#0AC8B9" FontFamily="Consolas, monospace" FontWeight="Bold" />
+                            <TextBlock Text="Автономний 24/7 демон для збору рейтингових ігор Riot API та безперервного навчання моделей ML.NET на VPS." FontSize="11" Foreground="#8A93A5" />
+                        </StackPanel>
                     </Grid>
                 </StackPanel>
             </Border>

@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GameAnalytics.Core.Entities;
 using GameAnalytics.Core.Enums;
+using GameAnalytics.Core.Helpers;
 using GameAnalytics.Desktop.Converters;
 using GameAnalytics.ML.Engine;
 
@@ -339,7 +340,7 @@ public partial class PlayerMatchItemViewModel : ObservableObject
             GameModeText = match.QueueName,
             FormattedDuration = match.FormattedDuration,
             FormattedTimeAgo = timeAgo,
-            ChampionName = player?.ChampionName ?? "Aatrox",
+            ChampionName = ChampionNameHelper.ToDisplayName(player?.ChampionName ?? "Aatrox"),
             ChampLevel = player?.ChampLevel > 0 ? player.ChampLevel : 1,
             PositionName = posName,
             PositionIcon = posIcon,
@@ -448,7 +449,7 @@ public partial class PlayerMatchItemViewModel : ObservableObject
             {
                 SummonerName = shortName,
                 FullRiotId = fullRiotId,
-                ChampionName = p.ChampionName,
+                ChampionName = ChampionNameHelper.ToDisplayName(p.ChampionName),
                 IsCurrentPlayer = isCurrent,
                 FormattedKda = $"{p.Kills}/{p.Deaths}/{p.Assists}",
                 SelectPlayerCommand = selectPlayerCommand
@@ -479,7 +480,7 @@ public partial class PlayerMatchItemViewModel : ObservableObject
             {
                 SummonerName = shortName,
                 FullRiotId = fullRiotId,
-                ChampionName = p.ChampionName,
+                ChampionName = ChampionNameHelper.ToDisplayName(p.ChampionName),
                 ChampLevel = p.ChampLevel > 0 ? p.ChampLevel : 1,
                 IsCurrentPlayer = isCurrent,
                 BadgeText = badgeText,
@@ -526,7 +527,7 @@ public partial class PlayerMatchItemViewModel : ObservableObject
             {
                 SummonerName = shortName,
                 FullRiotId = fullRiotId,
-                ChampionName = p.ChampionName,
+                ChampionName = ChampionNameHelper.ToDisplayName(p.ChampionName),
                 IsCurrentPlayer = isCurrent,
                 FormattedKda = $"{p.Kills}/{p.Deaths}/{p.Assists}",
                 SelectPlayerCommand = selectPlayerCommand
@@ -557,7 +558,7 @@ public partial class PlayerMatchItemViewModel : ObservableObject
             {
                 SummonerName = shortName,
                 FullRiotId = fullRiotId,
-                ChampionName = p.ChampionName,
+                ChampionName = ChampionNameHelper.ToDisplayName(p.ChampionName),
                 ChampLevel = p.ChampLevel > 0 ? p.ChampLevel : 1,
                 IsCurrentPlayer = isCurrent,
                 BadgeText = badgeText,
@@ -597,42 +598,9 @@ public partial class PlayerMatchItemViewModel : ObservableObject
         return vm;
     }
 
-    private static readonly Dictionary<string, string> CanonicalChampionNames = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["wukong"] = "MonkeyKing",
-        ["renataglasc"] = "Renata",
-        ["nunu&willump"] = "Nunu",
-        ["nunuwillump"] = "Nunu",
-        ["kaisa"] = "Kaisa",
-        ["khazix"] = "Khazix",
-        ["chogath"] = "Chogath",
-        ["leblanc"] = "Leblanc",
-        ["belveth"] = "Belveth",
-        ["velkoz"] = "Velkoz",
-        ["fiddlesticks"] = "Fiddlesticks",
-        ["drmundo"] = "DrMundo",
-        ["jarvaniv"] = "JarvanIV",
-        ["masteryi"] = "MasterYi",
-        ["missfortune"] = "MissFortune",
-        ["tahmkench"] = "TahmKench",
-        ["twistedfate"] = "TwistedFate",
-        ["xinzhao"] = "XinZhao",
-        ["aurelionsol"] = "AurelionSol",
-        ["leesin"] = "LeeSin",
-        ["ksante"] = "KSante",
-        ["kogmaw"] = "KogMaw",
-        ["reksai"] = "RekSai"
-    };
-
     public static string NormalizeChampionName(string? name)
     {
-        if (string.IsNullOrWhiteSpace(name)) return "Unknown";
-        var clean = name.Replace(" ", "").Replace("'", "").Replace(".", "").Trim();
-        if (CanonicalChampionNames.TryGetValue(clean, out var canonical))
-        {
-            return canonical;
-        }
-        return clean;
+        return ChampionNameHelper.ToDDragonImageKey(name);
     }
 
     private static string ExtractShortName(string fullName)

@@ -61,6 +61,43 @@ public class MatchRepository : IMatchRepository
             }
             catch { /* Column already exists */ }
         }
+
+        try
+        {
+            _context.Database.ExecuteSqlRaw(@"
+                CREATE TABLE IF NOT EXISTS TeamStats (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    MatchEntityId INTEGER NOT NULL,
+                    TeamSide INTEGER NOT NULL,
+                    Win INTEGER NOT NULL DEFAULT 0,
+                    FirstBlood INTEGER NOT NULL DEFAULT 0,
+                    FirstTower INTEGER NOT NULL DEFAULT 0,
+                    FirstDragon INTEGER NOT NULL DEFAULT 0,
+                    FirstBaron INTEGER NOT NULL DEFAULT 0,
+                    TowerKills INTEGER NOT NULL DEFAULT 0,
+                    DragonKills INTEGER NOT NULL DEFAULT 0,
+                    BaronKills INTEGER NOT NULL DEFAULT 0,
+                    GoldAt15 INTEGER NOT NULL DEFAULT 0,
+                    KillsAt15 INTEGER NOT NULL DEFAULT 0,
+                    FOREIGN KEY (MatchEntityId) REFERENCES Matches(Id) ON DELETE CASCADE
+                );");
+        }
+        catch { /* Table already exists */ }
+
+        string[] teamColumns =
+        {
+            "ALTER TABLE TeamStats ADD COLUMN GoldAt15 INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE TeamStats ADD COLUMN KillsAt15 INTEGER NOT NULL DEFAULT 0;"
+        };
+
+        foreach (var sql in teamColumns)
+        {
+            try
+            {
+                _context.Database.ExecuteSqlRaw(sql);
+            }
+            catch { /* Column already exists */ }
+        }
     }
 
     public async Task<IReadOnlyList<Match>> GetAllMatchesAsync(CancellationToken ct = default)

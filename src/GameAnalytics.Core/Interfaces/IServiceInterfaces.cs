@@ -28,6 +28,9 @@ public interface IPredictionEngine
     void SetActiveAlgorithm(GameAnalytics.Core.Enums.MLAlgorithmType algorithm);
     GameAnalytics.Core.Enums.MLAlgorithmType ActiveAlgorithm { get; }
     ModelMetrics? CurrentModelMetrics { get; }
+    bool IsTrainedOnRealData { get; }
+    int TrainingDatasetSize { get; }
+    DateTime? LastTrainedAt { get; }
 }
 
 public interface IMatchAnalyticsService
@@ -36,10 +39,14 @@ public interface IMatchAnalyticsService
     Task<IReadOnlyList<Match>> FetchAndSaveRecentMatchesAsync(string puuid, int count = 10, CancellationToken ct = default);
     Task<IReadOnlyList<Match>> GetSavedMatchHistoryAsync(CancellationToken ct = default);
     Task<MatchTimelineData?> GetMatchTimelineAsync(string matchId, CancellationToken ct = default);
+    Task<bool> RetrainModelOnSavedMatchesAsync(CancellationToken ct = default);
     PredictionResult PredictOutcome(MatchInputFeatures features);
     ModelBenchmarkReport RunBenchmark(int sampleCount = 2000);
     void SetActiveMLAlgorithm(GameAnalytics.Core.Enums.MLAlgorithmType algorithm);
     GameAnalytics.Core.Enums.MLAlgorithmType ActiveMLAlgorithm { get; }
     ModelMetrics? CurrentModelMetrics { get; }
+    bool IsTrainedOnRealData { get; }
+    int TrainingDatasetSize { get; }
+    DateTime? LastTrainedAt { get; }
 }
 
