@@ -112,13 +112,28 @@ public partial class DraftPredictionViewModel : ViewModelBase
     [ObservableProperty]
     private bool _isRetraining;
 
+    [ObservableProperty]
+    private string _liveGameStatusText = "⚪ Очікування активного матчу LoL (порт 2999)";
+
+    [ObservableProperty]
+    private bool _isLiveGameActive;
+
+    [ObservableProperty]
+    private bool _isCheckingLiveGame;
+
+    private readonly ILiveGameService _liveGameService;
+
     public bool IsTrainedOnRealData => _analyticsService.IsTrainedOnRealData;
     public int TrainingDatasetSize => _analyticsService.TrainingDatasetSize;
 
-    public DraftPredictionViewModel(IMatchAnalyticsService analyticsService, IDataDragonService dataDragonService)
+    public DraftPredictionViewModel(
+        IMatchAnalyticsService analyticsService, 
+        IDataDragonService dataDragonService,
+        ILiveGameService liveGameService)
     {
         _analyticsService = analyticsService;
         _dataDragonService = dataDragonService;
+        _liveGameService = liveGameService;
 
         if (_analyticsService.IsTrainedOnRealData)
         {
@@ -427,5 +442,80 @@ public partial class DraftPredictionViewModel : ViewModelBase
         CsDiffAt15 = -35;
         XpDiffAt15 = -1400;
         CalculatePrediction();
+    }
+
+    [RelayCommand]
+    public async Task ScanLiveGameAsync()
+    {
+        IsCheckingLiveGame = true;
+        LiveGameStatusText = "📡 Підключення до локального League Client API (127.0.0.1:2999)...";
+
+        try
+        {
+            var liveStats = await _liveGameService.GetLiveGameStatsAsync();
+            if (liveStats.IsActiveGame)
+            {
+                IsLiveGameActive = true;
+                LiveGameStatusText = $"🔴 Знайдено активний матч! Час гри: {liveStats.FormattedGameTime} ({liveStats.GameMode}). Метрики перенесено в симуляцію!";
+
+                BlueFirstBlood = liveStats.BlueFirstBlood;
+                BlueFirstTower = liveStats.BlueFirstTower;
+                BlueFirstDragon = liveStats.BlueFirstDragon;
+
+                GoldDiffAt15 = Math.Clamp(liveStats.EstimatedGoldDiff, -6000, 6000);
+                KillDiffAt15 = Math.Clamp(liveStats.KillDiff, -15, 15);
+                CsDiffAt15 = Math.Clamp(liveStats.CsDiff, -100, 100);
+                XpDiffAt15 = Math.Clamp(liveStats.EstimatedXpDiff, -4000, 4000);
+
+                BlueTowerCount = Math.Clamp(liveStats.BlueTowers, 0, 5);
+                RedTowerCount = Math.Clamp(liveStats.RedTowers, 0, 5);
+                BlueDragonCount = Math.Clamp(liveStats.BlueDragons, 0, 4);
+                RedDragonCount = Math.Clamp(liveStats.RedDragons, 0, 4);
+                BlueVoidgrubs = Math.Clamp(liveStats.BlueVoidgrubs, 0, 6);
+                RedVoidgrubs = Math.Clamp(liveStats.RedVoidgrubs, 0, 6);
+                BlueHeralds = Math.Clamp(liveStats.BlueHeralds, 0, 1);
+                RedHeralds = Math.Clamp(liveStats.RedHeralds, 0, 1);
+
+                // Auto-match champions to slots if found
+                if (liveStats.BlueChampions.Count > 0 && _allChampions.Count > 0)
+                {
+                    for (int i = 0; i < Math.Min(liveStats.BlueChampions.Count, BlueDraftSlots.Count); i++)
+                    {
+                        var name = liveStats.BlueChampions[i];
+                        var champ = _allChampions.FirstOrDefault(c => c.Name.Equals(name, StringComparison.OrdinalIgnoreCase) ||
+                                                                      c.Id.Equals(name, StringComparison.OrdinalIgnoreCase));
+                        if (champ != null) BlueDraftSlots[i].Champion = champ;
+                    }
+                }
+
+                if (liveStats.RedChampions.Count > 0 && _allChampions.Count > 0)
+                {
+                    for (int i = 0; i < Math.Min(liveStats.RedChampions.Count, RedDraftSlots.Count); i++)
+                    {
+                        var name = liveStats.RedChampions[i];
+                        var champ = _allChampions.FirstOrDefault(c => c.Name.Equals(name, StringComparison.OrdinalIgnoreCase) ||
+                                                                      c.Id.Equals(name, StringComparison.OrdinalIgnoreCase));
+                        if (champ != null) RedDraftSlots[i].Champion = champ;
+                    }
+                }
+
+                RecalculateWinRatesFromDraft();
+                CalculatePrediction();
+            }
+            else
+            {
+                IsLiveGameActive = false;
+                LiveGameStatusText = "⚪ Активний матч League of Legends не виявлено (гра не запущена або триває завантаження).";
+            }
+        }
+        catch (Exception ex)
+        {
+            IsLiveGameActive = false;
+            LiveGameStatusText = $"❌ Помилка сканування Live Client API: {ex.Message}";
+        }
+        finally
+        {
+            IsCheckingLiveGame = false;
+        }
     }
 }

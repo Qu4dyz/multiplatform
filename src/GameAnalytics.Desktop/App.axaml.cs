@@ -54,6 +54,11 @@ public partial class App : Application
         services.AddHttpClient<IRiotApiClient, RiotApiClient>();
         services.AddHttpClient<IDataDragonService, DataDragonService>();
         services.AddHttpClient<IVpsSyncService, VpsSyncService>();
+        services.AddSingleton<ILiveGameService>(sp =>
+        {
+            var client = LiveGameService.CreateLiveClient();
+            return new LiveGameService(client);
+        });
         // Riot API configuration loaded from appsettings.json
         var configPath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
         if (!File.Exists(configPath))
