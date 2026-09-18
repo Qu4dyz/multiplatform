@@ -106,7 +106,7 @@ public class DataLayerTests
     public void SummonerProfile_ProfileIconUrl_FormatsProperly()
     {
         var profile = new SummonerProfile { ProfileIconId = 2072 };
-        Assert.Equal("https://ddragon.leagueoflegends.com/cdn/14.18.1/img/profileicon/2072.png", profile.ProfileIconUrl);
+        Assert.Equal($"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/profileicon/2072.png", profile.ProfileIconUrl);
     }
 
     [Fact]
@@ -919,6 +919,162 @@ public class DataLayerTests
         Assert.True(vm.HasRankProgress);
         Assert.Equal(78, vm.NextTierProgressValue);
         Assert.Contains("78 / 100 LP до Emerald I", vm.NextTierProgressText);
+    }
+
+    [Fact]
+    public void GameConstants_UsesModernPatch_16x()
+    {
+        Assert.StartsWith("16.", GameConstants.DDragonVersion);
+    }
+
+    [Fact]
+    public void GameConstants_GetItemTooltip_ReturnsDetailedDescription()
+    {
+        var ieTooltip = GameConstants.GetItemTooltip(3031); // Infinity Edge
+        Assert.Contains("Infinity Edge", ieTooltip);
+        Assert.Contains("Сила атаки", ieTooltip);
+        Assert.Contains("критичного", ieTooltip);
+
+        var zhonyasTooltip = GameConstants.GetItemTooltip(3157); // Zhonya's Hourglass
+        Assert.Contains("Zhonya's Hourglass", zhonyasTooltip);
+        Assert.Contains("Стазис", zhonyasTooltip);
+
+        var rabadonTooltip = GameConstants.GetItemTooltip(3089); // Rabadon's Deathcap
+        Assert.Contains("Rabadon's Deathcap", rabadonTooltip);
+        Assert.Contains("Сила вмінь", rabadonTooltip);
+    }
+
+    [Fact]
+    public void ItemSlotViewModel_AutoGeneratesTooltip_AndModernUrl()
+    {
+        var slot = new ItemSlotViewModel { ItemId = 3078 }; // Trinity Force
+        Assert.True(slot.HasItem);
+        Assert.Contains(GameConstants.DDragonVersion, slot.IconUrl);
+        Assert.Contains("Trinity Force", slot.ToolTipText);
+        Assert.Contains("Spellblade", slot.ToolTipText);
+    }
+
+    [Fact]
+    public void MatchTacticalAnalyzer_GeneratesTimelineEventsAndGapAnalysis()
+    {
+        var match = new Match
+        {
+            MatchId = "EUW1_999999",
+            GameDurationSeconds = 1850, // ~30.8 min
+            QueueId = 420,
+            WinningTeam = TeamSide.Blue,
+            Participants = new List<Participant>
+            {
+                new()
+                {
+                    Puuid = "player_jgl_shyvana",
+                    SummonerName = "Qu4dyz#qu4",
+                    ChampionName = "Shyvana",
+                    Position = Position.Jungle,
+                    TeamSide = TeamSide.Blue,
+                    Win = true,
+                    Kills = 12,
+                    Deaths = 2,
+                    Assists = 8,
+                    TotalMinionsKilled = 240,
+                    TotalDamageDealtToChampions = 34000
+                },
+                new()
+                {
+                    Puuid = "ally_mid",
+                    ChampionName = "Ahri",
+                    Position = Position.Middle,
+                    TeamSide = TeamSide.Blue,
+                    Kills = 8,
+                    Deaths = 4,
+                    Assists = 10,
+                    TotalDamageDealtToChampions = 25000
+                },
+                new()
+                {
+                    Puuid = "enemy_jgl",
+                    ChampionName = "LeeSin",
+                    Position = Position.Jungle,
+                    TeamSide = TeamSide.Red,
+                    Kills = 3,
+                    Deaths = 6,
+                    Assists = 4,
+                    TotalMinionsKilled = 160,
+                    TotalDamageDealtToChampions = 12000
+                }
+            }
+        };
+
+        var player = match.Participants.First();
+        var report = MatchTacticalAnalyzer.AnalyzeMatchTactics(match, player, "Emerald");
+
+        Assert.NotNull(report);
+        Assert.Equal("Shyvana", report.ChampionName);
+        Assert.Equal("JGL", report.RoleName);
+        Assert.NotEmpty(report.OverallMatchVerdict);
+        Assert.NotEmpty(report.KeyTakeaway);
+
+        // Assert 4-5 tactical play-by-play events
+        Assert.True(report.TimelineEvents.Count >= 4);
+        Assert.Contains(report.TimelineEvents, e => e.Minute <= 5); // Early game milestone
+        Assert.Contains(report.TimelineEvents, e => e.Minute >= 15); // Mid/late milestone
+
+        // Assert 4 Gap Analysis items
+        Assert.True(report.GapAnalysis.Count >= 4);
+        Assert.Contains(report.GapAnalysis, g => g.Category.Contains("Економіка"));
+        Assert.Contains(report.GapAnalysis, g => g.Category.Contains("Бойова"));
+        Assert.Contains(report.GapAnalysis, g => g.Category.Contains("Виживання"));
+    }
+
+    [Fact]
+    public void PlayerMatchItemViewModel_TabSwitchingAndTacticalReport_WorkCorrectly()
+    {
+        var match = new Match
+        {
+            MatchId = "EUW1_123456",
+            GameDurationSeconds = 1500,
+            QueueId = 420,
+            Participants = new List<Participant>
+            {
+                new()
+                {
+                    Puuid = "my_puuid",
+                    SummonerName = "Qu4dyz#qu4",
+                    ChampionName = "Shyvana",
+                    Position = Position.Jungle,
+                    Kills = 9,
+                    Deaths = 1,
+                    Assists = 6,
+                    Item0 = 3078, // Trinity Force
+                    Item6 = 3340  // Stealth Ward
+                }
+            }
+        };
+
+        var vm = PlayerMatchItemViewModel.FromMatch(match, "my_puuid");
+
+        // Verify initial state
+        Assert.Equal(0, vm.ActiveDetailTab);
+        Assert.True(vm.IsScoreboardTabActive);
+        Assert.False(vm.IsTacticalTabActive);
+        Assert.NotNull(vm.TacticalReport);
+        Assert.Equal("Shyvana", vm.TacticalReport.ChampionName);
+
+        // Verify item tooltips
+        Assert.Contains("Trinity Force", vm.ItemSlot0.ToolTipText);
+        Assert.Contains("Stealth Ward", vm.PlayerTrinket.ToolTipText);
+
+        // Switch to Tactical Breakdown tab
+        vm.ShowTacticalTab();
+        Assert.Equal(1, vm.ActiveDetailTab);
+        Assert.False(vm.IsScoreboardTabActive);
+        Assert.True(vm.IsTacticalTabActive);
+
+        // Switch back to Scoreboard tab
+        vm.ShowScoreboardTab();
+        Assert.Equal(0, vm.ActiveDetailTab);
+        Assert.True(vm.IsScoreboardTabActive);
+        Assert.False(vm.IsTacticalTabActive);
     }
 }
 

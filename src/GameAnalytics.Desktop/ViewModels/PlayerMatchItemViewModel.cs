@@ -8,9 +8,22 @@ namespace GameAnalytics.Desktop.ViewModels;
 
 public class ItemSlotViewModel
 {
-    public int ItemId { get; set; }
+    private int _itemId;
+    public int ItemId
+    {
+        get => _itemId;
+        set
+        {
+            _itemId = value;
+            if (string.IsNullOrEmpty(ToolTipText) && value > 0)
+            {
+                ToolTipText = GameConstants.GetItemTooltip(value);
+            }
+        }
+    }
     public bool HasItem => ItemId > 0;
-    public string IconUrl => HasItem ? $"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/item/{ItemId}.png" : string.Empty;
+    public string IconUrl => HasItem ? $"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/item/{ItemId}.png" : string.Empty;
+    public string ToolTipText { get; set; } = string.Empty;
 }
 
 public class DetailedParticipantViewModel
@@ -18,7 +31,7 @@ public class DetailedParticipantViewModel
     public string SummonerName { get; set; } = string.Empty;
     public string FullRiotId { get; set; } = string.Empty;
     public string ChampionName { get; set; } = string.Empty;
-    public string ChampionIconUrl => $"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/champion/{ChampionName}.png";
+    public string ChampionIconUrl => $"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/champion/{ChampionName}.png";
     public int ChampLevel { get; set; } = 1;
     public string ChampLevelText => $"{ChampLevel}";
     public bool IsCurrentPlayer { get; set; }
@@ -66,7 +79,7 @@ public class MiniParticipantViewModel
     public string SummonerName { get; set; } = string.Empty;
     public string FullRiotId { get; set; } = string.Empty;
     public string ChampionName { get; set; } = string.Empty;
-    public string ChampionIconUrl => $"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/champion/{ChampionName}.png";
+    public string ChampionIconUrl => $"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/champion/{ChampionName}.png";
     public bool IsCurrentPlayer { get; set; }
     public string FormattedKda { get; set; } = string.Empty;
     public string IndicatorText => IsCurrentPlayer ? "◆ " : "";
@@ -115,7 +128,7 @@ public partial class PlayerMatchItemViewModel : ObservableObject
     public string ChampionName { get; set; } = string.Empty;
     public int ChampLevel { get; set; } = 1;
     public string ChampLevelText => $"{ChampLevel}";
-    public string ChampionIconUrl => $"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/champion/{ChampionName}.png";
+    public string ChampionIconUrl => $"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/champion/{ChampionName}.png";
     public string PositionName { get; set; } = "MID";
     public string PositionIcon { get; set; } = "⚡";
 
@@ -160,6 +173,32 @@ public partial class PlayerMatchItemViewModel : ObservableObject
     // Detailed lists for expanded view
     public List<DetailedParticipantViewModel> BlueTeamDetailed { get; set; } = new();
     public List<DetailedParticipantViewModel> RedTeamDetailed { get; set; } = new();
+
+    // Tactical Breakdown & Peer Gap Analysis (JungleKingdom style)
+    public MatchTacticalReport? TacticalReport { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsScoreboardTabActive))]
+    [NotifyPropertyChangedFor(nameof(IsTacticalTabActive))]
+    [NotifyPropertyChangedFor(nameof(ScoreboardTabBg))]
+    [NotifyPropertyChangedFor(nameof(ScoreboardTabFg))]
+    [NotifyPropertyChangedFor(nameof(TacticalTabBg))]
+    [NotifyPropertyChangedFor(nameof(TacticalTabFg))]
+    private int _activeDetailTab; // 0 = 5v5 Scoreboard, 1 = Tactical Breakdown
+
+    public bool IsScoreboardTabActive => ActiveDetailTab == 0;
+    public bool IsTacticalTabActive => ActiveDetailTab == 1;
+
+    public string ScoreboardTabBg => ActiveDetailTab == 0 ? "#1C2B42" : "#0D131F";
+    public string ScoreboardTabFg => ActiveDetailTab == 0 ? "#0AC8B9" : "#8A93A5";
+    public string TacticalTabBg => ActiveDetailTab == 1 ? "#1C2B42" : "#0D131F";
+    public string TacticalTabFg => ActiveDetailTab == 1 ? "#C8AA6E" : "#8A93A5";
+
+    [RelayCommand]
+    public void ShowScoreboardTab() => ActiveDetailTab = 0;
+
+    [RelayCommand]
+    public void ShowTacticalTab() => ActiveDetailTab = 1;
 
     // Accordion Expansion state
     [ObservableProperty]
@@ -295,13 +334,16 @@ public partial class PlayerMatchItemViewModel : ObservableObject
         vm.LpChangeBg = lpBg;
         vm.LpChangeFg = lpFg;
 
-        // Evaluate Single Match Grade and Coaching Tag
+        // Evaluate Single Match Grade, Coaching Tag, and Tactical Minute-by-Minute Breakdown
         if (player != null)
         {
             var (grade, gradeColor, tag) = GlobalCoachingAnalyzer.EvaluateSingleMatch(match, player, isVictory, isRemake);
             vm.MatchGrade = grade;
             vm.MatchGradeBg = gradeColor;
             vm.CoachingBadgeText = tag;
+
+            // Generate tactical play-by-play & gap analysis
+            vm.TacticalReport = MatchTacticalAnalyzer.AnalyzeMatchTactics(match, player);
         }
 
         // Populate Blue and Red participants (both compact and detailed)

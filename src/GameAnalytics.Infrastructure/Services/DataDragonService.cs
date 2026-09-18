@@ -13,6 +13,12 @@ public class DataDragonService : IDataDragonService
     private List<ChampionInfo>? _cachedChampions;
     private readonly SemaphoreSlim _lock = new(1, 1);
 
+    public static string LatestVersion
+    {
+        get => GameConstants.DDragonVersion;
+        set => GameConstants.DDragonVersion = value;
+    }
+
     public DataDragonService(HttpClient httpClient)
     {
         _httpClient = httpClient;
@@ -31,6 +37,7 @@ public class DataDragonService : IDataDragonService
             if (versions != null && versions.Count > 0)
             {
                 _cachedVersion = versions[0];
+                GameConstants.DDragonVersion = _cachedVersion;
                 return _cachedVersion;
             }
         }
@@ -39,7 +46,8 @@ public class DataDragonService : IDataDragonService
             // Offline fallback
         }
 
-        _cachedVersion = "14.18.1";
+        _cachedVersion = "16.18.1";
+        GameConstants.DDragonVersion = _cachedVersion;
         return _cachedVersion;
     }
 
@@ -186,6 +194,91 @@ public class DataDragonService : IDataDragonService
 
         [JsonPropertyName("tags")]
         public List<string>? Tags { get; set; }
+    }
+
+    public async Task PreloadItemDataAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            var version = await GetLatestGameVersionAsync(ct);
+            var url = $"https://ddragon.leagueoflegends.com/cdn/{version}/data/en_US/item.json";
+            var response = await _httpClient.GetFromJsonAsync<DDragonItemResponse>(url, ct);
+
+            if (response?.Data != null)
+            {
+                foreach (var kvp in response.Data)
+                {
+                    if (!int.TryParse(kvp.Key, out var itemId)) continue;
+                    var dto = kvp.Value;
+
+                    var rawDesc = dto.Description ?? string.Empty;
+                    var cleanDesc = System.Text.RegularExpressions.Regex.Replace(rawDesc, @"<br\s*/?>", "\n", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                    cleanDesc = System.Text.RegularExpressions.Regex.Replace(cleanDesc, @"<[^>]+>", string.Empty);
+                    cleanDesc = System.Text.RegularExpressions.Regex.Replace(cleanDesc, @"\n{3,}", "\n\n").Trim();
+
+                    var itemDef = new ItemDefinition
+                    {
+                        Id = itemId,
+                        Name = dto.Name ?? string.Empty,
+                        Plaintext = dto.Plaintext ?? string.Empty,
+                        FormattedDescription = cleanDesc,
+                        Gold = dto.Gold?.Total ?? 0
+                    };
+
+                    GameConstants.Items[itemId] = itemDef;
+                }
+            }
+        }
+        catch
+        {
+            // Fallback items are already available in GameConstants
+        }
+    }
+
+    public async Task<ItemDefinition?> GetItemByIdAsync(int itemId, CancellationToken ct = default)
+    {
+        if (GameConstants.Items.TryGetValue(itemId, out var item))
+        {
+            return item;
+        }
+
+        if (GameConstants.Items.Count == 0)
+        {
+            await PreloadItemDataAsync(ct);
+            if (GameConstants.Items.TryGetValue(itemId, out var loaded))
+            {
+                return loaded;
+            }
+        }
+
+        return null;
+    }
+
+    private class DDragonItemResponse
+    {
+        [JsonPropertyName("data")]
+        public Dictionary<string, DDragonItemDto>? Data { get; set; }
+    }
+
+    private class DDragonItemDto
+    {
+        [JsonPropertyName("name")]
+        public string? Name { get; set; }
+
+        [JsonPropertyName("description")]
+        public string? Description { get; set; }
+
+        [JsonPropertyName("plaintext")]
+        public string? Plaintext { get; set; }
+
+        [JsonPropertyName("gold")]
+        public DDragonGoldDto? Gold { get; set; }
+    }
+
+    private class DDragonGoldDto
+    {
+        [JsonPropertyName("total")]
+        public int Total { get; set; }
     }
 }
 

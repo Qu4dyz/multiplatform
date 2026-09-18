@@ -9,5 +9,7 @@ public interface IDataDragonService
     Task<ChampionInfo?> GetChampionByKeyAsync(int key, CancellationToken ct = default);
     Task<ChampionInfo?> GetChampionByIdAsync(string id, CancellationToken ct = default);
     Task<IReadOnlyList<ChampionInfo>> GetChampionsByRoleAsync(string role, CancellationToken ct = default);
+    Task PreloadItemDataAsync(CancellationToken ct = default);
+    Task<ItemDefinition?> GetItemByIdAsync(int itemId, CancellationToken ct = default);
 }
 

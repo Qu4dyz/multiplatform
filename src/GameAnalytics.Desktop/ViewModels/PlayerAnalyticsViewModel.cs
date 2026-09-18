@@ -13,7 +13,7 @@ namespace GameAnalytics.Desktop.ViewModels;
 public class RecentChampionStatViewModel
 {
     public string ChampionName { get; set; } = string.Empty;
-    public string ChampionIconUrl => $"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/champion/{ChampionName}.png";
+    public string ChampionIconUrl => $"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/champion/{ChampionName}.png";
     public int GamesCount { get; set; }
     public int WinsCount { get; set; }
     public double CustomWinRate { get; set; } = -1;
@@ -28,6 +28,7 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
 {
     private readonly IMatchAnalyticsService _analyticsService;
     private readonly RiotApiOptions _options;
+    private readonly IDataDragonService? _dataDragonService;
 
     [ObservableProperty]
     private string _gameName = "Qu4dyz";
@@ -188,10 +189,11 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
         _selectedRegion = AvailableRegions[0];
     }
 
-    public PlayerAnalyticsViewModel(IMatchAnalyticsService analyticsService, RiotApiOptions options)
+    public PlayerAnalyticsViewModel(IMatchAnalyticsService analyticsService, RiotApiOptions options, IDataDragonService? dataDragonService = null)
     {
         _analyticsService = analyticsService;
         _options = options;
+        _dataDragonService = dataDragonService;
 
         _selectedRegion = AvailableRegions.FirstOrDefault(r => r.PlatformId.Equals(options.PlatformRegion, StringComparison.OrdinalIgnoreCase))
                           ?? AvailableRegions[0];
@@ -199,6 +201,7 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
         _apiKeyInput = options.ApiKey;
 
         UpdateApiStatus();
+        _ = _dataDragonService?.PreloadItemDataAsync();
         _ = SearchPlayerAsync();
     }
 
@@ -318,15 +321,15 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
                     {
                         if (!string.IsNullOrWhiteSpace(p.ChampionName))
                         {
-                            iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/champion/{p.ChampionName}.png");
+                            iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/champion/{p.ChampionName}.png");
                         }
-                        if (p.Item0 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/item/{p.Item0}.png");
-                        if (p.Item1 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/item/{p.Item1}.png");
-                        if (p.Item2 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/item/{p.Item2}.png");
-                        if (p.Item3 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/item/{p.Item3}.png");
-                        if (p.Item4 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/item/{p.Item4}.png");
-                        if (p.Item5 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/item/{p.Item5}.png");
-                        if (p.Item6 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/item/{p.Item6}.png");
+                        if (p.Item0 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/item/{p.Item0}.png");
+                        if (p.Item1 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/item/{p.Item1}.png");
+                        if (p.Item2 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/item/{p.Item2}.png");
+                        if (p.Item3 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/item/{p.Item3}.png");
+                        if (p.Item4 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/item/{p.Item4}.png");
+                        if (p.Item5 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/item/{p.Item5}.png");
+                        if (p.Item6 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/item/{p.Item6}.png");
                     }
                 }
                 await BitmapAssetValueConverter.PreloadImagesAsync(iconsToPreload);
@@ -380,15 +383,15 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
                 {
                     if (!string.IsNullOrWhiteSpace(p.ChampionName))
                     {
-                        iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/champion/{p.ChampionName}.png");
+                        iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/champion/{p.ChampionName}.png");
                     }
-                    if (p.Item0 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/item/{p.Item0}.png");
-                    if (p.Item1 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/item/{p.Item1}.png");
-                    if (p.Item2 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/item/{p.Item2}.png");
-                    if (p.Item3 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/item/{p.Item3}.png");
-                    if (p.Item4 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/item/{p.Item4}.png");
-                    if (p.Item5 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/item/{p.Item5}.png");
-                    if (p.Item6 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/item/{p.Item6}.png");
+                    if (p.Item0 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/item/{p.Item0}.png");
+                    if (p.Item1 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/item/{p.Item1}.png");
+                    if (p.Item2 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/item/{p.Item2}.png");
+                    if (p.Item3 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/item/{p.Item3}.png");
+                    if (p.Item4 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/item/{p.Item4}.png");
+                    if (p.Item5 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/item/{p.Item5}.png");
+                    if (p.Item6 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/item/{p.Item6}.png");
                 }
             }
             await BitmapAssetValueConverter.PreloadImagesAsync(iconsToPreload);

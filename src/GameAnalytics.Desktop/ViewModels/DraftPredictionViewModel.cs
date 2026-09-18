@@ -34,7 +34,7 @@ public partial class DraftPredictionViewModel : ViewModelBase
     private string _selectedRoleFilter = "All";
 
     [ObservableProperty]
-    private string _patchVersion = "14.18.1";
+    private string _patchVersion = GameConstants.DDragonVersion;
 
     // In-game early metrics
     [ObservableProperty]
