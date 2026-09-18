@@ -24,7 +24,7 @@
             <Setter Property="RenderTransform" Value="scale(1.0)" />
         </Style>
         <Style Selector="Button.action-btn:pointerover">
-            <Setter Property="RenderTransform" Value="scale(1.03)" />
+            <Setter Property="RenderTransform" Value="scale(1.02)" />
         </Style>
 
         <!-- Match Card Hover Animation -->
@@ -317,8 +317,148 @@
                 </Grid>
             </Border>
 
-            <!-- 3. RECENT MATCHES SECTION HEADER -->
-            <Grid ColumnDefinitions="*, Auto" Margin="0,6,0,0">
+            <!-- 2.5 RECENT GAMES SESSION OVERVIEW (OP.GG style) -->
+            <Border Background="#121824"
+                    CornerRadius="10"
+                    Padding="18"
+                    BorderBrush="#1E283A"
+                    BorderThickness="1"
+                    IsVisible="{Binding HasSessionData}">
+                <Grid ColumnDefinitions="200, 200, *, 170">
+                    <!-- Col 0: WinRate & Record -->
+                    <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
+                        <TextBlock Text="СТАТИСТИКА СЕСІЇ"
+                                   FontSize="11"
+                                   FontWeight="Bold"
+                                   Foreground="#8A93A5"
+                                   LetterSpacing="1.1" />
+                        <TextBlock Text="{Binding SessionRecordText}"
+                                   FontSize="13"
+                                   FontWeight="Bold"
+                                   Foreground="#F0E6D2" />
+                        <TextBlock Text="{Binding SessionWinRate, StringFormat='{}{0:F1}% WR'}"
+                                   FontSize="22"
+                                   FontWeight="Bold"
+                                   Foreground="#0AC8B9" />
+                        <!-- Mini Win/Loss Bar -->
+                        <ProgressBar Value="{Binding SessionWins}"
+                                     Minimum="0"
+                                     Maximum="{Binding SessionTotalGames}"
+                                     Height="5"
+                                     Width="160"
+                                     Foreground="#5383E8"
+                                     Background="#E84057"
+                                     Margin="0,2,0,0" />
+                    </StackPanel>
+
+                    <!-- Col 1: Average KDA & Kill Participation -->
+                    <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center" Margin="10,0,0,0">
+                        <TextBlock Text="СЕРЕДНІЙ KDA СЕСІЇ"
+                                   FontSize="11"
+                                   FontWeight="Bold"
+                                   Foreground="#8A93A5"
+                                   LetterSpacing="1.1" />
+                        <TextBlock Text="{Binding AvgKdaNumbers}"
+                                   FontSize="16"
+                                   FontWeight="Bold"
+                                   Foreground="#FFFFFF" />
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Border Background="#091428"
+                                    CornerRadius="4"
+                                    Padding="6,2"
+                                    BorderBrush="#252D3D"
+                                    BorderThickness="1">
+                                <TextBlock Text="{Binding SessionKdaRatioText}"
+                                           FontSize="11"
+                                           FontWeight="Bold"
+                                           Foreground="{Binding SessionKdaRatioColor}" />
+                            </Border>
+                            <Border Background="#091428"
+                                    CornerRadius="4"
+                                    Padding="6,2"
+                                    BorderBrush="#252D3D"
+                                    BorderThickness="1">
+                                <TextBlock Text="{Binding AvgKpText}"
+                                           FontSize="11"
+                                           FontWeight="SemiBold"
+                                           Foreground="#C8AA6E" />
+                            </Border>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Col 2: Top 3 Most Played Champions -->
+                    <StackPanel Grid.Column="2" Spacing="6" VerticalAlignment="Center" Margin="15,0,0,0">
+                        <TextBlock Text="НАЙЧАСТІШІ ЧЕМПІОНИ СЕСІЇ"
+                                   FontSize="11"
+                                   FontWeight="Bold"
+                                   Foreground="#8A93A5"
+                                   LetterSpacing="1.1" />
+                        <ItemsControl ItemsSource="{Binding TopRecentChampions}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="16" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:RecentChampionStatViewModel">
+                                    <Grid ColumnDefinitions="32, *" VerticalAlignment="Center">
+                                        <!-- Champion Avatar -->
+                                        <Border Grid.Column="0"
+                                                Width="30" Height="30"
+                                                CornerRadius="15"
+                                                ClipToBounds="True"
+                                                Background="#091428"
+                                                BorderBrush="#252D3D"
+                                                BorderThickness="1.5">
+                                            <Image Source="{Binding ChampionIconUrl, Converter={StaticResource BitmapAssetConverter}}"
+                                                   Width="30" Height="30"
+                                                   Stretch="UniformToFill" />
+                                        </Border>
+                                        <!-- Champion Details -->
+                                        <StackPanel Grid.Column="1" Margin="8,0,0,0" Spacing="1">
+                                            <TextBlock Text="{Binding ChampionName}"
+                                                       FontSize="11"
+                                                       FontWeight="Bold"
+                                                       Foreground="#F0E6D2" />
+                                            <TextBlock Text="{Binding WinRateText}"
+                                                       FontSize="10"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{Binding WinRateColor}" />
+                                            <TextBlock Text="{Binding KdaText}"
+                                                       FontSize="10"
+                                                       Foreground="#8A93A5" />
+                                        </StackPanel>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+
+                    <!-- Col 3: Preferred Role -->
+                    <StackPanel Grid.Column="3" Spacing="6" VerticalAlignment="Center" HorizontalAlignment="Right">
+                        <TextBlock Text="ПРІОРИТЕТНА ЛІНІЯ"
+                                   FontSize="11"
+                                   FontWeight="Bold"
+                                   Foreground="#8A93A5"
+                                   LetterSpacing="1.1"
+                                   HorizontalAlignment="Right" />
+                        <Border Background="#091428"
+                                CornerRadius="6"
+                                Padding="12,6"
+                                BorderBrush="#252D3D"
+                                BorderThickness="1"
+                                HorizontalAlignment="Right">
+                            <TextBlock Text="{Binding PreferredRoleText}"
+                                       FontSize="13"
+                                       FontWeight="Bold"
+                                       Foreground="#F0E6D2" />
+                        </Border>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- 3. RECENT MATCHES SECTION HEADER & QUEUE FILTER -->
+            <Grid ColumnDefinitions="*, Auto, Auto" Margin="0,4,0,0">
                 <TextBlock Grid.Column="0"
                            Text="ІСТОРІЯ ОСТАННІХ МАТЧІВ"
                            FontWeight="Bold"
@@ -327,20 +467,32 @@
                            LetterSpacing="1.2"
                            VerticalAlignment="Center" />
 
-                <Border Grid.Column="1"
+                <!-- Queue Filter ComboBox -->
+                <ComboBox Grid.Column="1"
+                          ItemsSource="{Binding AvailableQueueFilters}"
+                          SelectedItem="{Binding SelectedQueueFilter}"
+                          Height="32"
+                          Width="140"
+                          FontSize="11"
+                          VerticalContentAlignment="Center"
+                          Margin="0,0,12,0" />
+
+                <!-- Match Count Pill -->
+                <Border Grid.Column="2"
                         Background="#121824"
                         CornerRadius="4"
                         Padding="10,4"
                         BorderBrush="#252D3D"
-                        BorderThickness="1">
-                    <TextBlock Text="{Binding RecentMatches.Count, StringFormat='Показано матчів: {0}'}"
+                        BorderThickness="1"
+                        VerticalAlignment="Center">
+                    <TextBlock Text="{Binding FilteredRecentMatches.Count, StringFormat='Показано матчів: {0}'}"
                                FontSize="11"
                                Foreground="#8A93A5" />
                 </Border>
             </Grid>
 
             <!-- 4. MODERN MATCH CARDS LIST (OP.GG / U.GG style) -->
-            <ItemsControl ItemsSource="{Binding RecentMatches}">
+            <ItemsControl ItemsSource="{Binding FilteredRecentMatches}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:PlayerMatchItemViewModel">
                         <Border Classes="match-card"
@@ -517,6 +669,30 @@
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
+
+            <!-- 5. LOAD MORE MATCHES BUTTON -->
+            <Button Command="{Binding LoadMoreMatchesCommand}"
+                    IsEnabled="{Binding !IsLoadingMore}"
+                    IsVisible="{Binding CanLoadMore}"
+                    Classes="action-btn"
+                    Height="42"
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Center"
+                    Background="#121824"
+                    BorderBrush="#252D3D"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Cursor="Hand"
+                    Margin="0,4,0,20">
+                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                    <TextBlock Text="➕" FontSize="13" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding IsLoadingMore, Converter={x:Null}, FallbackValue='ЗАВАНТАЖИТИ ЩЕ 5 МАТЧІВ'}"
+                               FontSize="12"
+                               FontWeight="Bold"
+                               Foreground="#0AC8B9"
+                               VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
 
         </StackPanel>
     </ScrollViewer>

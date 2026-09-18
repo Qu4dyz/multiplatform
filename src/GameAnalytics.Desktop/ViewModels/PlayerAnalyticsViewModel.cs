@@ -9,6 +9,19 @@ using GameAnalytics.Infrastructure.Configuration;
 
 namespace GameAnalytics.Desktop.ViewModels;
 
+public class RecentChampionStatViewModel
+{
+    public string ChampionName { get; set; } = string.Empty;
+    public string ChampionIconUrl => $"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/champion/{ChampionName}.png";
+    public int GamesCount { get; set; }
+    public int WinsCount { get; set; }
+    public double WinRate => GamesCount > 0 ? Math.Round((double)WinsCount / GamesCount * 100, 1) : 0;
+    public double AvgKda { get; set; }
+    public string WinRateText => $"{WinRate:F0}% ({WinsCount}W {GamesCount - WinsCount}L)";
+    public string WinRateColor => WinRate >= 60 ? "#0AC8B9" : (WinRate >= 50 ? "#5383E8" : "#E84057");
+    public string KdaText => $"{AvgKda:F2}:1 KDA";
+}
+
 public partial class PlayerAnalyticsViewModel : ViewModelBase
 {
     private readonly IMatchAnalyticsService _analyticsService;
@@ -49,10 +62,68 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
     private ObservableCollection<PlayerMatchItemViewModel> _recentMatches = new();
 
     [ObservableProperty]
+    private ObservableCollection<PlayerMatchItemViewModel> _filteredRecentMatches = new();
+
+    [ObservableProperty]
+    private ObservableCollection<RecentChampionStatViewModel> _topRecentChampions = new();
+
+    [ObservableProperty]
+    private string _selectedQueueFilter = "Всі черги";
+
+    public IReadOnlyList<string> AvailableQueueFilters { get; } = new[]
+    {
+        "Всі черги",
+        "Normal Draft",
+        "Ranked Solo",
+        "ARAM"
+    };
+
+    [ObservableProperty]
+    private int _sessionTotalGames;
+
+    [ObservableProperty]
+    private int _sessionWins;
+
+    [ObservableProperty]
+    private int _sessionLosses;
+
+    [ObservableProperty]
+    private double _sessionWinRate;
+
+    [ObservableProperty]
+    private string _sessionRecordText = string.Empty;
+
+    [ObservableProperty]
+    private string _avgKdaNumbers = string.Empty;
+
+    [ObservableProperty]
+    private string _sessionKdaRatioText = string.Empty;
+
+    [ObservableProperty]
+    private string _sessionKdaRatioColor = "#F0E6D2";
+
+    [ObservableProperty]
+    private string _avgKpText = "P/Kill 0%";
+
+    [ObservableProperty]
+    private string _preferredRoleText = "MID ⚡";
+
+    [ObservableProperty]
+    private bool _hasSessionData;
+
+    [ObservableProperty]
     private bool _isLoading;
 
     [ObservableProperty]
+    private bool _isLoadingMore;
+
+    [ObservableProperty]
+    private bool _canLoadMore = true;
+
+    [ObservableProperty]
     private string _statusMessage = "Введіть Riot ID (наприклад, Qu4dyz #qu4) та оберіть сервер";
+
+    private int _currentMatchCount = 10;
 
     public PlayerAnalyticsViewModel(IMatchAnalyticsService analyticsService, RiotApiOptions options)
     {
@@ -84,6 +155,11 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
             Summoner.Tier = value;
             TierBadgeColor = GetTierColor(value);
         }
+    }
+
+    partial void OnSelectedQueueFilterChanged(string value)
+    {
+        ApplyQueueFilter();
     }
 
     private void UpdateApiStatus()
@@ -131,6 +207,8 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
         try
         {
             IsLoading = true;
+            _currentMatchCount = 10;
+            CanLoadMore = true;
             StatusMessage = $"Завантаження даних для {GameName}#{TagLine} ({SelectedRegion.DisplayName})...";
 
             var profile = await _analyticsService.FetchAndCacheSummonerAsync(GameName.Trim(), TagLine.Trim());
@@ -142,9 +220,9 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
                     ? $"Профіль {profile.FullName} успішно завантажено з Riot API."
                     : $"Профіль {profile.FullName} (Демо-режим). Отримання матчів...";
 
-                var matches = await _analyticsService.FetchAndSaveRecentMatchesAsync(profile.Puuid, 5);
+                var matches = await _analyticsService.FetchAndSaveRecentMatchesAsync(profile.Puuid, _currentMatchCount);
 
-                // Preload profile icon and champion icons for instant rendering
+                // Preload profile icon and champion icons for instant zero-flicker rendering
                 var iconsToPreload = new List<string> { profile.ProfileIconUrl };
                 foreach (var m in matches)
                 {
@@ -164,6 +242,9 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
                     RecentMatches.Add(PlayerMatchItemViewModel.FromMatch(m, profile.Puuid, profile.GameName));
                 }
 
+                ApplyQueueFilter();
+                CalculateSessionSummary();
+
                 StatusMessage = $"Завантажено {RecentMatches.Count} матчів для {profile.FullName} ({SelectedRegion.Code}).";
             }
             else
@@ -178,6 +259,160 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
         finally
         {
             IsLoading = false;
+        }
+    }
+
+    [RelayCommand]
+    public async Task LoadMoreMatchesAsync()
+    {
+        if (Summoner == null || IsLoading || IsLoadingMore || !CanLoadMore) return;
+
+        try
+        {
+            IsLoadingMore = true;
+            _currentMatchCount += 5;
+            StatusMessage = $"Завантаження наступних матчів (всього: {_currentMatchCount})...";
+
+            var matches = await _analyticsService.FetchAndSaveRecentMatchesAsync(Summoner.Puuid, _currentMatchCount);
+
+            // Preload any newly fetched icons
+            var iconsToPreload = new List<string>();
+            foreach (var m in matches)
+            {
+                foreach (var p in m.Participants)
+                {
+                    if (!string.IsNullOrWhiteSpace(p.ChampionName))
+                    {
+                        iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/14.18.1/img/champion/{p.ChampionName}.png");
+                    }
+                }
+            }
+            await BitmapAssetValueConverter.PreloadImagesAsync(iconsToPreload);
+
+            RecentMatches.Clear();
+            foreach (var m in matches)
+            {
+                RecentMatches.Add(PlayerMatchItemViewModel.FromMatch(m, Summoner.Puuid, Summoner.GameName));
+            }
+
+            ApplyQueueFilter();
+            CalculateSessionSummary();
+
+            if (matches.Count < _currentMatchCount)
+            {
+                CanLoadMore = false;
+                StatusMessage = $"Завантажено всі доступні матчі ({RecentMatches.Count} шт.).";
+            }
+            else
+            {
+                StatusMessage = $"Завантажено {RecentMatches.Count} матчів для {Summoner.FullName}.";
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Помилка завантаження: {ex.Message}";
+        }
+        finally
+        {
+            IsLoadingMore = false;
+        }
+    }
+
+    private void ApplyQueueFilter()
+    {
+        if (RecentMatches.Count == 0)
+        {
+            FilteredRecentMatches.Clear();
+            return;
+        }
+
+        IEnumerable<PlayerMatchItemViewModel> filtered = RecentMatches;
+
+        if (SelectedQueueFilter == "Normal Draft")
+        {
+            filtered = filtered.Where(m => m.GameModeText.Contains("Normal", StringComparison.OrdinalIgnoreCase) || m.GameModeText.Contains("Draft", StringComparison.OrdinalIgnoreCase));
+        }
+        else if (SelectedQueueFilter == "Ranked Solo")
+        {
+            filtered = filtered.Where(m => m.GameModeText.Contains("Ranked", StringComparison.OrdinalIgnoreCase) || m.GameModeText.Contains("Solo", StringComparison.OrdinalIgnoreCase));
+        }
+        else if (SelectedQueueFilter == "ARAM")
+        {
+            filtered = filtered.Where(m => m.GameModeText.Contains("ARAM", StringComparison.OrdinalIgnoreCase));
+        }
+
+        FilteredRecentMatches.Clear();
+        foreach (var m in filtered)
+        {
+            FilteredRecentMatches.Add(m);
+        }
+    }
+
+    private void CalculateSessionSummary()
+    {
+        if (RecentMatches.Count == 0)
+        {
+            HasSessionData = false;
+            TopRecentChampions.Clear();
+            return;
+        }
+
+        HasSessionData = true;
+        SessionTotalGames = RecentMatches.Count;
+        SessionWins = RecentMatches.Count(m => m.IsVictory);
+        SessionLosses = RecentMatches.Count(m => !m.IsVictory);
+        SessionWinRate = SessionTotalGames > 0 ? Math.Round((double)SessionWins / SessionTotalGames * 100, 1) : 0;
+        SessionRecordText = $"{SessionTotalGames} ігор: {SessionWins}W - {SessionLosses}L";
+
+        var avgK = RecentMatches.Average(m => m.Kills);
+        var avgD = RecentMatches.Average(m => m.Deaths);
+        var avgA = RecentMatches.Average(m => m.Assists);
+        AvgKdaNumbers = $"{avgK:F1} / {avgD:F1} / {avgA:F1}";
+
+        var avgRatio = avgD > 0 ? (avgK + avgA) / avgD : (avgK + avgA);
+        SessionKdaRatioText = $"{avgRatio:F2}:1 KDA";
+        SessionKdaRatioColor = (avgRatio >= 5.0 || avgD == 0) ? "#E6B328" : (avgRatio >= 3.0 ? "#0AC8B9" : "#F0E6D2");
+
+        var avgKp = (int)Math.Round(RecentMatches.Average(m => m.KillParticipationPercent));
+        AvgKpText = $"P/Kill {avgKp}%";
+
+        // Top 3 most played champions in recent session
+        TopRecentChampions.Clear();
+        var champGroups = RecentMatches
+            .GroupBy(m => m.ChampionName)
+            .OrderByDescending(g => g.Count())
+            .ThenByDescending(g => g.Count(m => m.IsVictory))
+            .Take(3);
+
+        foreach (var g in champGroups)
+        {
+            var champGames = g.Count();
+            var champWins = g.Count(m => m.IsVictory);
+            var champAvgD = g.Average(m => m.Deaths);
+            var champKda = champAvgD > 0
+                ? (g.Average(m => m.Kills) + g.Average(m => m.Assists)) / champAvgD
+                : (g.Average(m => m.Kills) + g.Average(m => m.Assists));
+
+            TopRecentChampions.Add(new RecentChampionStatViewModel
+            {
+                ChampionName = g.Key,
+                GamesCount = champGames,
+                WinsCount = champWins,
+                AvgKda = Math.Round(champKda, 2)
+            });
+        }
+
+        // Preferred role
+        var topRole = RecentMatches
+            .GroupBy(m => m.PositionName)
+            .OrderByDescending(g => g.Count())
+            .FirstOrDefault();
+
+        if (topRole != null)
+        {
+            var pct = (int)Math.Round((double)topRole.Count() / SessionTotalGames * 100);
+            var icon = topRole.FirstOrDefault()?.PositionIcon ?? "⚡";
+            PreferredRoleText = $"{topRole.Key} {icon} ({pct}%)";
         }
     }
 
