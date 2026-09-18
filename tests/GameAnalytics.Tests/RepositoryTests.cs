@@ -145,5 +145,121 @@ public class RepositoryTests
         // Cleanup
         context.Database.EnsureDeleted();
     }
+
+    [Fact]
+    public async Task SaveMatchAsync_PersistsParticipantId()
+    {
+        // Arrange
+        using var context = CreateTestContext();
+        var repo = new MatchRepository(context);
+
+        var match = new Match
+        {
+            MatchId = "EUW1_PARTICIPANT_TEST",
+            GameDurationSeconds = 1500,
+            GameVersion = "14.18.1",
+            WinningTeam = TeamSide.Blue,
+            Participants = new List<Participant>
+            {
+                new()
+                {
+                    Puuid = "puuid-1",
+                    SummonerName = "Qu4dyz",
+                    ChampionName = "Ambessa",
+                    ParticipantId = 4,
+                    ChampLevel = 14,
+                    Kills = 10,
+                    Deaths = 1,
+                    Assists = 5,
+                    Win = true,
+                    TeamSide = TeamSide.Blue
+                }
+            }
+        };
+
+        // Act
+        await repo.SaveMatchAsync(match);
+        var fetched = await repo.GetMatchByMatchIdAsync("EUW1_PARTICIPANT_TEST");
+
+        // Assert
+        Assert.NotNull(fetched);
+        Assert.Single(fetched.Participants);
+        Assert.Equal(4, fetched.Participants[0].ParticipantId);
+
+        // Cleanup
+        context.Database.EnsureDeleted();
+    }
+
+    [Fact]
+    public async Task ApplyMissingColumns_AddsParticipantIdToLegacySchema()
+    {
+        // Arrange: manually create legacy Participants table without ParticipantId
+        var dbName = $"test_legacy_{Guid.NewGuid():N}.db";
+        var options = new DbContextOptionsBuilder<GameAnalyticsDbContext>()
+            .UseSqlite($"Data Source={dbName}")
+            .Options;
+
+        using (var initialContext = new GameAnalyticsDbContext(options))
+        {
+            initialContext.Database.OpenConnection();
+            using var cmd = initialContext.Database.GetDbConnection().CreateCommand();
+            cmd.CommandText = @"
+                CREATE TABLE Matches (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    MatchId TEXT NOT NULL,
+                    GameDurationSeconds INTEGER NOT NULL,
+                    GameVersion TEXT,
+                    GameCreation TEXT NOT NULL,
+                    WinningTeam INTEGER NOT NULL
+                );
+                CREATE TABLE Participants (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    MatchEntityId INTEGER NOT NULL,
+                    Puuid TEXT,
+                    SummonerName TEXT,
+                    ChampionName TEXT,
+                    ChampionId INTEGER NOT NULL,
+                    TeamSide INTEGER NOT NULL,
+                    Position INTEGER NOT NULL,
+                    Kills INTEGER NOT NULL,
+                    Deaths INTEGER NOT NULL,
+                    Assists INTEGER NOT NULL,
+                    TotalDamageDealtToChampions INTEGER NOT NULL,
+                    GoldEarned INTEGER NOT NULL,
+                    TotalMinionsKilled INTEGER NOT NULL,
+                    Win INTEGER NOT NULL,
+                    FOREIGN KEY (MatchEntityId) REFERENCES Matches(Id) ON DELETE CASCADE
+                );
+                CREATE TABLE TeamStats (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    MatchEntityId INTEGER NOT NULL,
+                    TeamSide INTEGER NOT NULL,
+                    Win INTEGER NOT NULL,
+                    FirstBlood INTEGER NOT NULL,
+                    FirstTower INTEGER NOT NULL,
+                    FirstDragon INTEGER NOT NULL,
+                    FirstBaron INTEGER NOT NULL,
+                    TowerKills INTEGER NOT NULL,
+                    DragonKills INTEGER NOT NULL,
+                    BaronKills INTEGER NOT NULL,
+                    GoldAt15 INTEGER NOT NULL,
+                    KillsAt15 INTEGER NOT NULL,
+                    FOREIGN KEY (MatchEntityId) REFERENCES Matches(Id) ON DELETE CASCADE
+                );
+            ";
+            cmd.ExecuteNonQuery();
+        }
+
+        // Act: constructing MatchRepository applies ApplyMissingColumns()
+        using (var repoContext = new GameAnalyticsDbContext(options))
+        {
+            var repo = new MatchRepository(repoContext);
+            var matches = await repo.GetAllMatchesAsync();
+
+            // Assert
+            Assert.Empty(matches);
+            repoContext.Database.EnsureDeleted();
+        }
+    }
 }
 

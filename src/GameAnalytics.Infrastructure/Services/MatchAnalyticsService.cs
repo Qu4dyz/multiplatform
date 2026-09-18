@@ -32,9 +32,11 @@ public class MatchAnalyticsService : IMatchAnalyticsService
         foreach (var id in matchIds)
         {
             var existing = await _matchRepository.GetMatchByMatchIdAsync(id, ct);
-            var hasItemData = existing != null && existing.Participants.Any(p => p.Item0 > 0 || p.Item1 > 0 || p.Item2 > 0 || p.Item6 > 0);
+            var hasCompleteData = existing != null 
+                && existing.Participants.Any(p => p.Item0 > 0 || p.Item1 > 0 || p.Item2 > 0 || p.Item6 > 0)
+                && existing.Participants.Any(p => p.ParticipantId > 0);
 
-            if (existing != null && hasItemData)
+            if (existing != null && hasCompleteData)
             {
                 fetchedMatches.Add(existing);
                 continue;

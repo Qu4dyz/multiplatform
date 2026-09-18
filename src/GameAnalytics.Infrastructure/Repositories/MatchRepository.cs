@@ -32,6 +32,12 @@ public class MatchRepository : IMatchRepository
 
         try
         {
+            _context.Database.ExecuteSqlRaw("ALTER TABLE Participants ADD COLUMN ParticipantId INTEGER NOT NULL DEFAULT 0;");
+        }
+        catch { /* Column already exists */ }
+
+        try
+        {
             _context.Database.ExecuteSqlRaw("ALTER TABLE Matches ADD COLUMN IsRemake INTEGER NOT NULL DEFAULT 0;");
         }
         catch { /* Column already exists */ }
