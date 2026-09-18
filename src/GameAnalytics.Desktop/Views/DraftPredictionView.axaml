@@ -325,6 +325,106 @@
                 </StackPanel>
             </Border>
 
+            <!-- SECTION 1.5: DRAFT COMPOSITION SCALING & POWER SPIKE CURVES -->
+            <Border Background="#1A202C"
+                    CornerRadius="8"
+                    Padding="18"
+                    BorderBrush="#2D3748"
+                    BorderThickness="1">
+                <StackPanel Spacing="14">
+                    <Grid ColumnDefinitions="*, Auto">
+                        <StackPanel Grid.Column="0" Spacing="3">
+                            <TextBlock Text="📈 ТЕМП ТА СКЕЙЛІНГ КОМПОЗИЦІЙ (POWER SPIKE CURVES)"
+                                       FontWeight="Bold"
+                                       FontSize="13"
+                                       Foreground="#C8AA6E"
+                                       LetterSpacing="1.1" />
+                            <TextBlock Text="Автоматичний розрахунок сили піків за фазами гри (Early 0-15m / Mid 15-25m / Late 25m+) та аналіз умов перемоги"
+                                       FontSize="11"
+                                       Foreground="#A09B8C" />
+                        </StackPanel>
+
+                        <!-- Overall Verdict Banner -->
+                        <Border Grid.Column="1" Background="#0F1726" CornerRadius="6" Padding="12,6" BorderBrush="#0AC8B9" BorderThickness="1" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding PowerSpikes.ComparativeVerdict}"
+                                       FontSize="11"
+                                       Foreground="#0AC8B9"
+                                       MaxWidth="480"
+                                       TextWrapping="Wrap" />
+                        </Border>
+                    </Grid>
+
+                    <!-- Side-by-side Blue vs Red Team Power Curves -->
+                    <Grid ColumnDefinitions="*, *">
+                        <!-- Blue Team Scaling Curve -->
+                        <Border Grid.Column="0" Background="#0C1422" CornerRadius="6" Padding="12" Margin="0,0,8,0" BorderBrush="#0397AB" BorderThickness="1">
+                            <StackPanel Spacing="8">
+                                <Grid ColumnDefinitions="*, Auto">
+                                    <TextBlock Text="🔵 СИНЯ КОМАНДА — СКЕЙЛІНГ" FontWeight="Bold" FontSize="11" Foreground="#0AC8B9" />
+                                    <TextBlock Grid.Column="1" Text="{Binding PowerSpikes.BlueTeam.ArchetypeTitle}" FontSize="10" FontWeight="SemiBold" Foreground="#8A93A5" />
+                                </Grid>
+
+                                <!-- Early Game Power -->
+                                <Grid ColumnDefinitions="70, *, 40">
+                                    <TextBlock Grid.Column="0" Text="Early (0-15m)" FontSize="10" Foreground="#A09B8C" VerticalAlignment="Center" />
+                                    <ProgressBar Grid.Column="1" Value="{Binding PowerSpikes.BlueTeam.EarlyGamePower}" Minimum="0" Maximum="100" Height="8" Foreground="#0AC8B9" Background="#141E2F" CornerRadius="4" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="2" Text="{Binding PowerSpikes.BlueTeam.FormattedEarlyPower}" FontSize="10" FontWeight="Bold" Foreground="#0AC8B9" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                </Grid>
+
+                                <!-- Mid Game Power -->
+                                <Grid ColumnDefinitions="70, *, 40">
+                                    <TextBlock Grid.Column="0" Text="Mid (15-25m)" FontSize="10" Foreground="#A09B8C" VerticalAlignment="Center" />
+                                    <ProgressBar Grid.Column="1" Value="{Binding PowerSpikes.BlueTeam.MidGamePower}" Minimum="0" Maximum="100" Height="8" Foreground="#0397AB" Background="#141E2F" CornerRadius="4" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="2" Text="{Binding PowerSpikes.BlueTeam.FormattedMidPower}" FontSize="10" FontWeight="Bold" Foreground="#0397AB" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                </Grid>
+
+                                <!-- Late Game Power -->
+                                <Grid ColumnDefinitions="70, *, 40">
+                                    <TextBlock Grid.Column="0" Text="Late (25m+)" FontSize="10" Foreground="#A09B8C" VerticalAlignment="Center" />
+                                    <ProgressBar Grid.Column="1" Value="{Binding PowerSpikes.BlueTeam.LateGamePower}" Minimum="0" Maximum="100" Height="8" Foreground="#5383E8" Background="#141E2F" CornerRadius="4" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="2" Text="{Binding PowerSpikes.BlueTeam.FormattedLatePower}" FontSize="10" FontWeight="Bold" Foreground="#5383E8" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                </Grid>
+
+                                <TextBlock Text="{Binding PowerSpikes.BlueTeam.WinConditionSummary}" FontSize="10" Foreground="#8A93A5" TextWrapping="Wrap" Margin="0,2,0,0" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Red Team Scaling Curve -->
+                        <Border Grid.Column="1" Background="#1A0F14" CornerRadius="6" Padding="12" Margin="8,0,0,0" BorderBrush="#E84057" BorderThickness="1">
+                            <StackPanel Spacing="8">
+                                <Grid ColumnDefinitions="*, Auto">
+                                    <TextBlock Text="🔴 ЧЕРВОНА КОМАНДА — СКЕЙЛІНГ" FontWeight="Bold" FontSize="11" Foreground="#E84057" />
+                                    <TextBlock Grid.Column="1" Text="{Binding PowerSpikes.RedTeam.ArchetypeTitle}" FontSize="10" FontWeight="SemiBold" Foreground="#8A93A5" />
+                                </Grid>
+
+                                <!-- Early Game Power -->
+                                <Grid ColumnDefinitions="70, *, 40">
+                                    <TextBlock Grid.Column="0" Text="Early (0-15m)" FontSize="10" Foreground="#A09B8C" VerticalAlignment="Center" />
+                                    <ProgressBar Grid.Column="1" Value="{Binding PowerSpikes.RedTeam.EarlyGamePower}" Minimum="0" Maximum="100" Height="8" Foreground="#E84057" Background="#28141B" CornerRadius="4" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="2" Text="{Binding PowerSpikes.RedTeam.FormattedEarlyPower}" FontSize="10" FontWeight="Bold" Foreground="#E84057" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                </Grid>
+
+                                <!-- Mid Game Power -->
+                                <Grid ColumnDefinitions="70, *, 40">
+                                    <TextBlock Grid.Column="0" Text="Mid (15-25m)" FontSize="10" Foreground="#A09B8C" VerticalAlignment="Center" />
+                                    <ProgressBar Grid.Column="1" Value="{Binding PowerSpikes.RedTeam.MidGamePower}" Minimum="0" Maximum="100" Height="8" Foreground="#FF5E7E" Background="#28141B" CornerRadius="4" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="2" Text="{Binding PowerSpikes.RedTeam.FormattedMidPower}" FontSize="10" FontWeight="Bold" Foreground="#FF5E7E" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                </Grid>
+
+                                <!-- Late Game Power -->
+                                <Grid ColumnDefinitions="70, *, 40">
+                                    <TextBlock Grid.Column="0" Text="Late (25m+)" FontSize="10" Foreground="#A09B8C" VerticalAlignment="Center" />
+                                    <ProgressBar Grid.Column="1" Value="{Binding PowerSpikes.RedTeam.LateGamePower}" Minimum="0" Maximum="100" Height="8" Foreground="#FFAA5E" Background="#28141B" CornerRadius="4" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="2" Text="{Binding PowerSpikes.RedTeam.FormattedLatePower}" FontSize="10" FontWeight="Bold" Foreground="#FFAA5E" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                </Grid>
+
+                                <TextBlock Text="{Binding PowerSpikes.RedTeam.WinConditionSummary}" FontSize="10" Foreground="#8A93A5" TextWrapping="Wrap" Margin="0,2,0,0" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
             <!-- SECTION 2: EARLY GAME METRICS & ML MODEL RESULTS -->
             <Grid ColumnDefinitions="*, *" RowDefinitions="Auto">
                 <!-- Left Column: Input Features & Parameters -->
@@ -529,6 +629,29 @@
                                     Value="{Binding XpDiffAt15}"
                                     SmallChange="250" LargeChange="1000" />
                         </StackPanel>
+
+                        <!-- Dragon Soul Settings -->
+                        <Border Background="#121820" CornerRadius="6" Padding="10" BorderBrush="#C8AA6E" BorderThickness="1">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="🐉 ДРАКОНЯЧА ДУША (DRAGON SOUL IMPACT)" FontSize="11" FontWeight="Bold" Foreground="#C8AA6E" />
+                                <Grid ColumnDefinitions="*, *">
+                                    <StackPanel Grid.Column="0" Margin="0,0,6,0" Spacing="2">
+                                        <TextBlock Text="Тип душі:" FontSize="10" Foreground="#A09B8C" />
+                                        <ComboBox ItemsSource="{Binding AvailableSoulTypes}"
+                                                  SelectedItem="{Binding SelectedSoulType}"
+                                                  HorizontalAlignment="Stretch"
+                                                  Height="32" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Margin="6,0,0,0" Spacing="2">
+                                        <TextBlock Text="Власник душі (4 дракони):" FontSize="10" Foreground="#A09B8C" />
+                                        <ComboBox ItemsSource="{Binding AvailableSides}"
+                                                  SelectedItem="{Binding SoulOwner}"
+                                                  HorizontalAlignment="Stretch"
+                                                  Height="32" />
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
 
                         <!-- Run Prediction Button -->
                         <Button Command="{Binding CalculatePredictionCommand}"

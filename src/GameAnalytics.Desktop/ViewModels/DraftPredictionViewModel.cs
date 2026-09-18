@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 using GameAnalytics.Core.Entities;
 using GameAnalytics.Core.Enums;
 using GameAnalytics.Core.Interfaces;
+using GameAnalytics.ML.Engine;
 
 namespace GameAnalytics.Desktop.ViewModels;
 
@@ -87,6 +88,24 @@ public partial class DraftPredictionViewModel : ViewModelBase
 
     [ObservableProperty]
     private int _xpDiffAt15;
+
+    // Dragon Soul Selection
+    [ObservableProperty]
+    private DragonSoulType _selectedSoulType = DragonSoulType.None;
+
+    public DragonSoulType[] AvailableSoulTypes => Enum.GetValues<DragonSoulType>();
+
+    [ObservableProperty]
+    private TeamSide _soulOwner = TeamSide.Blue;
+
+    public TeamSide[] AvailableSides => new[] { TeamSide.Blue, TeamSide.Red };
+
+    partial void OnSelectedSoulTypeChanged(DragonSoulType value) => CalculatePrediction();
+    partial void OnSoulOwnerChanged(TeamSide value) => CalculatePrediction();
+
+    // Composition Scaling Analysis
+    [ObservableProperty]
+    private DraftPowerSpikeComparison? _powerSpikes;
 
     // Prediction results & ML engine
     [ObservableProperty]
@@ -289,6 +308,11 @@ public partial class DraftPredictionViewModel : ViewModelBase
             RedTeamAvgWinRate = (float)Math.Round(redChamps.Average(), 1);
         }
 
+        // Calculate composition scaling power spikes
+        var blueNames = BlueDraftSlots.Where(s => s.Champion != null).Select(s => s.Champion!.Name);
+        var redNames = RedDraftSlots.Where(s => s.Champion != null).Select(s => s.Champion!.Name);
+        PowerSpikes = ChampionScalingAnalyzer.CompareDraftCompositions(blueNames, redNames);
+
         CalculatePrediction();
     }
 
@@ -374,7 +398,10 @@ public partial class DraftPredictionViewModel : ViewModelBase
             BlueHeralds = BlueHeralds,
             RedHeralds = RedHeralds,
             CsDiffAt15 = CsDiffAt15,
-            XpDiffAt15 = XpDiffAt15
+            XpDiffAt15 = XpDiffAt15,
+            SoulType = SelectedSoulType,
+            SoulOwner = SoulOwner,
+            BlueScalingAdvantage = PowerSpikes?.LateAdvantage ?? 0.0
         };
 
         Prediction = _analyticsService.PredictOutcome(features);

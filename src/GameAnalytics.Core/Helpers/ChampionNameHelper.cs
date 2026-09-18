@@ -102,5 +102,7 @@ public static class ChampionNameHelper
 
         return clean;
     }
+
+    public static string NormalizeForDataDragon(string? name) => ToDDragonImageKey(name);
 }
 
