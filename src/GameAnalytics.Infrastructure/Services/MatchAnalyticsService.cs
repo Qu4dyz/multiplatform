@@ -82,6 +82,11 @@ public class MatchAnalyticsService : IMatchAnalyticsService
         _predictionEngine.SetActiveAlgorithm(algorithm);
     }
 
+    public bool ReloadModel()
+    {
+        return _predictionEngine.ReloadModel();
+    }
+
     public async Task<bool> RetrainModelOnSavedMatchesAsync(CancellationToken ct = default)
     {
         var matches = await _matchRepository.GetAllMatchesAsync(ct);

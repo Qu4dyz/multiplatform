@@ -447,6 +447,61 @@
                             </StackPanel>
                         </Grid>
 
+                        <!-- Voidgrubs and Heralds Sliders -->
+                        <Grid ColumnDefinitions="*, *" RowDefinitions="Auto, Auto">
+                            <StackPanel Grid.Column="0" Margin="0,0,6,0" Spacing="4">
+                                <TextBlock Text="{Binding BlueVoidgrubs, StringFormat='🐛 Личинки Синіх: {0}'}" FontSize="12" Foreground="#0397AB" />
+                                <Slider Minimum="0" Maximum="6" Value="{Binding BlueVoidgrubs}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="6,0,0,0" Spacing="4">
+                                <TextBlock Text="{Binding RedVoidgrubs, StringFormat='🐛 Личинки Червоних: {0}'}" FontSize="12" Foreground="#E84057" />
+                                <Slider Minimum="0" Maximum="6" Value="{Binding RedVoidgrubs}" />
+                            </StackPanel>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="*, *" RowDefinitions="Auto, Auto">
+                            <StackPanel Grid.Column="0" Margin="0,0,6,0" Spacing="4">
+                                <TextBlock Text="{Binding BlueHeralds, StringFormat='👁️ Герольд Синіх: {0}'}" FontSize="12" Foreground="#0397AB" />
+                                <Slider Minimum="0" Maximum="1" Value="{Binding BlueHeralds}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="6,0,0,0" Spacing="4">
+                                <TextBlock Text="{Binding RedHeralds, StringFormat='👁️ Герольд Червоних: {0}'}" FontSize="12" Foreground="#E84057" />
+                                <Slider Minimum="0" Maximum="1" Value="{Binding RedHeralds}" />
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- CS Diff Slider -->
+                        <StackPanel Spacing="4">
+                            <Grid ColumnDefinitions="*, Auto">
+                                <TextBlock Text="Різниця фарму міньйонів на 15 хв (CS Diff):"
+                                           FontSize="13"
+                                           Foreground="#F0E6D2" />
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding CsDiffAt15, StringFormat='{}{0:+0;-#;0} CS'}"
+                                           FontWeight="Bold"
+                                           Foreground="#0AC8B9" />
+                            </Grid>
+                            <Slider Minimum="-100" Maximum="100"
+                                    Value="{Binding CsDiffAt15}"
+                                    SmallChange="5" LargeChange="20" />
+                        </StackPanel>
+
+                        <!-- XP Diff Slider -->
+                        <StackPanel Spacing="4">
+                            <Grid ColumnDefinitions="*, Auto">
+                                <TextBlock Text="Різниця командного досвіду на 15 хв (XP Diff):"
+                                           FontSize="13"
+                                           Foreground="#F0E6D2" />
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding XpDiffAt15, StringFormat='{}{0:+0;-#;0} XP'}"
+                                           FontWeight="Bold"
+                                           Foreground="#C8AA6E" />
+                            </Grid>
+                            <Slider Minimum="-4000" Maximum="4000"
+                                    Value="{Binding XpDiffAt15}"
+                                    SmallChange="250" LargeChange="1000" />
+                        </StackPanel>
+
                         <!-- Run Prediction Button -->
                         <Button Command="{Binding CalculatePredictionCommand}"
                                 Content="⚡ РОЗРАХУВАТИ ЙМОВІРНІСТЬ ПЕРЕМОГИ (ML.NET)"

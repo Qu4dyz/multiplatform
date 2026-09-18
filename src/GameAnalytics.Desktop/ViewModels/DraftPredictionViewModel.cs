@@ -70,6 +70,24 @@ public partial class DraftPredictionViewModel : ViewModelBase
     [ObservableProperty]
     private int _redDragonCount = 0;
 
+    [ObservableProperty]
+    private int _blueVoidgrubs = 3;
+
+    [ObservableProperty]
+    private int _redVoidgrubs = 0;
+
+    [ObservableProperty]
+    private int _blueHeralds = 1;
+
+    [ObservableProperty]
+    private int _redHeralds = 0;
+
+    [ObservableProperty]
+    private int _csDiffAt15;
+
+    [ObservableProperty]
+    private int _xpDiffAt15;
+
     // Prediction results & ML engine
     [ObservableProperty]
     private PredictionResult? _prediction;
@@ -335,7 +353,13 @@ public partial class DraftPredictionViewModel : ViewModelBase
             BlueTowerCount = BlueTowerCount,
             RedTowerCount = RedTowerCount,
             BlueDragonCount = BlueDragonCount,
-            RedDragonCount = RedDragonCount
+            RedDragonCount = RedDragonCount,
+            BlueVoidgrubs = BlueVoidgrubs,
+            RedVoidgrubs = RedVoidgrubs,
+            BlueHeralds = BlueHeralds,
+            RedHeralds = RedHeralds,
+            CsDiffAt15 = CsDiffAt15,
+            XpDiffAt15 = XpDiffAt15
         };
 
         Prediction = _analyticsService.PredictOutcome(features);
@@ -354,6 +378,12 @@ public partial class DraftPredictionViewModel : ViewModelBase
         RedTowerCount = 0;
         BlueDragonCount = 0;
         RedDragonCount = 0;
+        BlueVoidgrubs = 0;
+        RedVoidgrubs = 0;
+        BlueHeralds = 0;
+        RedHeralds = 0;
+        CsDiffAt15 = 0;
+        XpDiffAt15 = 0;
         CalculatePrediction();
     }
 
@@ -369,6 +399,12 @@ public partial class DraftPredictionViewModel : ViewModelBase
         RedTowerCount = 0;
         BlueDragonCount = 2;
         RedDragonCount = 0;
+        BlueVoidgrubs = 5;
+        RedVoidgrubs = 1;
+        BlueHeralds = 1;
+        RedHeralds = 0;
+        CsDiffAt15 = 35;
+        XpDiffAt15 = 1400;
         CalculatePrediction();
     }
 
@@ -384,6 +420,12 @@ public partial class DraftPredictionViewModel : ViewModelBase
         RedTowerCount = 3;
         BlueDragonCount = 0;
         RedDragonCount = 2;
+        BlueVoidgrubs = 1;
+        RedVoidgrubs = 5;
+        BlueHeralds = 0;
+        RedHeralds = 1;
+        CsDiffAt15 = -35;
+        XpDiffAt15 = -1400;
         CalculatePrediction();
     }
 }
