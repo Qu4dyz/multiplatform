@@ -24,7 +24,23 @@ public class MatchPredictionEngine : IPredictionEngine
     public MatchPredictionEngine()
     {
         _mlContext = new MLContext(seed: 42);
-        _modelDirectory = Path.Combine(AppContext.BaseDirectory, "models");
+        
+        var baseDir = AppContext.BaseDirectory;
+        var candidateDir = Path.Combine(baseDir, "models");
+        if (!Directory.Exists(candidateDir))
+        {
+            var projectDir = Path.Combine(Directory.GetCurrentDirectory(), "src", "GameAnalytics.Desktop", "models");
+            if (Directory.Exists(projectDir))
+            {
+                candidateDir = projectDir;
+            }
+            else
+            {
+                var rootDir = Path.Combine(Directory.GetCurrentDirectory(), "models");
+                if (Directory.Exists(rootDir)) candidateDir = rootDir;
+            }
+        }
+        _modelDirectory = candidateDir;
         InitializeModel();
     }
 
@@ -40,6 +56,7 @@ public class MatchPredictionEngine : IPredictionEngine
                 {
                     _model = _mlContext.Model.Load(modelFile, out _);
                     _predictionEngine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(_model);
+                    IsTrainedOnRealData = true;
                     return;
                 }
                 catch

@@ -62,7 +62,11 @@ public partial class SettingsViewModel : ViewModelBase
         SelectedDemoTier = options.DemoTier;
         UseMockFallback = options.UseMockFallback;
 
-        DatabasePath = Path.Combine(AppContext.BaseDirectory, "game_analytics.db");
+        var baseDb = Path.Combine(AppContext.BaseDirectory, "game_analytics.db");
+        var projDb = Path.Combine(Directory.GetCurrentDirectory(), "src", "GameAnalytics.Desktop", "game_analytics.db");
+        var rootDb = Path.Combine(Directory.GetCurrentDirectory(), "game_analytics.db");
+
+        DatabasePath = File.Exists(baseDb) ? baseDb : (File.Exists(projDb) ? projDb : (File.Exists(rootDb) ? rootDb : baseDb));
         UpdateDatabaseSize();
 
         OsDescription = $"{System.Runtime.InteropServices.RuntimeInformation.OSDescription} ({System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture})";

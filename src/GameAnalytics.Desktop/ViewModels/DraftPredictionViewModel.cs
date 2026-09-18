@@ -102,6 +102,14 @@ public partial class DraftPredictionViewModel : ViewModelBase
         _analyticsService = analyticsService;
         _dataDragonService = dataDragonService;
 
+        if (_analyticsService.IsTrainedOnRealData)
+        {
+            var size = _analyticsService.TrainingDatasetSize;
+            _trainingStatusText = size > 0 
+                ? $"🟢 ML.NET FastTree (Активна навчена модель з VPS | {size} матчів)"
+                : "🟢 ML.NET FastTree (Активна навчена модель з VPS на реальних матчах)";
+        }
+
         InitializeSlots();
         _ = LoadChampionsAsync();
         CalculatePrediction();
