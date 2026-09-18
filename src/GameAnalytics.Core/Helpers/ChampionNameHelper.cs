@@ -104,5 +104,40 @@ public static class ChampionNameHelper
     }
 
     public static string NormalizeForDataDragon(string? name) => ToDDragonImageKey(name);
+
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<int, string> IdToName = new()
+    {
+        [103] = "Ahri",
+        [84] = "Akali",
+        [12] = "Alistar",
+        [32] = "Amumu",
+        [22] = "Ashe",
+        [266] = "Aatrox",
+        [51] = "Caitlyn",
+        [81] = "Ezreal",
+        [64] = "Lee Sin",
+        [99] = "Lux",
+        [222] = "Jinx",
+        [157] = "Yasuo",
+        [777] = "Yone",
+        [238] = "Zed",
+        [412] = "Thresh",
+        [236] = "Lucian",
+        [53] = "Blitzcrank",
+        [145] = "Kai'Sa",
+        [518] = "Neeko",
+        [875] = "Sett"
+    };
+
+    public static void RegisterChampion(int id, string name)
+    {
+        IdToName[id] = name;
+    }
+
+    public static string GetChampionNameById(int id)
+    {
+        if (IdToName.TryGetValue(id, out var name)) return name;
+        return $"Champion {id}";
+    }
 }
 

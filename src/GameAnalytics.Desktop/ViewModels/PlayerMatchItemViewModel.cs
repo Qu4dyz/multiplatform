@@ -86,6 +86,38 @@ public partial class DetailedParticipantViewModel : ObservableObject
     public string MatchGrade { get; set; } = "B";
     public string MatchGradeColor { get; set; } = "#5383E8";
 
+    // Summoner Spells & Runes
+    public int Summoner1Id { get; set; } = 4;
+    public int Summoner2Id { get; set; } = 14;
+    public string Summoner1IconUrl => SpellRuneHelper.GetSpellIconUrl(Summoner1Id, GameConstants.DDragonVersion);
+    public string Summoner2IconUrl => SpellRuneHelper.GetSpellIconUrl(Summoner2Id, GameConstants.DDragonVersion);
+    public string Summoner1Tooltip => SpellRuneHelper.GetSpellName(Summoner1Id);
+    public string Summoner2Tooltip => SpellRuneHelper.GetSpellName(Summoner2Id);
+
+    [ObservableProperty]
+    private Avalonia.Media.Imaging.Bitmap? _summoner1Icon;
+
+    [ObservableProperty]
+    private Avalonia.Media.Imaging.Bitmap? _summoner2Icon;
+
+    public int PrimaryRuneId { get; set; } = 8010;
+    public int SecondaryRuneStyleId { get; set; } = 8100;
+    public string PrimaryRuneIconUrl => SpellRuneHelper.GetRuneIconUrl(PrimaryRuneId);
+    public string SecondaryRuneIconUrl => SpellRuneHelper.GetRuneStyleIconUrl(SecondaryRuneStyleId);
+
+    [ObservableProperty]
+    private Avalonia.Media.Imaging.Bitmap? _primaryRuneIcon;
+
+    [ObservableProperty]
+    private Avalonia.Media.Imaging.Bitmap? _secondaryRuneIcon;
+
+    public int VisionScore { get; set; }
+    public string VisionText => $"{VisionScore}";
+    public int WardsPlaced { get; set; }
+    public int ControlWardsBought { get; set; }
+    public int TurretPlatesTaken { get; set; }
+    public int SoloKills { get; set; }
+
     public System.Windows.Input.ICommand? SelectPlayerCommand { get; set; }
 }
 
@@ -156,6 +188,41 @@ public partial class PlayerMatchItemViewModel : ObservableObject
 
     public string PositionName { get; set; } = "MID";
     public string PositionIcon { get; set; } = "⚡";
+
+    // Summoner Spells & Runes
+    public int Summoner1Id { get; set; } = 4;
+    public int Summoner2Id { get; set; } = 14;
+    public string Summoner1IconUrl => SpellRuneHelper.GetSpellIconUrl(Summoner1Id, GameConstants.DDragonVersion);
+    public string Summoner2IconUrl => SpellRuneHelper.GetSpellIconUrl(Summoner2Id, GameConstants.DDragonVersion);
+    public string Summoner1Tooltip => SpellRuneHelper.GetSpellName(Summoner1Id);
+    public string Summoner2Tooltip => SpellRuneHelper.GetSpellName(Summoner2Id);
+
+    [ObservableProperty]
+    private Avalonia.Media.Imaging.Bitmap? _summoner1Icon;
+
+    [ObservableProperty]
+    private Avalonia.Media.Imaging.Bitmap? _summoner2Icon;
+
+    public int PrimaryRuneId { get; set; } = 8010;
+    public int SecondaryRuneStyleId { get; set; } = 8100;
+    public string PrimaryRuneIconUrl => SpellRuneHelper.GetRuneIconUrl(PrimaryRuneId);
+    public string SecondaryRuneIconUrl => SpellRuneHelper.GetRuneStyleIconUrl(SecondaryRuneStyleId);
+
+    [ObservableProperty]
+    private Avalonia.Media.Imaging.Bitmap? _primaryRuneIcon;
+
+    [ObservableProperty]
+    private Avalonia.Media.Imaging.Bitmap? _secondaryRuneIcon;
+
+    // Multikill & Vision Badges
+    public string MultiKillText { get; set; } = string.Empty;
+    public string MultiKillBg { get; set; } = "Transparent";
+    public bool HasMultiKill => !string.IsNullOrEmpty(MultiKillText);
+
+    public int VisionScore { get; set; }
+    public string VisionScoreText => $"Віжн: {VisionScore}";
+    public int WardsPlaced { get; set; }
+    public int ControlWardsBought { get; set; }
 
     public int Kills { get; set; }
     public int Deaths { get; set; }
@@ -485,6 +552,35 @@ public partial class PlayerMatchItemViewModel : ObservableObject
             vm.MatchGradeBg = gradeColor;
             vm.CoachingBadgeText = tag;
 
+            vm.Summoner1Id = player.Summoner1Id > 0 ? player.Summoner1Id : 4;
+            vm.Summoner2Id = player.Summoner2Id > 0 ? player.Summoner2Id : 14;
+            vm.PrimaryRuneId = player.PrimaryRuneId > 0 ? player.PrimaryRuneId : 8010;
+            vm.SecondaryRuneStyleId = player.SecondaryRuneStyleId > 0 ? player.SecondaryRuneStyleId : 8100;
+            vm.VisionScore = player.VisionScore;
+            vm.WardsPlaced = player.WardsPlaced;
+            vm.ControlWardsBought = player.ControlWardsBought;
+
+            if (player.PentaKills > 0)
+            {
+                vm.MultiKillText = "PENTAKILL";
+                vm.MultiKillBg = "#8A1C2A";
+            }
+            else if (player.QuadraKills > 0)
+            {
+                vm.MultiKillText = "QUADRA KILL";
+                vm.MultiKillBg = "#6B1D38";
+            }
+            else if (player.TripleKills > 0)
+            {
+                vm.MultiKillText = "TRIPLE KILL";
+                vm.MultiKillBg = "#55234A";
+            }
+            else if (player.DoubleKills > 0)
+            {
+                vm.MultiKillText = "DOUBLE KILL";
+                vm.MultiKillBg = "#2E2540";
+            }
+
             vm._underlyingMatch = match;
             vm._underlyingPlayer = player;
             vm._playerTier = playerTier;
@@ -494,8 +590,13 @@ public partial class PlayerMatchItemViewModel : ObservableObject
             vm.TacticalReport = MatchTacticalAnalyzer.AnalyzeMatchTactics(match, player, null, playerTier);
         }
 
-        // Load main champion and item icons
+        // Load main champion, spells, runes and item icons
         vm.ChampionIcon = BitmapAssetValueConverter.GetOrLoadBitmap(vm.ChampionIconUrl, bmp => vm.ChampionIcon = bmp);
+        vm.Summoner1Icon = BitmapAssetValueConverter.GetOrLoadBitmap(vm.Summoner1IconUrl, bmp => vm.Summoner1Icon = bmp);
+        vm.Summoner2Icon = BitmapAssetValueConverter.GetOrLoadBitmap(vm.Summoner2IconUrl, bmp => vm.Summoner2Icon = bmp);
+        vm.PrimaryRuneIcon = BitmapAssetValueConverter.GetOrLoadBitmap(vm.PrimaryRuneIconUrl, bmp => vm.PrimaryRuneIcon = bmp);
+        vm.SecondaryRuneIcon = BitmapAssetValueConverter.GetOrLoadBitmap(vm.SecondaryRuneIconUrl, bmp => vm.SecondaryRuneIcon = bmp);
+
         foreach (var itm in vm.PlayerItems)
         {
             if (itm.HasItem)
@@ -566,6 +667,15 @@ public partial class PlayerMatchItemViewModel : ObservableObject
                 DamagePercentOfMax = Math.Round((double)p.TotalDamageDealtToChampions / maxDamage * 100, 1),
                 GoldEarned = p.GoldEarned,
                 MinionsKilled = p.TotalMinionsKilled,
+                Summoner1Id = p.Summoner1Id > 0 ? p.Summoner1Id : 4,
+                Summoner2Id = p.Summoner2Id > 0 ? p.Summoner2Id : 14,
+                PrimaryRuneId = p.PrimaryRuneId > 0 ? p.PrimaryRuneId : 8010,
+                SecondaryRuneStyleId = p.SecondaryRuneStyleId > 0 ? p.SecondaryRuneStyleId : 8100,
+                VisionScore = p.VisionScore,
+                WardsPlaced = p.WardsPlaced,
+                ControlWardsBought = p.ControlWardsBought,
+                TurretPlatesTaken = p.TurretPlatesTaken,
+                SoloKills = p.SoloKills,
                 Items = new List<ItemSlotViewModel>
                 {
                     new() { ItemId = p.Item0 },
@@ -579,6 +689,10 @@ public partial class PlayerMatchItemViewModel : ObservableObject
                 SelectPlayerCommand = selectPlayerCommand
             };
             detailed.ChampionIcon = BitmapAssetValueConverter.GetOrLoadBitmap(detailed.ChampionIconUrl, bmp => detailed.ChampionIcon = bmp);
+            detailed.Summoner1Icon = BitmapAssetValueConverter.GetOrLoadBitmap(detailed.Summoner1IconUrl, bmp => detailed.Summoner1Icon = bmp);
+            detailed.Summoner2Icon = BitmapAssetValueConverter.GetOrLoadBitmap(detailed.Summoner2IconUrl, bmp => detailed.Summoner2Icon = bmp);
+            detailed.PrimaryRuneIcon = BitmapAssetValueConverter.GetOrLoadBitmap(detailed.PrimaryRuneIconUrl, bmp => detailed.PrimaryRuneIcon = bmp);
+            detailed.SecondaryRuneIcon = BitmapAssetValueConverter.GetOrLoadBitmap(detailed.SecondaryRuneIconUrl, bmp => detailed.SecondaryRuneIcon = bmp);
             foreach (var itm in detailed.Items)
             {
                 if (itm.HasItem) itm.ItemIcon = BitmapAssetValueConverter.GetOrLoadBitmap(itm.IconUrl, bmp => itm.ItemIcon = bmp);
@@ -644,6 +758,15 @@ public partial class PlayerMatchItemViewModel : ObservableObject
                 DamagePercentOfMax = Math.Round((double)p.TotalDamageDealtToChampions / maxDamage * 100, 1),
                 GoldEarned = p.GoldEarned,
                 MinionsKilled = p.TotalMinionsKilled,
+                Summoner1Id = p.Summoner1Id > 0 ? p.Summoner1Id : 4,
+                Summoner2Id = p.Summoner2Id > 0 ? p.Summoner2Id : 14,
+                PrimaryRuneId = p.PrimaryRuneId > 0 ? p.PrimaryRuneId : 8010,
+                SecondaryRuneStyleId = p.SecondaryRuneStyleId > 0 ? p.SecondaryRuneStyleId : 8100,
+                VisionScore = p.VisionScore,
+                WardsPlaced = p.WardsPlaced,
+                ControlWardsBought = p.ControlWardsBought,
+                TurretPlatesTaken = p.TurretPlatesTaken,
+                SoloKills = p.SoloKills,
                 Items = new List<ItemSlotViewModel>
                 {
                     new() { ItemId = p.Item0 },
@@ -657,6 +780,10 @@ public partial class PlayerMatchItemViewModel : ObservableObject
                 SelectPlayerCommand = selectPlayerCommand
             };
             detailed.ChampionIcon = BitmapAssetValueConverter.GetOrLoadBitmap(detailed.ChampionIconUrl, bmp => detailed.ChampionIcon = bmp);
+            detailed.Summoner1Icon = BitmapAssetValueConverter.GetOrLoadBitmap(detailed.Summoner1IconUrl, bmp => detailed.Summoner1Icon = bmp);
+            detailed.Summoner2Icon = BitmapAssetValueConverter.GetOrLoadBitmap(detailed.Summoner2IconUrl, bmp => detailed.Summoner2Icon = bmp);
+            detailed.PrimaryRuneIcon = BitmapAssetValueConverter.GetOrLoadBitmap(detailed.PrimaryRuneIconUrl, bmp => detailed.PrimaryRuneIcon = bmp);
+            detailed.SecondaryRuneIcon = BitmapAssetValueConverter.GetOrLoadBitmap(detailed.SecondaryRuneIconUrl, bmp => detailed.SecondaryRuneIcon = bmp);
             foreach (var itm in detailed.Items)
             {
                 if (itm.HasItem) itm.ItemIcon = BitmapAssetValueConverter.GetOrLoadBitmap(itm.IconUrl, bmp => itm.ItemIcon = bmp);

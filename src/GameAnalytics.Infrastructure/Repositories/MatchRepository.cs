@@ -50,7 +50,28 @@ public class MatchRepository : IMatchRepository
             "ALTER TABLE Participants ADD COLUMN Item3 INTEGER NOT NULL DEFAULT 0;",
             "ALTER TABLE Participants ADD COLUMN Item4 INTEGER NOT NULL DEFAULT 0;",
             "ALTER TABLE Participants ADD COLUMN Item5 INTEGER NOT NULL DEFAULT 0;",
-            "ALTER TABLE Participants ADD COLUMN Item6 INTEGER NOT NULL DEFAULT 0;"
+            "ALTER TABLE Participants ADD COLUMN Item6 INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN Summoner1Id INTEGER NOT NULL DEFAULT 4;",
+            "ALTER TABLE Participants ADD COLUMN Summoner2Id INTEGER NOT NULL DEFAULT 14;",
+            "ALTER TABLE Participants ADD COLUMN PrimaryRuneId INTEGER NOT NULL DEFAULT 8010;",
+            "ALTER TABLE Participants ADD COLUMN SecondaryRuneStyleId INTEGER NOT NULL DEFAULT 8100;",
+            "ALTER TABLE Participants ADD COLUMN VisionScore INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN WardsPlaced INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN WardsKilled INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN ControlWardsBought INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN PhysicalDamageDealtToChampions INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN MagicDamageDealtToChampions INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN TrueDamageDealtToChampions INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN TotalDamageTaken INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN DamageSelfMitigated INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN DamageDealtToObjectives INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN DamageDealtToTurrets INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN DoubleKills INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN TripleKills INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN QuadraKills INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN PentaKills INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN SoloKills INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN TurretPlatesTaken INTEGER NOT NULL DEFAULT 0;"
         };
 
         foreach (var sql in itemColumns)

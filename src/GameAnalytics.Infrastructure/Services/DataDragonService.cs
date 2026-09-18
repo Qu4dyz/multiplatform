@@ -82,6 +82,8 @@ public class DataDragonService : IDataDragonService
                         var dto = kvp.Value;
                         int.TryParse(dto.Key, out var key);
 
+                        GameAnalytics.Core.Helpers.ChampionNameHelper.RegisterChampion(key, dto.Name);
+
                         list.Add(new ChampionInfo
                         {
                             Id = dto.Id,
