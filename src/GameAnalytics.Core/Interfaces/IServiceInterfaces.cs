@@ -8,6 +8,8 @@ public interface IRiotApiClient
     Task<IReadOnlyList<string>> GetRecentMatchIdsByPuuidAsync(string puuid, int count = 10, int? queue = null, CancellationToken ct = default);
     Task<Match?> GetMatchDetailsAsync(string matchId, CancellationToken ct = default);
     Task<MatchTimelineData?> GetMatchTimelineAsync(string matchId, CancellationToken ct = default);
+    Task<IReadOnlyList<ChampionMasteryInfo>> GetTopChampionMasteriesAsync(string puuid, int count = 10, CancellationToken ct = default);
+    Task<IReadOnlyList<string>> GetChallengerPlayerPuuidsAsync(string queue = "RANKED_SOLO_5x5", int maxCount = 20, CancellationToken ct = default);
 }
 
 public interface IMatchRepository

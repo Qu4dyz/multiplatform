@@ -127,19 +127,116 @@ public static class MatchTacticalAnalyzer
             // Fallback: simulated tactical milestones
             // Minute 03:15
             if (player.Position == Position.Jungle)
-        {
-            if (csPerMin >= 6.8)
+            {
+                if (csPerMin >= 6.8)
+                {
+                    report.TimelineEvents.Add(new TacticalTimelineEvent
+                    {
+                        Minute = 3,
+                        TimestampText = "03:15",
+                        PhaseName = "Рання гра (0-10хв)",
+                        PhaseBadgeColor = "#5383E8",
+                        Icon = "🌲",
+                        IconKind = "gold",
+                        CategoryTag = "ECONOMY",
+                        CategoryTagColor = "#10B981",
+                        SeverityTag = "FULL CLEAR",
+                        SeverityBg = "#0E241E",
+                        SeverityFg = "#2DEB90",
+                        Title = "Ефективний Full Clear лісу",
+                        Description = "Зачищено 6 таборів монстрів без втрати темпу. Отримано 4 рівень та вихід на Скуттл-краба.",
+                        ImpactText = "+220G темп",
+                        ImpactColor = "#0AC8B9",
+                        IsMistake = false
+                    });
+                }
+                else
+                {
+                    report.TimelineEvents.Add(new TacticalTimelineEvent
+                    {
+                        Minute = 3,
+                        TimestampText = "03:20",
+                        PhaseName = "Рання гра (0-10хв)",
+                        PhaseBadgeColor = "#5383E8",
+                        Icon = "⚠️",
+                        IconKind = "warning",
+                        CategoryTag = "ECONOMY",
+                        CategoryTagColor = "#EF4444",
+                        SeverityTag = "LOST TEMPO",
+                        SeverityBg = "#2E1217",
+                        SeverityFg = "#FF4655",
+                        Title = "Втрата темпу зачистки кемпів",
+                        Description = "Занадто повільний рух між таборами або зайві простої. Ворожий лісник отримав пріоритет річки.",
+                        ImpactText = "Втрата темпу",
+                        ImpactColor = "#E84057",
+                        IsMistake = true
+                    });
+                }
+            }
+            else
             {
                 report.TimelineEvents.Add(new TacticalTimelineEvent
                 {
                     Minute = 3,
-                    TimestampText = "03:15",
+                    TimestampText = "03:10",
                     PhaseName = "Рання гра (0-10хв)",
                     PhaseBadgeColor = "#5383E8",
-                    Icon = "🌲",
-                    Title = "Ефективний Full Clear лісу",
-                    Description = "Зачищено 6 таборів монстрів без втрати темпу. Отримано 4 рівень та вихід на Скуттл-краба.",
-                    ImpactText = "+220G темп",
+                    Icon = "👁️",
+                    IconKind = "eye",
+                    CategoryTag = "VISION",
+                    CategoryTagColor = "#8B5CF6",
+                    SeverityTag = "VISION CONTROL",
+                    SeverityBg = "#1F1530",
+                    SeverityFg = "#C084FC",
+                    Title = "Контроль віжену на лінії",
+                    Description = "Встановлення глибокого варду в кущ річки убезпечило лінію від раннього ганку лісника.",
+                    ImpactText = "Безпечний фарм",
+                    ImpactColor = "#0AC8B9",
+                    IsMistake = false
+                });
+            }
+
+            // Minute 07:45 (First Dragon / Gank Phase)
+            if (player.Deaths >= 2)
+            {
+                report.TimelineEvents.Add(new TacticalTimelineEvent
+                {
+                    Minute = 7,
+                    TimestampText = "07:30",
+                    PhaseName = "Рання гра (0-10хв)",
+                    PhaseBadgeColor = "#5383E8",
+                    Icon = "💀",
+                    IconKind = "skull",
+                    CategoryTag = "MACRO",
+                    CategoryTagColor = "#EF4444",
+                    SeverityTag = "CRITICAL DEATH",
+                    SeverityBg = "#3B141C",
+                    SeverityFg = "#FF3366",
+                    Title = "Критична смерть перед появою Дракона",
+                    Description = "Загибель через агресію без огляду мапи дозволила опонентам безкоштовно забрати першого Дракона.",
+                    ImpactText = "Втрата Дракона",
+                    ImpactColor = "#E84057",
+                    IsMistake = true
+                });
+            }
+            else if (kp >= 40)
+            {
+                report.TimelineEvents.Add(new TacticalTimelineEvent
+                {
+                    Minute = 7,
+                    TimestampText = "07:45",
+                    PhaseName = "Рання гра (0-10хв)",
+                    PhaseBadgeColor = "#5383E8",
+                    Icon = "🐉",
+                    IconKind = "dragon",
+                    CategoryTag = "OBJECTIVE",
+                    CategoryTagColor = "#06B6D4",
+                    SeverityTag = "DRAGON SECURED",
+                    SeverityBg = "#0C2329",
+                    SeverityFg = "#0AC8B9",
+                    Title = "Контроль річки та Дракона",
+                    Description = "Вчасне стягування під розворот на нижній річці забезпечило команді взяття об'єкта та кіли.",
+                    ImpactText = "Дракон взято",
                     ImpactColor = "#0AC8B9",
                     IsMistake = false
                 });
@@ -148,173 +245,142 @@ public static class MatchTacticalAnalyzer
             {
                 report.TimelineEvents.Add(new TacticalTimelineEvent
                 {
-                    Minute = 3,
-                    TimestampText = "03:20",
+                    Minute = 8,
+                    TimestampText = "08:10",
                     PhaseName = "Рання гра (0-10хв)",
                     PhaseBadgeColor = "#5383E8",
+                    Icon = "🌾",
+                    IconKind = "gold",
+                    CategoryTag = "MACRO",
+                    CategoryTagColor = "#F59E0B",
+                    SeverityTag = "CROSS-FARM",
+                    SeverityBg = "#2B2211",
+                    SeverityFg = "#F0E6D2",
+                    Title = "Фарм кемпів замість контесту Дракона",
+                    Description = "Вибір продовжити фарм таборів замість ризикованого файту за Дракона без пріоритету союзних ліній.",
+                    ImpactText = "Макро-вибір",
+                    ImpactColor = "#C8AA6E",
+                    IsMistake = false
+                });
+            }
+
+            // Minute 14:30 (Mid Game / Voidgrubs & Turret Plates)
+            if (dmgShare >= 24.0)
+            {
+                report.TimelineEvents.Add(new TacticalTimelineEvent
+                {
+                    Minute = 14,
+                    TimestampText = "14:20",
+                    PhaseName = "Міжарена (10-20хв)",
+                    PhaseBadgeColor = "#0AC8B9",
+                    Icon = "⚔️",
+                    IconKind = "sword",
+                    CategoryTag = "COMBAT",
+                    CategoryTagColor = "#3B82F6",
+                    SeverityTag = "POWER SPIKE",
+                    SeverityBg = "#112236",
+                    SeverityFg = "#60A5FA",
+                    Title = "Реалізація спайку предмета та тиск",
+                    Description = "Купівля першого ключового предмета дозволила виграти сутичку на міді та забрати пластини вежі.",
+                    ImpactText = "Тиск на вежі",
+                    ImpactColor = "#0AC8B9",
+                    IsMistake = false
+                });
+            }
+            else
+            {
+                report.TimelineEvents.Add(new TacticalTimelineEvent
+                {
+                    Minute = 14,
+                    TimestampText = "14:40",
+                    PhaseName = "Міжарена (10-20хв)",
+                    PhaseBadgeColor = "#0AC8B9",
                     Icon = "⚠️",
-                    Title = "Втрата темпу зачистки кемпів",
-                    Description = "Занадто повільний рух між таборами або зайві простої. Ворожий лісник отримав пріоритет річки.",
+                    IconKind = "warning",
+                    CategoryTag = "MACRO",
+                    CategoryTagColor = "#EF4444",
+                    SeverityTag = "LOW PRESSURE",
+                    SeverityBg = "#2E1217",
+                    SeverityFg = "#FF4655",
+                    Title = "Низький командний тиск у міжарені",
+                    Description = "Занадто багато часу витрачено на фарм другорядних кемпів замість розбивання ворожих веж.",
                     ImpactText = "Втрата темпу",
                     ImpactColor = "#E84057",
                     IsMistake = true
                 });
             }
-        }
-        else
-        {
-            report.TimelineEvents.Add(new TacticalTimelineEvent
-            {
-                Minute = 3,
-                TimestampText = "03:10",
-                PhaseName = "Рання гра (0-10хв)",
-                PhaseBadgeColor = "#5383E8",
-                Icon = "👁️",
-                Title = "Контроль віжену на лінії",
-                Description = "Встановлення глибокого варду в кущ річки убезпечило лінію від раннього ганку лісника.",
-                ImpactText = "Безпечний фарм",
-                ImpactColor = "#0AC8B9",
-                IsMistake = false
-            });
-        }
 
-        // Minute 07:45 (First Dragon / Gank Phase)
-        if (player.Deaths >= 2)
-        {
-            report.TimelineEvents.Add(new TacticalTimelineEvent
+            // Minute 21:00 (Baron Setup & Teamfight)
+            if (player.Win)
             {
-                Minute = 7,
-                TimestampText = "07:30",
-                PhaseName = "Рання гра (0-10хв)",
-                PhaseBadgeColor = "#5383E8",
-                Icon = "💀",
-                Title = "Критична смерть перед появою Дракона",
-                Description = "Загибель через агресію без огляду мапи дозволила опонентам безкоштовно забрати першого Дракона.",
-                ImpactText = "Втрата Дракона",
-                ImpactColor = "#E84057",
-                IsMistake = true
-            });
-        }
-        else if (kp >= 40)
-        {
-            report.TimelineEvents.Add(new TacticalTimelineEvent
+                report.TimelineEvents.Add(new TacticalTimelineEvent
+                {
+                    Minute = 21,
+                    TimestampText = "21:15",
+                    PhaseName = "Пізня гра (20+ хв)",
+                    PhaseBadgeColor = "#C8AA6E",
+                    Icon = "👑",
+                    IconKind = "star",
+                    CategoryTag = "TEAMFIGHT",
+                    CategoryTagColor = "#0AC8B9",
+                    SeverityTag = "ACE & BARON",
+                    SeverityBg = "#0E2925",
+                    SeverityFg = "#0AC8B9",
+                    Title = "Командний Ейс біля Барона Нашора",
+                    Description = "Виграний бій 5v5 дозволив команді забрати бафф Барона та відкрити дорогу на інгібітор.",
+                    ImpactText = "Ейс & Барон",
+                    ImpactColor = "#0AC8B9",
+                    IsMistake = false
+                });
+            }
+            else
             {
-                Minute = 7,
-                TimestampText = "07:45",
-                PhaseName = "Рання гра (0-10хв)",
-                PhaseBadgeColor = "#5383E8",
-                Icon = "🐉",
-                Title = "Контроль річки та Дракона",
-                Description = "Вчасне стягування під розворот на нижній річці забезпечило команді взяття об'єкта та кіли.",
-                ImpactText = "Дракон взято",
-                ImpactColor = "#0AC8B9",
-                IsMistake = false
-            });
-        }
-        else
-        {
-            report.TimelineEvents.Add(new TacticalTimelineEvent
-            {
-                Minute = 8,
-                TimestampText = "08:10",
-                PhaseName = "Рання гра (0-10хв)",
-                PhaseBadgeColor = "#5383E8",
-                Icon = "🌾",
-                Title = "Фарм кемпів замість контесту Дракона",
-                Description = "Вибір продовжити фарм таборів замість ризикованого файту за Дракона без пріоритету союзних ліній.",
-                ImpactText = "Макро-вибір",
-                ImpactColor = "#C8AA6E",
-                IsMistake = false
-            });
-        }
+                report.TimelineEvents.Add(new TacticalTimelineEvent
+                {
+                    Minute = 21,
+                    TimestampText = "21:00",
+                    PhaseName = "Пізня гра (20+ хв)",
+                    PhaseBadgeColor = "#C8AA6E",
+                    Icon = "💀",
+                    IconKind = "skull",
+                    CategoryTag = "TEAMFIGHT",
+                    CategoryTagColor = "#EF4444",
+                    SeverityTag = "BARON THROW",
+                    SeverityBg = "#381119",
+                    SeverityFg = "#FF3366",
+                    Title = "Невдалий вхід у тімфайт біля Барона",
+                    Description = "Втрата позиції або загибель керрі призвела до втрати Барона та ворожого наступу на базу.",
+                    ImpactText = "Втрата Барона",
+                    ImpactColor = "#E84057",
+                    IsMistake = true
+                });
+            }
 
-        // Minute 14:30 (Mid Game / Voidgrubs & Turret Plates)
-        if (dmgShare >= 24.0)
-        {
-            report.TimelineEvents.Add(new TacticalTimelineEvent
+            // Final Closing Event
+            if (durMin >= 24)
             {
-                Minute = 14,
-                TimestampText = "14:20",
-                PhaseName = "Міжарена (10-20хв)",
-                PhaseBadgeColor = "#0AC8B9",
-                Icon = "⚔️",
-                Title = "Реалізація спайку предмета та тиск",
-                Description = "Купівля першого ключового предмета дозволила виграти сутичку на міді та забрати пластини вежі.",
-                ImpactText = "Тиск на вежі",
-                ImpactColor = "#0AC8B9",
-                IsMistake = false
-            });
-        }
-        else
-        {
-            report.TimelineEvents.Add(new TacticalTimelineEvent
-            {
-                Minute = 14,
-                TimestampText = "14:40",
-                PhaseName = "Міжарена (10-20хв)",
-                PhaseBadgeColor = "#0AC8B9",
-                Icon = "⚠️",
-                Title = "Низький командний тиск у міжарені",
-                Description = "Занадто багато часу витрачено на фарм другорядних кемпів замість розбивання ворожих веж.",
-                ImpactText = "Втрата темпу",
-                ImpactColor = "#E84057",
-                IsMistake = true
-            });
-        }
-
-        // Minute 21:00 (Baron Setup & Teamfight)
-        if (player.Win)
-        {
-            report.TimelineEvents.Add(new TacticalTimelineEvent
-            {
-                Minute = 21,
-                TimestampText = "21:15",
-                PhaseName = "Пізня гра (20+ хв)",
-                PhaseBadgeColor = "#C8AA6E",
-                Icon = "👑",
-                Title = "Командний Ейс біля Барона Нашора",
-                Description = "Виграний бій 5v5 дозволив команді забрати бафф Барона та відкрити дорогу на інгібітор.",
-                ImpactText = "Ейс & Барон",
-                ImpactColor = "#0AC8B9",
-                IsMistake = false
-            });
-        }
-        else
-        {
-            report.TimelineEvents.Add(new TacticalTimelineEvent
-            {
-                Minute = 21,
-                TimestampText = "21:00",
-                PhaseName = "Пізня гра (20+ хв)",
-                PhaseBadgeColor = "#C8AA6E",
-                Icon = "💀",
-                Title = "Невдалий вхід у тімфайт біля Барона",
-                Description = "Втрата позиції або загибель керрі призвела до втрати Барона та ворожого наступу на базу.",
-                ImpactText = "Втрата Барона",
-                ImpactColor = "#E84057",
-                IsMistake = true
-            });
-        }
-
-        // Final Closing Event
-        if (durMin >= 24)
-        {
-            report.TimelineEvents.Add(new TacticalTimelineEvent
-            {
-                Minute = (int)Math.Round(durMin),
-                TimestampText = $"{(int)durMin}:00",
-                PhaseName = "Завершення гри",
-                PhaseBadgeColor = player.Win ? "#0AC8B9" : "#E84057",
-                Icon = player.Win ? "🏆" : "💥",
-                Title = player.Win ? "Фінальний штурм Нексуса" : "Падіння головної бази",
-                Description = player.Win
-                    ? "Успішна фіксація переваги, знищення ворожого Нексуса та перемога."
-                    : "Ворожа команда змогла прорвати лінії оборони та завершити гру.",
-                ImpactText = player.Win ? "Перемога (+LP)" : "Поразка (-LP)",
-                ImpactColor = player.Win ? "#0AC8B9" : "#E84057",
-                IsMistake = !player.Win
-            });
-        }
+                report.TimelineEvents.Add(new TacticalTimelineEvent
+                {
+                    Minute = (int)Math.Round(durMin),
+                    TimestampText = $"{(int)durMin}:00",
+                    PhaseName = "Завершення гри",
+                    PhaseBadgeColor = player.Win ? "#0AC8B9" : "#E84057",
+                    Icon = player.Win ? "🏆" : "💥",
+                    IconKind = player.Win ? "star" : "skull",
+                    CategoryTag = "FINALE",
+                    CategoryTagColor = player.Win ? "#EAB308" : "#EF4444",
+                    SeverityTag = player.Win ? "VICTORY" : "DEFEAT",
+                    SeverityBg = player.Win ? "#2B2411" : "#2D1016",
+                    SeverityFg = player.Win ? "#FDE047" : "#FF4655",
+                    Title = player.Win ? "Фінальний штурм Нексуса" : "Падіння головної бази",
+                    Description = player.Win
+                        ? "Успішна фіксація переваги, знищення ворожого Нексуса та перемога."
+                        : "Ворожа команда змогла прорвати лінії оборони та завершити гру.",
+                    ImpactText = player.Win ? "Перемога (+LP)" : "Поразка (-LP)",
+                    ImpactColor = player.Win ? "#0AC8B9" : "#E84057",
+                    IsMistake = !player.Win
+                });
+            }
         }
 
         // 3. SYNTHESIZE OVERALL MATCH VERDICT
@@ -391,6 +457,12 @@ public static class MatchTacticalAnalyzer
                         PhaseName = phaseName,
                         PhaseBadgeColor = phaseColor,
                         Icon = "⚔️",
+                        IconKind = "sword",
+                        CategoryTag = "COMBAT",
+                        CategoryTagColor = "#EF4444",
+                        SeverityTag = ev.AssistingParticipantIds.Count == 0 ? "SOLO KILL" : "KILL",
+                        SeverityBg = "#2B1118",
+                        SeverityFg = "#FF4D6D",
                         Title = $"Вбивство {victimChamp}",
                         Description = ev.AssistingParticipantIds.Count == 0
                             ? "Чистий соло-кіл на карті. Відмінна дуель без втрати позиції."
@@ -410,6 +482,12 @@ public static class MatchTacticalAnalyzer
                         PhaseName = phaseName,
                         PhaseBadgeColor = phaseColor,
                         Icon = "💀",
+                        IconKind = "skull",
+                        CategoryTag = "DEATH",
+                        CategoryTagColor = "#DC2626",
+                        SeverityTag = "DEATH",
+                        SeverityBg = "#38121A",
+                        SeverityFg = "#FF3366",
                         Title = $"Смерть від {killerChamp}",
                         Description = "Невдале зіткнення або потрапляння під ворожий фокус. Час відродження створив вікно для ворога.",
                         ImpactText = "Втрата темпу",
@@ -427,6 +505,12 @@ public static class MatchTacticalAnalyzer
                         PhaseName = phaseName,
                         PhaseBadgeColor = phaseColor,
                         Icon = "🤝",
+                        IconKind = "sword",
+                        CategoryTag = "COMBAT",
+                        CategoryTagColor = "#3B82F6",
+                        SeverityTag = "ASSIST",
+                        SeverityBg = "#112238",
+                        SeverityFg = "#60A5FA",
                         Title = $"Асист: усунення {victimChamp}",
                         Description = "Своєчасне стягування та допомога команді в ліквідації ворожої цілі.",
                         ImpactText = "+150G асист",
@@ -463,6 +547,12 @@ public static class MatchTacticalAnalyzer
                     PhaseName = phaseName,
                     PhaseBadgeColor = phaseColor,
                     Icon = isOurTeam ? "🐉" : "⚠️",
+                    IconKind = isOurTeam ? "dragon" : "warning",
+                    CategoryTag = "OBJECTIVE",
+                    CategoryTagColor = isOurTeam ? "#06B6D4" : "#DC2626",
+                    SeverityTag = isOurTeam ? "SECURED" : "LOST OBJ",
+                    SeverityBg = isOurTeam ? "#0C2329" : "#2E1217",
+                    SeverityFg = isOurTeam ? "#0AC8B9" : "#FF4655",
                     Title = isOurTeam ? $"Взяття об'єкта: {monsterLabel}" : $"Втрата об'єкта: {monsterLabel}",
                     Description = isOurTeam
                         ? $"Команда надійно забрала {monsterLabel}. Посилення бафів та контроль нейтральних зон."
@@ -484,6 +574,12 @@ public static class MatchTacticalAnalyzer
                     PhaseName = phaseName,
                     PhaseBadgeColor = phaseColor,
                     Icon = isOurTeamKiller ? "🏰" : "📉",
+                    IconKind = isOurTeamKiller ? "tower" : "warning",
+                    CategoryTag = "STRUCTURE",
+                    CategoryTagColor = isOurTeamKiller ? "#10B981" : "#DC2626",
+                    SeverityTag = isOurTeamKiller ? "TURRET DOWN" : "LOST TOWER",
+                    SeverityBg = isOurTeamKiller ? "#0E241E" : "#2E1217",
+                    SeverityFg = isOurTeamKiller ? "#2DEB90" : "#FF4655",
                     Title = isOurTeamKiller ? $"Знищення ворожої вежі ({laneLabel})" : $"Втрата союзної вежі ({laneLabel})",
                     Description = isOurTeamKiller
                         ? $"Знищено зовнішнє укріплення супротивника. Отримано відкритий простір для роумінгу."

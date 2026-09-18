@@ -20,6 +20,21 @@ public class SummonerProfile
     public double WinRate => TotalGames > 0 ? Math.Round((double)Wins / TotalGames * 100, 1) : 0.0;
     public string FullName => $"{GameName}#{TagLine}";
     public string ProfileIconUrl => $"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/profileicon/{ProfileIconId}.png";
+
+    public List<ChampionMasteryInfo> TopMasteries { get; set; } = new();
+}
+
+public class ChampionMasteryInfo
+{
+    public long ChampionId { get; set; }
+    public string ChampionName { get; set; } = string.Empty;
+    public int ChampionLevel { get; set; }
+    public int ChampionPoints { get; set; }
+    public long LastPlayTime { get; set; }
+    public string FormattedPoints => ChampionPoints >= 1000000 
+        ? $"{ChampionPoints / 1000000.0:F1}M" 
+        : (ChampionPoints >= 1000 ? $"{ChampionPoints / 1000.0:F0}k" : $"{ChampionPoints}");
+    public string ChampionIconUrl => $"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/champion/{Helpers.ChampionNameHelper.ToDDragonImageKey(ChampionName)}.png";
 }
 
 public class ItemDefinition

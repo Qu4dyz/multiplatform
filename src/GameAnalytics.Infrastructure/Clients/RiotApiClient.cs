@@ -206,6 +206,17 @@ public class RiotApiClient : IRiotApiClient
                 }
             }
 
+            // Step 4: Query Champion Mastery V4 Top Masteries
+            try
+            {
+                var masteries = await GetTopChampionMasteriesAsync(account.Puuid, count: 5, ct: ct);
+                if (masteries.Count > 0)
+                {
+                    profile.TopMasteries = masteries.ToList();
+                }
+            }
+            catch { /* non-critical */ }
+
             return profile;
         }
         catch
@@ -213,6 +224,86 @@ public class RiotApiClient : IRiotApiClient
             return _options.UseMockFallback ? GetMockProfile(gameName, tagLine) : null;
         }
     }
+
+    public async Task<IReadOnlyList<ChampionMasteryInfo>> GetTopChampionMasteriesAsync(string puuid, int count = 10, CancellationToken ct = default)
+    {
+        if (!_options.HasValidApiKey)
+        {
+            return GenerateMockMasteries();
+        }
+
+        try
+        {
+            var url = $"https://{_options.PlatformRegion}.api.riotgames.com/lol/champion-mastery/v4/champion-masteries/by-puuid/{puuid}/top?count={count}";
+            using var response = await SendWithRetryAsync(url, ct);
+            if (response == null || !response.IsSuccessStatusCode)
+            {
+                return _options.UseMockFallback ? GenerateMockMasteries() : Array.Empty<ChampionMasteryInfo>();
+            }
+
+            var dtos = await response.Content.ReadFromJsonAsync<List<RiotChampionMasteryDto>>(cancellationToken: ct);
+            if (dtos == null) return Array.Empty<ChampionMasteryInfo>();
+
+            var list = new List<ChampionMasteryInfo>();
+            foreach (var d in dtos)
+            {
+                var champName = GameAnalytics.Core.Helpers.ChampionNameHelper.GetChampionNameById((int)d.ChampionId);
+                list.Add(new ChampionMasteryInfo
+                {
+                    ChampionId = d.ChampionId,
+                    ChampionName = champName,
+                    ChampionLevel = d.ChampionLevel,
+                    ChampionPoints = d.ChampionPoints,
+                    LastPlayTime = d.LastPlayTime
+                });
+            }
+            return list;
+        }
+        catch
+        {
+            return _options.UseMockFallback ? GenerateMockMasteries() : Array.Empty<ChampionMasteryInfo>();
+        }
+    }
+
+    public async Task<IReadOnlyList<string>> GetChallengerPlayerPuuidsAsync(string queue = "RANKED_SOLO_5x5", int maxCount = 20, CancellationToken ct = default)
+    {
+        if (!_options.HasValidApiKey)
+        {
+            return Array.Empty<string>();
+        }
+
+        try
+        {
+            var url = $"https://{_options.PlatformRegion}.api.riotgames.com/lol/league/v4/challengerleagues/by-queue/{queue}";
+            using var response = await SendWithRetryAsync(url, ct);
+            if (response == null || !response.IsSuccessStatusCode) return Array.Empty<string>();
+
+            var league = await response.Content.ReadFromJsonAsync<RiotLeagueListDto>(cancellationToken: ct);
+            if (league?.Entries == null) return Array.Empty<string>();
+
+            var puuids = league.Entries
+                .Where(e => !string.IsNullOrWhiteSpace(e.Puuid))
+                .OrderByDescending(e => e.LeaguePoints)
+                .Take(maxCount)
+                .Select(e => e.Puuid!)
+                .ToList();
+
+            return puuids;
+        }
+        catch
+        {
+            return Array.Empty<string>();
+        }
+    }
+
+    private IReadOnlyList<ChampionMasteryInfo> GenerateMockMasteries() => new List<ChampionMasteryInfo>
+    {
+        new() { ChampionId = 103, ChampionName = "Ahri", ChampionLevel = 7, ChampionPoints = 145000 },
+        new() { ChampionId = 84, ChampionName = "Akali", ChampionLevel = 6, ChampionPoints = 88000 },
+        new() { ChampionId = 157, ChampionName = "Yasuo", ChampionLevel = 7, ChampionPoints = 220000 },
+        new() { ChampionId = 238, ChampionName = "Zed", ChampionLevel = 5, ChampionPoints = 48000 },
+        new() { ChampionId = 99, ChampionName = "Lux", ChampionLevel = 5, ChampionPoints = 39000 }
+    };
 
     public async Task<IReadOnlyList<string>> GetRecentMatchIdsByPuuidAsync(string puuid, int count = 10, int? queue = null, CancellationToken ct = default)
     {
@@ -388,7 +479,28 @@ public class RiotApiClient : IRiotApiClient
                     Item3 = p.Item3,
                     Item4 = p.Item4,
                     Item5 = p.Item5,
-                    Item6 = p.Item6
+                    Item6 = p.Item6,
+                    Summoner1Id = p.Summoner1Id > 0 ? p.Summoner1Id : 4,
+                    Summoner2Id = p.Summoner2Id > 0 ? p.Summoner2Id : 14,
+                    PrimaryRuneId = p.Perks?.Styles?.FirstOrDefault()?.Selections?.FirstOrDefault()?.Perk ?? 8010,
+                    SecondaryRuneStyleId = p.Perks?.Styles?.ElementAtOrDefault(1)?.Style ?? 8100,
+                    VisionScore = p.VisionScore,
+                    WardsPlaced = p.WardsPlaced,
+                    WardsKilled = p.WardsKilled,
+                    ControlWardsBought = p.VisionWardsBoughtInGame,
+                    PhysicalDamageDealtToChampions = p.PhysicalDamageDealtToChampions,
+                    MagicDamageDealtToChampions = p.MagicDamageDealtToChampions,
+                    TrueDamageDealtToChampions = p.TrueDamageDealtToChampions,
+                    TotalDamageTaken = p.TotalDamageTaken,
+                    DamageSelfMitigated = p.DamageSelfMitigated,
+                    DamageDealtToObjectives = p.DamageDealtToObjectives,
+                    DamageDealtToTurrets = p.DamageDealtToTurrets,
+                    DoubleKills = p.DoubleKills,
+                    TripleKills = p.TripleKills,
+                    QuadraKills = p.QuadraKills,
+                    PentaKills = p.PentaKills,
+                    SoloKills = p.Challenges?.SoloKills ?? 0,
+                    TurretPlatesTaken = p.Challenges?.TurretPlatesTaken ?? 0
                 });
             }
         }
@@ -762,7 +874,25 @@ public class RiotApiClient : IRiotApiClient
                 Item3 = 3072,
                 Item4 = 3026,
                 Item5 = 3153,
-                Item6 = 3340
+                Item6 = 3340,
+                Summoner1Id = 4,
+                Summoner2Id = isBlue ? 14 : 12,
+                PrimaryRuneId = 8010,
+                SecondaryRuneStyleId = 8100,
+                VisionScore = random.Next(15, 65),
+                WardsPlaced = random.Next(8, 25),
+                WardsKilled = random.Next(2, 10),
+                ControlWardsBought = random.Next(1, 5),
+                PhysicalDamageDealtToChampions = random.Next(6000, 20000),
+                MagicDamageDealtToChampions = random.Next(3000, 15000),
+                TrueDamageDealtToChampions = random.Next(500, 3000),
+                TotalDamageTaken = random.Next(15000, 35000),
+                DamageSelfMitigated = random.Next(10000, 30000),
+                DamageDealtToObjectives = random.Next(2000, 18000),
+                DamageDealtToTurrets = random.Next(1000, 8000),
+                DoubleKills = random.Next(0, 3),
+                SoloKills = random.Next(0, 4),
+                TurretPlatesTaken = random.Next(0, 5)
             });
         }
 
@@ -974,5 +1104,146 @@ public class RiotApiClient : IRiotApiClient
 
         [JsonPropertyName("item6")]
         public int Item6 { get; set; }
+
+        [JsonPropertyName("summoner1Id")]
+        public int Summoner1Id { get; set; }
+
+        [JsonPropertyName("summoner2Id")]
+        public int Summoner2Id { get; set; }
+
+        [JsonPropertyName("perks")]
+        public RiotPerksDto? Perks { get; set; }
+
+        [JsonPropertyName("visionScore")]
+        public int VisionScore { get; set; }
+
+        [JsonPropertyName("wardsPlaced")]
+        public int WardsPlaced { get; set; }
+
+        [JsonPropertyName("wardsKilled")]
+        public int WardsKilled { get; set; }
+
+        [JsonPropertyName("visionWardsBoughtInGame")]
+        public int VisionWardsBoughtInGame { get; set; }
+
+        [JsonPropertyName("physicalDamageDealtToChampions")]
+        public int PhysicalDamageDealtToChampions { get; set; }
+
+        [JsonPropertyName("magicDamageDealtToChampions")]
+        public int MagicDamageDealtToChampions { get; set; }
+
+        [JsonPropertyName("trueDamageDealtToChampions")]
+        public int TrueDamageDealtToChampions { get; set; }
+
+        [JsonPropertyName("totalDamageTaken")]
+        public int TotalDamageTaken { get; set; }
+
+        [JsonPropertyName("damageSelfMitigated")]
+        public int DamageSelfMitigated { get; set; }
+
+        [JsonPropertyName("damageDealtToObjectives")]
+        public int DamageDealtToObjectives { get; set; }
+
+        [JsonPropertyName("damageDealtToTurrets")]
+        public int DamageDealtToTurrets { get; set; }
+
+        [JsonPropertyName("doubleKills")]
+        public int DoubleKills { get; set; }
+
+        [JsonPropertyName("tripleKills")]
+        public int TripleKills { get; set; }
+
+        [JsonPropertyName("quadraKills")]
+        public int QuadraKills { get; set; }
+
+        [JsonPropertyName("pentaKills")]
+        public int PentaKills { get; set; }
+
+        [JsonPropertyName("challenges")]
+        public RiotChallengesDto? Challenges { get; set; }
+    }
+
+    public class RiotPerksDto
+    {
+        [JsonPropertyName("styles")]
+        public List<RiotPerkStyleDto>? Styles { get; set; }
+    }
+
+    public class RiotPerkStyleDto
+    {
+        [JsonPropertyName("style")]
+        public int Style { get; set; }
+
+        [JsonPropertyName("description")]
+        public string? Description { get; set; }
+
+        [JsonPropertyName("selections")]
+        public List<RiotPerkSelectionDto>? Selections { get; set; }
+    }
+
+    public class RiotPerkSelectionDto
+    {
+        [JsonPropertyName("perk")]
+        public int Perk { get; set; }
+    }
+
+    public class RiotChallengesDto
+    {
+        [JsonPropertyName("soloKills")]
+        public int? SoloKills { get; set; }
+
+        [JsonPropertyName("turretPlatesTaken")]
+        public int? TurretPlatesTaken { get; set; }
+    }
+
+    public class RiotChampionMasteryDto
+    {
+        [JsonPropertyName("puuid")]
+        public string? Puuid { get; set; }
+
+        [JsonPropertyName("championId")]
+        public long ChampionId { get; set; }
+
+        [JsonPropertyName("championLevel")]
+        public int ChampionLevel { get; set; }
+
+        [JsonPropertyName("championPoints")]
+        public int ChampionPoints { get; set; }
+
+        [JsonPropertyName("lastPlayTime")]
+        public long LastPlayTime { get; set; }
+    }
+
+    public class RiotLeagueListDto
+    {
+        [JsonPropertyName("tier")]
+        public string? Tier { get; set; }
+
+        [JsonPropertyName("queue")]
+        public string? Queue { get; set; }
+
+        [JsonPropertyName("entries")]
+        public List<RiotLeagueItemDto>? Entries { get; set; }
+    }
+
+    public class RiotLeagueItemDto
+    {
+        [JsonPropertyName("summonerId")]
+        public string? SummonerId { get; set; }
+
+        [JsonPropertyName("puuid")]
+        public string? Puuid { get; set; }
+
+        [JsonPropertyName("leaguePoints")]
+        public int LeaguePoints { get; set; }
+
+        [JsonPropertyName("rank")]
+        public string? Rank { get; set; }
+
+        [JsonPropertyName("wins")]
+        public int Wins { get; set; }
+
+        [JsonPropertyName("losses")]
+        public int Losses { get; set; }
     }
 }

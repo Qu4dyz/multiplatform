@@ -56,6 +56,23 @@ public class RealMatchDatasetCollector
 
                 if (candidatePuuids.Count == 0)
                 {
+                    // Query Challenger ladder to obtain high-elo seed players
+                    try
+                    {
+                        var challengerPuuids = await _apiClient.GetChallengerPlayerPuuidsAsync("RANKED_SOLO_5x5", maxCount: 25, ct: ct);
+                        foreach (var cPuuid in challengerPuuids)
+                        {
+                            if (visitedPuuids.Add(cPuuid))
+                            {
+                                candidatePuuids.Enqueue(cPuuid);
+                            }
+                        }
+                    }
+                    catch { /* fallback */ }
+                }
+
+                if (candidatePuuids.Count == 0)
+                {
                     logger?.Invoke("[Collector] Черга кандидатів порожня та база не містить нових гравців. Завершення поточної ітерації.");
                     break;
                 }

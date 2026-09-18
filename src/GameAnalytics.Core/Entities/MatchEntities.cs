@@ -63,6 +63,35 @@ public class Participant
     public int Item5 { get; set; }
     public int Item6 { get; set; }
 
+    // Summoner Spells & Runes
+    public int Summoner1Id { get; set; } = 4; // Flash default
+    public int Summoner2Id { get; set; } = 14; // Ignite default
+    public int PrimaryRuneId { get; set; } = 8010; // Conqueror default
+    public int SecondaryRuneStyleId { get; set; } = 8100; // Domination default
+
+    // Vision
+    public int VisionScore { get; set; }
+    public int WardsPlaced { get; set; }
+    public int WardsKilled { get; set; }
+    public int ControlWardsBought { get; set; }
+
+    // Damage Breakdown
+    public int PhysicalDamageDealtToChampions { get; set; }
+    public int MagicDamageDealtToChampions { get; set; }
+    public int TrueDamageDealtToChampions { get; set; }
+    public int TotalDamageTaken { get; set; }
+    public int DamageSelfMitigated { get; set; }
+    public int DamageDealtToObjectives { get; set; }
+    public int DamageDealtToTurrets { get; set; }
+
+    // Multi-kills & Feats
+    public int DoubleKills { get; set; }
+    public int TripleKills { get; set; }
+    public int QuadraKills { get; set; }
+    public int PentaKills { get; set; }
+    public int SoloKills { get; set; }
+    public int TurretPlatesTaken { get; set; }
+
     public double KdaRatio => Deaths == 0 ? (Kills + Assists) : Math.Round((double)(Kills + Assists) / Deaths, 2);
 }
 
