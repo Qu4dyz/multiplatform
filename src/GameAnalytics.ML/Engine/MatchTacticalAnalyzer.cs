@@ -471,7 +471,7 @@ public static class MatchTacticalAnalyzer
                         ImpactText = $"+{Math.Max(300, ev.Bounty)}G темп",
                         ImpactColor = "#0AC8B9",
                         IsMistake = false,
-                        Moment = TacticalMomentReplayBuilder.BuildCombatMoment(match, timeline, ev, playerParticipantId, isDeath: false)
+                        Moment = TacticalMomentReplayBuilder.BuildCombatMoment(match, timeline, ev, playerParticipantId, TacticalMomentRole.Kill)
                     });
                 }
                 else if (ev.VictimId == playerParticipantId)
@@ -496,7 +496,7 @@ public static class MatchTacticalAnalyzer
                         ImpactText = "Втрата темпу",
                         ImpactColor = "#E84057",
                         IsMistake = true,
-                        Moment = TacticalMomentReplayBuilder.BuildCombatMoment(match, timeline, ev, playerParticipantId, isDeath: true)
+                        Moment = TacticalMomentReplayBuilder.BuildCombatMoment(match, timeline, ev, playerParticipantId, TacticalMomentRole.Death)
                     });
                 }
                 else if (ev.AssistingParticipantIds.Contains(playerParticipantId))
@@ -521,7 +521,7 @@ public static class MatchTacticalAnalyzer
                         ImpactText = "+150G асист",
                         ImpactColor = "#0AC8B9",
                         IsMistake = false,
-                        Moment = TacticalMomentReplayBuilder.BuildCombatMoment(match, timeline, ev, playerParticipantId, isDeath: false)
+                        Moment = TacticalMomentReplayBuilder.BuildCombatMoment(match, timeline, ev, playerParticipantId, TacticalMomentRole.Assist)
                     });
                 }
             }

@@ -73,6 +73,9 @@ public class TacticalMomentReplay
     public string KillerChampionName { get; set; } = string.Empty;
     public string AssistsText { get; set; } = string.Empty;
     public bool IsDeath { get; set; }
+    public int KillerId { get; set; }
+    public int VictimId { get; set; }
+    public int TimestampMs { get; set; }
     public double MapSize { get; set; } = 280;
     public List<TacticalMomentMarker> Markers { get; set; } = new();
     public List<TacticalMomentContextLine> ContextLines { get; set; } = new();

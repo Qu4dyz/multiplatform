@@ -1665,18 +1665,23 @@
                                                                                     <Canvas Width="280" Height="280" />
                                                                                 </ItemsPanelTemplate>
                                                                             </ItemsControl.ItemsPanel>
+                                                                            <ItemsControl.ItemContainerTheme>
+                                                                                <ControlTheme TargetType="ContentPresenter" x:DataType="coreEntities:TacticalMomentMarker">
+                                                                                    <Setter Property="Canvas.Left" Value="{Binding MapLeft}" />
+                                                                                    <Setter Property="Canvas.Top" Value="{Binding MapTop}" />
+                                                                                </ControlTheme>
+                                                                            </ItemsControl.ItemContainerTheme>
                                                                             <ItemsControl.ItemTemplate>
                                                                                 <DataTemplate x:DataType="coreEntities:TacticalMomentMarker">
                                                                                     <Border Width="24" Height="24" CornerRadius="12"
                                                                                             BorderBrush="{Binding BorderColor}" BorderThickness="2"
                                                                                             Background="#0B0C12" ClipToBounds="True"
-                                                                                            ToolTip.Tip="{Binding ChampionName}">
-                                                                                        <Border.RenderTransform>
-                                                                                            <TranslateTransform X="{Binding MapLeft}" Y="{Binding MapTop}" />
-                                                                                        </Border.RenderTransform>
-                                                                                        <Image Source="{Binding ChampionIconUrl, Converter={StaticResource BitmapAssetConverter}}"
-                                                                                               Width="22" Height="22" Stretch="UniformToFill"
-                                                                                               RenderOptions.BitmapInterpolationMode="HighQuality" />
+                                                                                            ToolTip.Tip="{Binding RoleLabel}">
+                                                                                        <Panel>
+                                                                                            <Image Source="{Binding ChampionIconUrl, Converter={StaticResource BitmapAssetConverter}}"
+                                                                                                   Width="22" Height="22" Stretch="UniformToFill"
+                                                                                                   RenderOptions.BitmapInterpolationMode="HighQuality" />
+                                                                                        </Panel>
                                                                                     </Border>
                                                                                 </DataTemplate>
                                                                             </ItemsControl.ItemTemplate>
@@ -1696,7 +1701,7 @@
                                                             <!-- Context strip -->
                                                             <StackPanel Grid.Column="2" Spacing="8">
                                                                 <TextBlock Text="КОНТЕКСТ ±45 СЕК" FontSize="11" FontWeight="Bold" Foreground="#C4B5FD" LetterSpacing="1" />
-                                                                <TextBlock Text="Позиції з кадру timeline + точна точка смерті з Riot API. Це не відео-реплей клієнта, але видно хто де стояв у цей момент."
+                                                                <TextBlock Text="Позиції з кадру timeline (останній ≤ моменту) + точка бою з kill-event. Учасників файту зведено до місця кілу; ★ смерть / ◆ ваш кіл / ✚ ваш асист."
                                                                            FontSize="11" Foreground="#64748B" TextWrapping="Wrap" />
                                                                 <ItemsControl ItemsSource="{Binding SelectedMoment.ContextLines}">
                                                                     <ItemsControl.ItemTemplate>
