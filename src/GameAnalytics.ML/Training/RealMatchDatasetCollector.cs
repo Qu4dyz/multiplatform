@@ -1,6 +1,8 @@
 using GameAnalytics.Core.Entities;
 using GameAnalytics.Core.Enums;
+using GameAnalytics.Core.Helpers;
 using GameAnalytics.Core.Interfaces;
+using GameAnalytics.ML.Engine;
 using GameAnalytics.ML.Models;
 
 namespace GameAnalytics.ML.Training;
@@ -29,14 +31,24 @@ public class RealMatchDatasetCollector
     {
         var visitedPuuids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var candidatePuuids = new Queue<string>();
+        // PUUID → known ladder skill (1–10). Used to tag matches with ApproxRankScore.
+        var puuidRankHints = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
         var refillAttempts = 0;
         const int maxRefillAttempts = 6;
         var objectiveBackfills = 0;
 
-        void EnqueueCandidate(string? puuid)
+        void RememberRankHint(string? puuid, float rankScore)
+        {
+            if (string.IsNullOrWhiteSpace(puuid) || rankScore <= 0) return;
+            if (!puuidRankHints.TryGetValue(puuid, out var existing) || rankScore > existing)
+                puuidRankHints[puuid] = rankScore;
+        }
+
+        void EnqueueCandidate(string? puuid, float? rankHint = null)
         {
             if (string.IsNullOrWhiteSpace(puuid)) return;
             if (puuid.StartsWith("puuid-", StringComparison.OrdinalIgnoreCase)) return;
+            if (rankHint.HasValue) RememberRankHint(puuid, rankHint.Value);
             if (!visitedPuuids.Add(puuid)) return;
             candidatePuuids.Enqueue(puuid);
         }
@@ -87,13 +99,13 @@ public class RealMatchDatasetCollector
                 {
                     try
                     {
-                        var ladderPuuids = await _apiClient.GetChallengerPlayerPuuidsAsync("RANKED_SOLO_5x5", maxCount: 40, ct: ct);
+                        var ladder = await _apiClient.GetHighEloLadderPlayersAsync("RANKED_SOLO_5x5", maxCount: 40, ct: ct);
                         var before = candidatePuuids.Count;
-                        foreach (var cPuuid in ladderPuuids)
+                        foreach (var entry in ladder)
                         {
-                            EnqueueCandidate(cPuuid);
+                            EnqueueCandidate(entry.Puuid, RankScoreHelper.FromTier(entry.Tier));
                         }
-                        logger?.Invoke($"[Collector] Ladder refill: +{candidatePuuids.Count - before} гравців з Challenger/GM/Master.");
+                        logger?.Invoke($"[Collector] Ladder refill: +{candidatePuuids.Count - before} гравців з Challenger/GM/Master (з міткою рангу).");
                     }
                     catch (Exception ex)
                     {
@@ -165,6 +177,8 @@ public class RealMatchDatasetCollector
                     ApplyTimelineSnapshot(match, timeline);
                 }
 
+                TagMatchRankScore(match, puuidRankHints);
+
                 await _matchRepo.UpsertMatchAsync(match, ct);
                 newlySavedMatches++;
                 logger?.Invoke($"[Collector] Збережено реальний матч #{newlySavedMatches}/{targetNewMatches}: {match.MatchId} ({match.FormattedDuration}, {match.QueueName})");
@@ -180,6 +194,7 @@ public class RealMatchDatasetCollector
     /// <summary>
     /// Applies a minute-15 timeline snapshot onto team rows.
     /// Intentionally overwrites Voidgrub/Herald with at-15 counts so training never sees end-game leakage.
+    /// Also derives per-role gold diffs and level diffs when frames + positions are available.
     /// </summary>
     public static bool ApplyTimelineSnapshot(Match match, MatchTimelineData timeline)
     {
@@ -209,7 +224,68 @@ public class RealMatchDatasetCollector
         blue.FirstVoidgrub = timeline.VoidgrubsAt15Blue > 0;
         blue.FirstRiftHerald = timeline.HeraldsAt15Blue > 0;
         match.HasMinute15Objectives = true;
+
+        ApplyLaneAndLevelDiffs(match, timeline);
         return true;
+    }
+
+    /// <summary>Tags a match with the strongest known ladder rank among its participants.</summary>
+    public static void TagMatchRankScore(Match match, IReadOnlyDictionary<string, float> puuidRankHints)
+    {
+        if (match.ApproxRankScore > 0) return;
+        float best = 0;
+        foreach (var p in match.Participants)
+        {
+            if (string.IsNullOrWhiteSpace(p.Puuid)) continue;
+            if (puuidRankHints.TryGetValue(p.Puuid, out var score) && score > best)
+                best = score;
+        }
+
+        if (best > 0)
+            match.ApproxRankScore = best;
+    }
+
+    public static void ApplyLaneAndLevelDiffs(Match match, MatchTimelineData timeline)
+    {
+        if (timeline.Frames.Count == 0 || match.Participants.Count == 0) return;
+
+        const int fifteenMs = 15 * 60 * 1000;
+        var frame = timeline.Frames
+            .Where(f => f.TimestampMs <= fifteenMs)
+            .OrderByDescending(f => f.TimestampMs)
+            .FirstOrDefault()
+            ?? timeline.Frames.LastOrDefault();
+        if (frame == null || frame.Participants.Count == 0) return;
+
+        var goldByPid = frame.Participants.ToDictionary(p => p.ParticipantId, p => p.TotalGold);
+        var levelByPid = frame.Participants.ToDictionary(p => p.ParticipantId, p => p.Level);
+
+        float RoleGold(TeamSide side, Position pos)
+        {
+            var players = match.Participants.Where(p => p.TeamSide == side && p.Position == pos).ToList();
+            if (players.Count == 0) return 0;
+            return (float)players.Average(p =>
+                goldByPid.TryGetValue(ResolveParticipantId(match, p), out var g) ? g : 0);
+        }
+
+        float SideLevels(TeamSide side) =>
+            match.Participants.Where(p => p.TeamSide == side)
+                .Sum(p => levelByPid.TryGetValue(ResolveParticipantId(match, p), out var lvl) ? lvl : 0);
+
+        match.TopGoldDiff15 = RoleGold(TeamSide.Blue, Position.Top) - RoleGold(TeamSide.Red, Position.Top);
+        match.JungleGoldDiff15 = RoleGold(TeamSide.Blue, Position.Jungle) - RoleGold(TeamSide.Red, Position.Jungle);
+        match.MidGoldDiff15 = RoleGold(TeamSide.Blue, Position.Middle) - RoleGold(TeamSide.Red, Position.Middle);
+        match.BotDuoGoldDiff15 =
+            (RoleGold(TeamSide.Blue, Position.Bottom) + RoleGold(TeamSide.Blue, Position.Utility))
+            - (RoleGold(TeamSide.Red, Position.Bottom) + RoleGold(TeamSide.Red, Position.Utility));
+        match.LevelDiff15 = SideLevels(TeamSide.Blue) - SideLevels(TeamSide.Red);
+    }
+
+    private static int ResolveParticipantId(Match match, Participant p)
+    {
+        if (p.ParticipantId > 0) return p.ParticipantId;
+        var idx = match.Participants.IndexOf(p);
+        return idx >= 0 ? idx + 1 : 0;
     }
 
     private static bool NeedsAt15ObjectiveBackfill(Match match)
@@ -224,13 +300,16 @@ public class RealMatchDatasetCollector
     /// <summary>
     /// Converts stored historical matches into honest minute-15 ML features.
     /// Skips matches without a real 15' gold snapshot and never falls back to end-of-game towers/kills/CS.
+    /// Adds draft scaling, real champion win rates, lane gold, and rank-aware gold conversion.
     /// Preserves chronological order when the input is ordered by GameCreation.
     /// </summary>
     public static List<MatchInputData> ExtractFeaturesFromMatches(IEnumerable<Match> matches)
     {
+        var matchList = matches as IList<Match> ?? matches.ToList();
+        var champWinRates = BuildChampionWinRates(matchList);
         var result = new List<MatchInputData>();
 
-        foreach (var match in matches)
+        foreach (var match in matchList)
         {
             if (match.IsRemake || match.GameDurationSeconds < 300) continue;
             if (match.QueueId != 420 && match.QueueId != 440 && match.QueueId != 400 && match.QueueId != 0) continue;
@@ -257,6 +336,27 @@ public class RealMatchDatasetCollector
             var voidgrubDiff = (float)(blue.VoidgrubKills - red.VoidgrubKills);
             var heraldDiff = (float)(blue.RiftHeraldKills - red.RiftHeraldKills);
 
+            var blueChamps = match.Participants.Where(p => p.TeamSide == TeamSide.Blue).Select(p => p.ChampionName).ToList();
+            var redChamps = match.Participants.Where(p => p.TeamSide == TeamSide.Red).Select(p => p.ChampionName).ToList();
+
+            var (earlyDiff, lateDiff) = ComputeDraftPowerDiffs(blueChamps, redChamps);
+            var (blueWr, redWr) = ComputeTeamChampionWinRates(blueChamps, redChamps, champWinRates);
+
+            var rankScore = match.ApproxRankScore > 0 ? match.ApproxRankScore : RankScoreHelper.DefaultMixedLobby;
+            var goldPace = (blue.GoldAt15 + red.GoldAt15) / 1000f;
+            var objectiveScore =
+                towerDiff * 1.5f +
+                dragonDiff * 1.2f +
+                voidgrubDiff * 0.35f +
+                heraldDiff * 1.0f;
+
+            // High-elo lobbies convert leads more cleanly; low-elo is noisier.
+            var rankAdjustedGold = goldDiff15 * (rankScore / RankScoreHelper.DefaultMixedLobby);
+
+            var levelDiff = match.LevelDiff15 != 0
+                ? match.LevelDiff15
+                : xpDiff15 / 180f; // rough fallback: ~180 XP ≈ 1 level across a team
+
             result.Add(new MatchInputData
             {
                 FirstBlood = blue.FirstBlood ? 1f : 0f,
@@ -268,15 +368,92 @@ public class RealMatchDatasetCollector
                 XpDiff15 = xpDiff15,
                 VoidgrubDiff = voidgrubDiff,
                 HeraldDiff = heraldDiff,
-                // Placeholder until per-player ranked WR is wired; kept for schema stability, excluded from pipeline.
-                BlueAvgWinRate = 50.0f,
-                RedAvgWinRate = 50.0f,
+                BlueAvgWinRate = blueWr,
+                RedAvgWinRate = redWr,
                 TowerDiff = towerDiff,
                 DragonDiff = dragonDiff,
+                EarlyPowerDiff = earlyDiff,
+                LatePowerDiff = lateDiff,
+                AvgRankScore = rankScore,
+                GoldPace15 = goldPace,
+                TopGoldDiff15 = match.TopGoldDiff15,
+                JungleGoldDiff15 = match.JungleGoldDiff15,
+                MidGoldDiff15 = match.MidGoldDiff15,
+                BotDuoGoldDiff15 = match.BotDuoGoldDiff15,
+                LevelDiff15 = levelDiff,
+                ObjectiveScoreDiff = objectiveScore,
+                RankAdjustedGoldDiff = rankAdjustedGold,
                 Label = match.WinningTeam == TeamSide.Blue
             });
         }
 
         return result;
+    }
+
+    public static Dictionary<string, float> BuildChampionWinRates(IEnumerable<Match> matches)
+    {
+        var wins = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var games = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var match in matches)
+        {
+            if (match.IsRemake || match.GameDurationSeconds < 300) continue;
+            foreach (var p in match.Participants)
+            {
+                if (string.IsNullOrWhiteSpace(p.ChampionName)) continue;
+                games.TryGetValue(p.ChampionName, out var g);
+                games[p.ChampionName] = g + 1;
+                if (p.Win)
+                {
+                    wins.TryGetValue(p.ChampionName, out var w);
+                    wins[p.ChampionName] = w + 1;
+                }
+            }
+        }
+
+        var rates = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (champ, count) in games)
+        {
+            if (count < 8)
+            {
+                rates[champ] = 50f; // not enough sample — neutral prior
+                continue;
+            }
+
+            var w = wins.TryGetValue(champ, out var ww) ? ww : 0;
+            rates[champ] = 100f * w / count;
+        }
+
+        return rates;
+    }
+
+    public static (float BlueWr, float RedWr) ComputeTeamChampionWinRates(
+        IReadOnlyList<string> blueChamps,
+        IReadOnlyList<string> redChamps,
+        IReadOnlyDictionary<string, float> champWinRates)
+    {
+        static float Avg(IReadOnlyList<string> champs, IReadOnlyDictionary<string, float> rates)
+        {
+            if (champs.Count == 0) return 50f;
+            var sum = 0f;
+            foreach (var c in champs)
+                sum += rates.TryGetValue(c, out var r) ? r : 50f;
+            return sum / champs.Count;
+        }
+
+        return (Avg(blueChamps, champWinRates), Avg(redChamps, champWinRates));
+    }
+
+    public static (float EarlyDiff, float LateDiff) ComputeDraftPowerDiffs(
+        IReadOnlyList<string> blueChamps,
+        IReadOnlyList<string> redChamps)
+    {
+        if (blueChamps.Count == 0 && redChamps.Count == 0)
+            return (0f, 0f);
+
+        var comparison = ChampionScalingAnalyzer.CompareDraftCompositions(blueChamps, redChamps);
+        var early = (float)(comparison.BlueTeam.EarlyGamePower - comparison.RedTeam.EarlyGamePower);
+        var late = (float)(comparison.BlueTeam.LateGamePower - comparison.RedTeam.LateGamePower);
+        return (early, late);
     }
 }

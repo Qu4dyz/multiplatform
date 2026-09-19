@@ -1,5 +1,6 @@
 using GameAnalytics.Core.Entities;
 using GameAnalytics.Core.Enums;
+using GameAnalytics.Core.Helpers;
 using GameAnalytics.Core.Interfaces;
 using GameAnalytics.ML.Models;
 using GameAnalytics.ML.Training;
@@ -165,7 +166,29 @@ public class MatchPredictionEngine : IPredictionEngine
                 BlueAvgWinRate = features.BlueTeamAvgWinRate,
                 RedAvgWinRate = features.RedTeamAvgWinRate,
                 TowerDiff = features.BlueTowerCount - features.RedTowerCount,
-                DragonDiff = features.BlueDragonCount - features.RedDragonCount
+                DragonDiff = features.BlueDragonCount - features.RedDragonCount,
+                EarlyPowerDiff = features.EarlyPowerDiff != 0
+                    ? features.EarlyPowerDiff
+                    : (float)(-features.BlueScalingAdvantage * 0.4),
+                LatePowerDiff = features.LatePowerDiff != 0
+                    ? features.LatePowerDiff
+                    : (float)features.BlueScalingAdvantage,
+                AvgRankScore = features.AvgRankScore > 0 ? features.AvgRankScore : 5.5f,
+                GoldPace15 = (Math.Abs(features.GoldDiffAt15) + 48000) / 1000f,
+                TopGoldDiff15 = features.TopGoldDiff15,
+                JungleGoldDiff15 = features.JungleGoldDiff15,
+                MidGoldDiff15 = features.MidGoldDiff15,
+                BotDuoGoldDiff15 = features.BotDuoGoldDiff15,
+                LevelDiff15 = features.LevelDiff15 != 0
+                    ? features.LevelDiff15
+                    : features.XpDiffAt15 / 180f,
+                ObjectiveScoreDiff =
+                    (features.BlueTowerCount - features.RedTowerCount) * 1.5f +
+                    (features.BlueDragonCount - features.RedDragonCount) * 1.2f +
+                    features.VoidgrubDiff * 0.35f +
+                    features.HeraldDiff,
+                RankAdjustedGoldDiff = features.GoldDiffAt15 *
+                    ((features.AvgRankScore > 0 ? features.AvgRankScore : 5.5f) / 5.5f)
             };
 
             var prediction = _predictionEngine!.Predict(input);
@@ -262,17 +285,25 @@ public class MatchPredictionEngine : IPredictionEngine
                 blueProb = Math.Clamp(blueProb + (isBlueSoul ? 0.15f : -0.15f), 0.05f, 0.95f);
             }
 
-            // Late-game Scaling Factor & Probability Adjustment
-            if (Math.Abs(features.BlueScalingAdvantage) >= 5.0)
+            // Late-game scaling is now a trained feature (LatePowerDiff) — only surface as a factor text.
+            if (Math.Abs(features.BlueScalingAdvantage) >= 5.0 || Math.Abs(features.LatePowerDiff) >= 5.0)
             {
-                var isBlueScaling = features.BlueScalingAdvantage > 0;
-                var diff = Math.Abs(features.BlueScalingAdvantage);
+                var late = features.LatePowerDiff != 0 ? features.LatePowerDiff : (float)features.BlueScalingAdvantage;
+                var isBlueScaling = late > 0;
+                var diff = Math.Abs(late);
 
                 factors.Add(isBlueScaling
                     ? $"Скейлінг композиції: Сині мають кращий лейт-гейм (+{diff:F0}% Late Power). Затягування гри вигідне Синім."
                     : $"Скейлінг композиції: Червоні мають кращий лейт-гейм (+{diff:F0}% Late Power). Синім необхідно реалізувати ранній темп.");
+            }
 
-                blueProb = Math.Clamp(blueProb + (float)(features.BlueScalingAdvantage * 0.0025f), 0.05f, 0.95f);
+            if (features.AvgRankScore >= 8.0f)
+            {
+                factors.Add($"Лобі високого рангу (~{RankScoreHelper.FromScore(features.AvgRankScore)}): переваги реалізуються чистіше, помилки дорожчі.");
+            }
+            else if (features.AvgRankScore > 0 && features.AvgRankScore <= 3.5f)
+            {
+                factors.Add($"Лобі низького рангу (~{RankScoreHelper.FromScore(features.AvgRankScore)}): великий розкид виконання — ліди менш гарантовані.");
             }
 
             redProb = 1.0f - blueProb;

@@ -268,25 +268,30 @@ public class RiotApiClient : IRiotApiClient
 
     public async Task<IReadOnlyList<string>> GetChallengerPlayerPuuidsAsync(string queue = "RANKED_SOLO_5x5", int maxCount = 20, CancellationToken ct = default)
     {
+        var entries = await GetHighEloLadderPlayersAsync(queue, maxCount, ct);
+        return entries.Select(e => e.Puuid).ToList();
+    }
+
+    public async Task<IReadOnlyList<LadderPlayerEntry>> GetHighEloLadderPlayersAsync(string queue = "RANKED_SOLO_5x5", int maxCount = 20, CancellationToken ct = default)
+    {
         if (!_options.HasValidApiKey)
         {
-            return Array.Empty<string>();
+            return Array.Empty<LadderPlayerEntry>();
         }
 
-        var result = new List<string>();
+        var result = new List<LadderPlayerEntry>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        // Prefer Challenger, then Grandmaster, then Master — high-elo games give denser ranked history
-        var ladderPaths = new[]
+        var ladders = new (string Path, GameTier Tier)[]
         {
-            $"challengerleagues/by-queue/{queue}",
-            $"grandmasterleagues/by-queue/{queue}",
-            $"masterleagues/by-queue/{queue}"
+            ($"challengerleagues/by-queue/{queue}", GameTier.Challenger),
+            ($"grandmasterleagues/by-queue/{queue}", GameTier.Grandmaster),
+            ($"masterleagues/by-queue/{queue}", GameTier.Master)
         };
 
         try
         {
-            foreach (var ladderPath in ladderPaths)
+            foreach (var (ladderPath, tier) in ladders)
             {
                 if (result.Count >= maxCount) break;
 
@@ -308,13 +313,12 @@ public class RiotApiClient : IRiotApiClient
                     }
                     else if (!string.IsNullOrWhiteSpace(entry.SummonerId))
                     {
-                        // Older Riot payloads expose summonerId only — resolve to PUUID for match-v5
                         puuid = await ResolvePuuidFromSummonerIdAsync(entry.SummonerId, ct);
                     }
 
                     if (string.IsNullOrWhiteSpace(puuid)) continue;
                     if (!seen.Add(puuid)) continue;
-                    result.Add(puuid);
+                    result.Add(new LadderPlayerEntry(puuid, tier));
                 }
             }
 
