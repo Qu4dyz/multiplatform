@@ -10,7 +10,11 @@ public interface IRiotApiClient
     Task<MatchTimelineData?> GetMatchTimelineAsync(string matchId, CancellationToken ct = default);
     Task<IReadOnlyList<ChampionMasteryInfo>> GetTopChampionMasteriesAsync(string puuid, int count = 10, CancellationToken ct = default);
     Task<IReadOnlyList<string>> GetChallengerPlayerPuuidsAsync(string queue = "RANKED_SOLO_5x5", int maxCount = 20, CancellationToken ct = default);
+    /// <summary>High-elo ladder entries with tier tags for rank-aware ML labeling.</summary>
+    Task<IReadOnlyList<LadderPlayerEntry>> GetHighEloLadderPlayersAsync(string queue = "RANKED_SOLO_5x5", int maxCount = 20, CancellationToken ct = default);
 }
+
+public readonly record struct LadderPlayerEntry(string Puuid, GameAnalytics.Core.Enums.GameTier Tier);
 
 public interface IMatchRepository
 {

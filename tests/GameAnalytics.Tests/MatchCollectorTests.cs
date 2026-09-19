@@ -49,6 +49,10 @@ public class MatchCollectorTests
 
         public Task<IReadOnlyList<string>> GetChallengerPlayerPuuidsAsync(string queue = "RANKED_SOLO_5x5", int maxCount = 20, CancellationToken ct = default)
             => Task.FromResult<IReadOnlyList<string>>(LadderPuuids.Take(maxCount).ToList());
+
+        public Task<IReadOnlyList<LadderPlayerEntry>> GetHighEloLadderPlayersAsync(string queue = "RANKED_SOLO_5x5", int maxCount = 20, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<LadderPlayerEntry>>(
+                LadderPuuids.Take(maxCount).Select(p => new LadderPlayerEntry(p, GameTier.Challenger)).ToList());
     }
 
     private sealed class FakeMatchRepo : IMatchRepository

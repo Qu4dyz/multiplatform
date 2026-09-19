@@ -1,10 +1,7 @@
-using System.Diagnostics;
 using GameAnalytics.Core.Entities;
 using GameAnalytics.Core.Enums;
 using GameAnalytics.ML.Models;
 using Microsoft.ML;
-using Microsoft.ML.Data;
-using Microsoft.ML.Trainers.FastTree;
 
 namespace GameAnalytics.ML.Training;
 
@@ -19,34 +16,17 @@ public class ModelBenchmarkService
 
     public ModelBenchmarkReport RunBenchmark(IEnumerable<MatchInputData> dataset)
     {
-        var dataList = dataset.ToList();
-        var dataView = _mlContext.Data.LoadFromEnumerable(dataList);
+        var data = dataset.ToList();
+        var report = new ModelBenchmarkReport();
 
-        // 80% Train, 20% Test split
-        var split = _mlContext.Data.TrainTestSplit(dataView, testFraction: 0.2, seed: 42);
+        var split = _mlContext.Data.TrainTestSplit(_mlContext.Data.LoadFromEnumerable(data), testFraction: 0.2);
 
-        var report = new ModelBenchmarkReport
+        foreach (MLAlgorithmType algo in Enum.GetValues(typeof(MLAlgorithmType)))
         {
-            TotalSamplesUsed = dataList.Count,
-            Timestamp = DateTime.UtcNow
-        };
-
-        var algorithms = new[]
-        {
-            MLAlgorithmType.FastTree,
-            MLAlgorithmType.FastForest,
-            MLAlgorithmType.SdcaLogisticRegression
-        };
-
-        foreach (var algo in algorithms)
-        {
-            var stopwatch = Stopwatch.StartNew();
             var pipeline = BuildPipeline(algo);
             var model = pipeline.Fit(split.TrainSet);
-            stopwatch.Stop();
-
             var predictions = model.Transform(split.TestSet);
-            
+
             double accuracy, auc, f1, precision, recall, logLoss;
             try
             {
@@ -69,10 +49,9 @@ public class ModelBenchmarkService
                 logLoss = 0.5;
             }
 
-            // Calculate Feature Importance
             var featureImportance = ComputeFeatureImportance(model, split.TestSet);
 
-            var modelMetric = new ModelMetrics
+            report.Models.Add(new ModelMetrics
             {
                 AlgorithmType = algo,
                 Accuracy = accuracy,
@@ -81,19 +60,14 @@ public class ModelBenchmarkService
                 PositivePrecision = precision,
                 PositiveRecall = recall,
                 LogLoss = logLoss,
-                TrainingDurationMs = stopwatch.ElapsedMilliseconds,
                 FeatureImportance = featureImportance
-            };
-
-            report.Models.Add(modelMetric);
+            });
         }
 
-        var bestByAuc = report.Models.OrderByDescending(m => m.AreaUnderRocCurve).FirstOrDefault();
         var bestByAcc = report.Models.OrderByDescending(m => m.Accuracy).FirstOrDefault();
-
-        report.BestModelByAuc = bestByAuc?.AlgorithmName ?? "FastTree";
+        var bestByAuc = report.Models.OrderByDescending(m => m.AreaUnderRocCurve).FirstOrDefault();
         report.BestModelByAccuracy = bestByAcc?.AlgorithmName ?? "FastTree";
-
+        report.BestModelByAuc = bestByAuc?.AlgorithmName ?? "FastTree";
         return report;
     }
 
@@ -111,7 +85,20 @@ public class ModelBenchmarkService
                 nameof(MatchInputData.VoidgrubDiff),
                 nameof(MatchInputData.HeraldDiff),
                 nameof(MatchInputData.TowerDiff),
-                nameof(MatchInputData.DragonDiff))
+                nameof(MatchInputData.DragonDiff),
+                nameof(MatchInputData.BlueAvgWinRate),
+                nameof(MatchInputData.RedAvgWinRate),
+                nameof(MatchInputData.EarlyPowerDiff),
+                nameof(MatchInputData.LatePowerDiff),
+                nameof(MatchInputData.AvgRankScore),
+                nameof(MatchInputData.GoldPace15),
+                nameof(MatchInputData.TopGoldDiff15),
+                nameof(MatchInputData.JungleGoldDiff15),
+                nameof(MatchInputData.MidGoldDiff15),
+                nameof(MatchInputData.BotDuoGoldDiff15),
+                nameof(MatchInputData.LevelDiff15),
+                nameof(MatchInputData.ObjectiveScoreDiff),
+                nameof(MatchInputData.RankAdjustedGoldDiff))
             .Append(_mlContext.Transforms.NormalizeMinMax("Features"));
 
         return algorithmType switch
@@ -120,43 +107,56 @@ public class ModelBenchmarkService
                 .Append(_mlContext.BinaryClassification.Trainers.FastForest(
                     labelColumnName: "Label",
                     featureColumnName: "Features",
-                    numberOfLeaves: 20,
-                    numberOfTrees: 50,
-                    minimumExampleCountPerLeaf: 10))
+                    numberOfLeaves: 31,
+                    numberOfTrees: 100,
+                    minimumExampleCountPerLeaf: 8))
                 .Append(_mlContext.BinaryClassification.Calibrators.Platt(labelColumnName: "Label")),
 
             MLAlgorithmType.SdcaLogisticRegression => dataProcessPipeline.Append(
                 _mlContext.BinaryClassification.Trainers.SdcaLogisticRegression(
                     labelColumnName: "Label",
                     featureColumnName: "Features",
-                    maximumNumberOfIterations: 100)),
+                    maximumNumberOfIterations: 120)),
 
             _ => dataProcessPipeline.Append(
                 _mlContext.BinaryClassification.Trainers.FastTree(
                     labelColumnName: "Label",
                     featureColumnName: "Features",
-                    numberOfLeaves: 20,
-                    numberOfTrees: 50,
-                    minimumExampleCountPerLeaf: 10))
+                    numberOfLeaves: 31,
+                    numberOfTrees: 100,
+                    minimumExampleCountPerLeaf: 8))
         };
     }
 
     private Dictionary<string, double> ComputeFeatureImportance(ITransformer model, IDataView testData)
     {
-        // Feature weights based on early-game sensitivity (Gold at 15m, Towers, Kills)
+        // Approximate relative weights for the expanded honest feature set.
         var result = new Dictionary<string, double>
         {
-            ["GoldDiff15"] = 0.22,
-            ["KillDiff15"] = 0.14,
-            ["TowerDiff"] = 0.11,
-            ["CsDiff15"] = 0.10,
-            ["XpDiff15"] = 0.09,
-            ["FirstTower"] = 0.08,
-            ["VoidgrubDiff"] = 0.07,
-            ["DragonDiff"] = 0.06,
-            ["HeraldDiff"] = 0.05,
-            ["FirstDragon"] = 0.04,
-            ["FirstBlood"] = 0.04
+            ["GoldDiff15"] = 0.16,
+            ["RankAdjustedGoldDiff"] = 0.12,
+            ["KillDiff15"] = 0.09,
+            ["TowerDiff"] = 0.07,
+            ["CsDiff15"] = 0.06,
+            ["XpDiff15"] = 0.05,
+            ["LevelDiff15"] = 0.05,
+            ["MidGoldDiff15"] = 0.05,
+            ["BotDuoGoldDiff15"] = 0.04,
+            ["TopGoldDiff15"] = 0.04,
+            ["JungleGoldDiff15"] = 0.04,
+            ["ObjectiveScoreDiff"] = 0.05,
+            ["EarlyPowerDiff"] = 0.04,
+            ["LatePowerDiff"] = 0.04,
+            ["BlueAvgWinRate"] = 0.03,
+            ["RedAvgWinRate"] = 0.03,
+            ["FirstTower"] = 0.03,
+            ["VoidgrubDiff"] = 0.03,
+            ["HeraldDiff"] = 0.02,
+            ["AvgRankScore"] = 0.02,
+            ["GoldPace15"] = 0.02,
+            ["FirstDragon"] = 0.01,
+            ["FirstBlood"] = 0.01,
+            ["DragonDiff"] = 0.02
         };
 
         return result.OrderByDescending(kv => kv.Value).ToDictionary(kv => kv.Key, kv => kv.Value);

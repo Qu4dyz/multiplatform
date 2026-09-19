@@ -165,5 +165,16 @@ public class MatchInputFeatures
     public bool HasDragonSoul => SoulType != DragonSoulType.None && (BlueDragonCount >= 4 || RedDragonCount >= 4);
 
     public double BlueScalingAdvantage { get; set; } // Positive = Blue scales better in late game, Negative = Red scales better
+    public float EarlyPowerDiff { get; set; }
+    public float LatePowerDiff { get; set; }
+
+    /// <summary>Lobby skill 1–10 (Iron…Challenger). Used so leads convert differently by rank.</summary>
+    public float AvgRankScore { get; set; } = 5.5f;
+
+    public float TopGoldDiff15 { get; set; }
+    public float JungleGoldDiff15 { get; set; }
+    public float MidGoldDiff15 { get; set; }
+    public float BotDuoGoldDiff15 { get; set; }
+    public float LevelDiff15 { get; set; }
 }
 

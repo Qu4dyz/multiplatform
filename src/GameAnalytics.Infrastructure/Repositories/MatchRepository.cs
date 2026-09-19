@@ -135,6 +135,21 @@ public class MatchRepository : IMatchRepository
         }
         catch { /* Column already exists */ }
 
+        string[] matchMlColumns =
+        {
+            "ALTER TABLE Matches ADD COLUMN ApproxRankScore REAL NOT NULL DEFAULT 0;",
+            "ALTER TABLE Matches ADD COLUMN TopGoldDiff15 REAL NOT NULL DEFAULT 0;",
+            "ALTER TABLE Matches ADD COLUMN JungleGoldDiff15 REAL NOT NULL DEFAULT 0;",
+            "ALTER TABLE Matches ADD COLUMN MidGoldDiff15 REAL NOT NULL DEFAULT 0;",
+            "ALTER TABLE Matches ADD COLUMN BotDuoGoldDiff15 REAL NOT NULL DEFAULT 0;",
+            "ALTER TABLE Matches ADD COLUMN LevelDiff15 REAL NOT NULL DEFAULT 0;"
+        };
+        foreach (var sql in matchMlColumns)
+        {
+            try { _context.Database.ExecuteSqlRaw(sql); }
+            catch { /* Column already exists */ }
+        }
+
         try
         {
             _context.Database.ExecuteSqlRaw(@"

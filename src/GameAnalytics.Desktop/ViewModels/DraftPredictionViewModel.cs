@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GameAnalytics.Core.Entities;
 using GameAnalytics.Core.Enums;
+using GameAnalytics.Core.Helpers;
 using GameAnalytics.Core.Interfaces;
 using GameAnalytics.ML.Engine;
 
@@ -100,8 +101,17 @@ public partial class DraftPredictionViewModel : ViewModelBase
 
     public TeamSide[] AvailableSides => new[] { TeamSide.Blue, TeamSide.Red };
 
+    /// <summary>Lobby rank context — same gold lead converts differently by elo.</summary>
+    [ObservableProperty]
+    private GameTier _selectedLobbyTier = GameTier.Emerald;
+
+    public GameTier[] AvailableLobbyTiers => Enum.GetValues<GameTier>()
+        .Where(t => t != GameTier.Unranked)
+        .ToArray();
+
     partial void OnSelectedSoulTypeChanged(DragonSoulType value) => CalculatePrediction();
     partial void OnSoulOwnerChanged(TeamSide value) => CalculatePrediction();
+    partial void OnSelectedLobbyTierChanged(GameTier value) => CalculatePrediction();
 
     // Composition Scaling Analysis
     [ObservableProperty]
@@ -401,7 +411,10 @@ public partial class DraftPredictionViewModel : ViewModelBase
             XpDiffAt15 = XpDiffAt15,
             SoulType = SelectedSoulType,
             SoulOwner = SoulOwner,
-            BlueScalingAdvantage = PowerSpikes?.LateAdvantage ?? 0.0
+            BlueScalingAdvantage = PowerSpikes?.LateAdvantage ?? 0.0,
+            EarlyPowerDiff = (float)(PowerSpikes?.EarlyAdvantage ?? 0.0),
+            LatePowerDiff = (float)(PowerSpikes?.LateAdvantage ?? 0.0),
+            AvgRankScore = RankScoreHelper.FromTier(SelectedLobbyTier)
         };
 
         Prediction = _analyticsService.PredictOutcome(features);

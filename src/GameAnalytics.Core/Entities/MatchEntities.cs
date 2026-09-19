@@ -15,6 +15,23 @@ public class Match
     /// <summary>True once timeline towers/dragons/grubs at minute 15 were written (even if all zeros).</summary>
     public bool HasMinute15Objectives { get; set; }
 
+    /// <summary>
+    /// Approximate lobby skill on a 1–10 scale (Iron…Challenger).
+    /// 0 = unknown (feature extraction falls back to mixed-lobby default).
+    /// </summary>
+    public float ApproxRankScore { get; set; }
+
+    /// <summary>Blue − Red gold at 15' for the top laners (0 if roles unknown).</summary>
+    public float TopGoldDiff15 { get; set; }
+    /// <summary>Blue − Red gold at 15' for junglers.</summary>
+    public float JungleGoldDiff15 { get; set; }
+    /// <summary>Blue − Red gold at 15' for mid laners.</summary>
+    public float MidGoldDiff15 { get; set; }
+    /// <summary>Blue − Red gold at 15' for bot duo (ADC + support).</summary>
+    public float BotDuoGoldDiff15 { get; set; }
+    /// <summary>Blue − Red sum of champion levels at minute 15.</summary>
+    public float LevelDiff15 { get; set; }
+
     public List<Participant> Participants { get; set; } = new();
     public List<TeamStats> Teams { get; set; } = new();
 

@@ -1,4 +1,4 @@
-using GameAnalytics.Core.Entities;
+using GameAnalytics.Core.Helpers;
 using GameAnalytics.ML.Models;
 using Microsoft.ML;
 
@@ -16,28 +16,8 @@ public class ModelTrainer
     public ITransformer TrainPipeline(IEnumerable<MatchInputData> trainingData)
     {
         var dataView = _mlContext.Data.LoadFromEnumerable(trainingData);
-
-        var pipeline = _mlContext.Transforms.Concatenate(
-                "Features",
-                nameof(MatchInputData.FirstBlood),
-                nameof(MatchInputData.FirstTower),
-                nameof(MatchInputData.FirstDragon),
-                nameof(MatchInputData.GoldDiff15),
-                nameof(MatchInputData.KillDiff15),
-                nameof(MatchInputData.CsDiff15),
-                nameof(MatchInputData.XpDiff15),
-                nameof(MatchInputData.VoidgrubDiff),
-                nameof(MatchInputData.HeraldDiff),
-                nameof(MatchInputData.TowerDiff),
-                nameof(MatchInputData.DragonDiff))
-            .Append(_mlContext.Transforms.NormalizeMinMax("Features"))
-            .Append(_mlContext.BinaryClassification.Trainers.FastTree(
-                labelColumnName: "Label",
-                featureColumnName: "Features",
-                numberOfLeaves: 20,
-                numberOfTrees: 50,
-                minimumExampleCountPerLeaf: 10));
-
+        var benchmark = new ModelBenchmarkService();
+        var pipeline = benchmark.BuildPipeline(Core.Enums.MLAlgorithmType.FastTree);
         return pipeline.Fit(dataView);
     }
 
@@ -65,17 +45,29 @@ public class ModelTrainer
 
             var goldDiff = (float)rand.Next(-5000, 5000);
             var killDiff = (float)rand.Next(-15, 15);
-            // At minute 15 tower/dragon spreads are small (not end-game scoreboards).
             var towerDiff = (float)rand.Next(-3, 4);
             var dragonDiff = (float)rand.Next(-2, 3);
             var csDiff = (float)rand.Next(-40, 41);
             var xpDiff = goldDiff * 0.65f + (float)rand.Next(-300, 301);
             var voidgrubDiff = (float)rand.Next(-4, 5);
             var heraldDiff = (float)rand.Next(-1, 2);
+            var earlyDiff = (float)rand.Next(-20, 21);
+            var lateDiff = (float)rand.Next(-20, 21);
+            var blueWr = 45f + (float)rand.NextDouble() * 10f;
+            var redWr = 45f + (float)rand.NextDouble() * 10f;
+            var rankScore = 1f + (float)rand.NextDouble() * 9f;
+            var goldPace = 45f + (float)rand.NextDouble() * 12f;
+            var topGold = (float)rand.Next(-1200, 1201);
+            var jglGold = (float)rand.Next(-1200, 1201);
+            var midGold = (float)rand.Next(-1500, 1501);
+            var botGold = (float)rand.Next(-1800, 1801);
+            var levelDiff = (float)rand.Next(-8, 9);
+            var objScore = towerDiff * 1.5f + dragonDiff * 1.2f + voidgrubDiff * 0.35f + heraldDiff;
+            var rankAdjGold = goldDiff * (rankScore / RankScoreHelper.DefaultMixedLobby);
 
-            // Log-odds simulation for realistic LoL Solo/Duo Ranked match outcome from minute-15 state
             double z = 0.0;
             z += goldDiff * 0.00055;
+            z += rankAdjGold * 0.00025;
             z += killDiff * 0.10;
             z += firstTower * 0.35;
             z += firstDragon * 0.25;
@@ -86,6 +78,15 @@ public class ModelTrainer
             z += xpDiff * 0.00025;
             z += towerDiff * 0.22;
             z += dragonDiff * 0.18;
+            z += earlyDiff * 0.012;
+            z += lateDiff * 0.008;
+            z += (blueWr - redWr) * 0.04;
+            z += midGold * 0.0002;
+            z += botGold * 0.00015;
+            z += levelDiff * 0.04;
+            z += objScore * 0.08;
+            // At higher ranks the same lead is more decisive
+            z += Math.Abs(goldDiff) * (rankScore - 5.5) * 0.00002;
 
             var probability = 1.0 / (1.0 + Math.Exp(-z));
             var win = rand.NextDouble() < probability;
@@ -101,10 +102,21 @@ public class ModelTrainer
                 XpDiff15 = xpDiff,
                 VoidgrubDiff = voidgrubDiff,
                 HeraldDiff = heraldDiff,
-                BlueAvgWinRate = 50f,
-                RedAvgWinRate = 50f,
+                BlueAvgWinRate = blueWr,
+                RedAvgWinRate = redWr,
                 TowerDiff = towerDiff,
                 DragonDiff = dragonDiff,
+                EarlyPowerDiff = earlyDiff,
+                LatePowerDiff = lateDiff,
+                AvgRankScore = rankScore,
+                GoldPace15 = goldPace,
+                TopGoldDiff15 = topGold,
+                JungleGoldDiff15 = jglGold,
+                MidGoldDiff15 = midGold,
+                BotDuoGoldDiff15 = botGold,
+                LevelDiff15 = levelDiff,
+                ObjectiveScoreDiff = objScore,
+                RankAdjustedGoldDiff = rankAdjGold,
                 Label = win
             });
         }
@@ -112,4 +124,3 @@ public class ModelTrainer
         return list;
     }
 }
-

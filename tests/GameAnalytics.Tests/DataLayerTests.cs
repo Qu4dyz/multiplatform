@@ -1347,6 +1347,50 @@ public class DataLayerTests
         // Must use at-15 towers/dragons, never end-of-game 7-2 / 3-1.
         Assert.Equal(2f, features[0].TowerDiff);
         Assert.Equal(1f, features[0].DragonDiff);
+        Assert.True(features[0].AvgRankScore > 0);
+        Assert.Equal(features[0].GoldDiff15 * (features[0].AvgRankScore / 5.5f), features[0].RankAdjustedGoldDiff, 2);
+    }
+
+    [Fact]
+    public void RealMatchDatasetCollector_ExtractFeatures_UsesChampionWinRatesAndDraftScaling()
+    {
+        var matches = new List<Match>();
+        for (int i = 0; i < 12; i++)
+        {
+            matches.Add(new Match
+            {
+                MatchId = $"EUW1_WR_{i}",
+                GameDurationSeconds = 1600,
+                WinningTeam = TeamSide.Blue,
+                ApproxRankScore = 8f,
+                Teams =
+                {
+                    new TeamStats { TeamSide = TeamSide.Blue, GoldAt15 = 27000, KillsAt15 = 9, CsAt15 = 230, XpAt15 = 17500, TowersAt15 = 1, DragonsAt15 = 1 },
+                    new TeamStats { TeamSide = TeamSide.Red, GoldAt15 = 25000, KillsAt15 = 6, CsAt15 = 210, XpAt15 = 16500, TowersAt15 = 0, DragonsAt15 = 0 }
+                },
+                Participants =
+                {
+                    new Participant { TeamSide = TeamSide.Blue, ChampionName = "Renekton", Win = true, Position = Position.Top },
+                    new Participant { TeamSide = TeamSide.Blue, ChampionName = "Lee Sin", Win = true, Position = Position.Jungle },
+                    new Participant { TeamSide = TeamSide.Blue, ChampionName = "Ahri", Win = true, Position = Position.Middle },
+                    new Participant { TeamSide = TeamSide.Blue, ChampionName = "Jinx", Win = true, Position = Position.Bottom },
+                    new Participant { TeamSide = TeamSide.Blue, ChampionName = "Thresh", Win = true, Position = Position.Utility },
+                    new Participant { TeamSide = TeamSide.Red, ChampionName = "Kayle", Win = false, Position = Position.Top },
+                    new Participant { TeamSide = TeamSide.Red, ChampionName = "Nidalee", Win = false, Position = Position.Jungle },
+                    new Participant { TeamSide = TeamSide.Red, ChampionName = "Kassadin", Win = false, Position = Position.Middle },
+                    new Participant { TeamSide = TeamSide.Red, ChampionName = "Smolder", Win = false, Position = Position.Bottom },
+                    new Participant { TeamSide = TeamSide.Red, ChampionName = "Yuumi", Win = false, Position = Position.Utility }
+                }
+            });
+        }
+
+        var features = GameAnalytics.ML.Training.RealMatchDatasetCollector.ExtractFeaturesFromMatches(matches);
+        Assert.Equal(12, features.Count);
+        Assert.Equal(8f, features[0].AvgRankScore);
+        Assert.True(features[0].BlueAvgWinRate > features[0].RedAvgWinRate);
+        // Renekton/Lee early vs Kayle/Kassadin late → blue early lead, red late lead
+        Assert.True(features[0].EarlyPowerDiff > 0);
+        Assert.True(features[0].LatePowerDiff < 0);
     }
 
     [Fact]
