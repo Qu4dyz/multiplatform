@@ -1617,75 +1617,187 @@
                                                         <TextBlock Grid.Column="0" Text="⏱️ ПОХВИЛИННИЙ РОЗБІР КЛЮЧОВИХ РІШЕНЬ (PLAY-BY-PLAY)" FontSize="12" FontWeight="Bold" Foreground="#C4B5FD" LetterSpacing="1.1" />
                                                         <TextBlock Grid.Column="1" Text="⏳ Завантаження подій Riot Timeline..." FontSize="11" Foreground="#A78BFA" IsVisible="{Binding IsLoadingTimeline}" />
                                                     </Grid>
-                                                    <ItemsControl ItemsSource="{Binding TacticalReport.TimelineEvents}">
+
+                                                    <!-- MOMENT REPLAY BOARD -->
+                                                    <Border Background="#10131F"
+                                                            CornerRadius="12"
+                                                            BorderBrush="#3B1F2E"
+                                                            BorderThickness="1"
+                                                            Padding="14"
+                                                            IsVisible="{Binding HasSelectedMoment}">
+                                                        <Grid ColumnDefinitions="Auto, 16, *">
+                                                            <!-- Minimap -->
+                                                            <StackPanel Grid.Column="0" Spacing="8" Width="280">
+                                                                <Grid ColumnDefinitions="*, Auto">
+                                                                    <TextBlock Grid.Column="0" Text="{Binding SelectedMoment.Title}" FontSize="13" FontWeight="Bold" Foreground="#F8FAFC" TextWrapping="Wrap" />
+                                                                    <Button Grid.Column="1"
+                                                                            Command="{Binding CloseMomentCommand}"
+                                                                            Content="✕"
+                                                                            FontSize="11"
+                                                                            Padding="8,2"
+                                                                            Background="#1B1634"
+                                                                            Foreground="#C4B5FD"
+                                                                            BorderBrush="#3E4466"
+                                                                            BorderThickness="1"
+                                                                            CornerRadius="6"
+                                                                            Cursor="Hand" />
+                                                                </Grid>
+                                                                <TextBlock Text="{Binding SelectedMoment.Subtitle}" FontSize="11" Foreground="#94A3B8" TextWrapping="Wrap" />
+                                                                <Border Width="280" Height="280" CornerRadius="10" ClipToBounds="True"
+                                                                        BorderBrush="#2A3148" BorderThickness="1"
+                                                                        Background="#0B1220">
+                                                                    <!-- Soft SR-like backdrop -->
+                                                                    <Panel>
+                                                                        <Border Background="#0E1A14" Opacity="0.95" />
+                                                                        <!-- River diagonal suggestion -->
+                                                                        <Border Background="#12304A" Opacity="0.35" Width="42" Height="420"
+                                                                                RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                                            <Border.RenderTransform>
+                                                                                <RotateTransform Angle="-45" />
+                                                                            </Border.RenderTransform>
+                                                                        </Border>
+                                                                        <!-- Bases -->
+                                                                        <Ellipse Width="36" Height="36" Fill="#1D4ED8" Opacity="0.45" Margin="18,226,0,0" HorizontalAlignment="Left" VerticalAlignment="Top" />
+                                                                        <Ellipse Width="36" Height="36" Fill="#B91C1C" Opacity="0.45" Margin="226,18,0,0" HorizontalAlignment="Left" VerticalAlignment="Top" />
+                                                                        <ItemsControl ItemsSource="{Binding SelectedMoment.Markers}" Width="280" Height="280">
+                                                                            <ItemsControl.ItemsPanel>
+                                                                                <ItemsPanelTemplate>
+                                                                                    <Canvas Width="280" Height="280" />
+                                                                                </ItemsPanelTemplate>
+                                                                            </ItemsControl.ItemsPanel>
+                                                                            <ItemsControl.ItemTemplate>
+                                                                                <DataTemplate x:DataType="coreEntities:TacticalMomentMarker">
+                                                                                    <Border Width="24" Height="24" CornerRadius="12"
+                                                                                            BorderBrush="{Binding BorderColor}" BorderThickness="2"
+                                                                                            Background="#0B0C12" ClipToBounds="True"
+                                                                                            ToolTip.Tip="{Binding ChampionName}">
+                                                                                        <Border.RenderTransform>
+                                                                                            <TranslateTransform X="{Binding MapLeft}" Y="{Binding MapTop}" />
+                                                                                        </Border.RenderTransform>
+                                                                                        <Image Source="{Binding ChampionIconUrl, Converter={StaticResource BitmapAssetConverter}}"
+                                                                                               Width="22" Height="22" Stretch="UniformToFill"
+                                                                                               RenderOptions.BitmapInterpolationMode="HighQuality" />
+                                                                                    </Border>
+                                                                                </DataTemplate>
+                                                                            </ItemsControl.ItemTemplate>
+                                                                        </ItemsControl>
+                                                                    </Panel>
+                                                                </Border>
+                                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                    <Border Background="#2E121C" CornerRadius="4" Padding="6,2">
+                                                                        <TextBlock Text="{Binding SelectedMoment.TimestampText}" FontSize="10" FontWeight="Bold" Foreground="#FB7185" />
+                                                                    </Border>
+                                                                    <Border Background="#181B2B" CornerRadius="4" Padding="6,2">
+                                                                        <TextBlock Text="{Binding SelectedMoment.AssistsText}" FontSize="10" Foreground="#94A3B8" TextWrapping="Wrap" MaxWidth="200" />
+                                                                    </Border>
+                                                                </StackPanel>
+                                                            </StackPanel>
+
+                                                            <!-- Context strip -->
+                                                            <StackPanel Grid.Column="2" Spacing="8">
+                                                                <TextBlock Text="КОНТЕКСТ ±45 СЕК" FontSize="11" FontWeight="Bold" Foreground="#C4B5FD" LetterSpacing="1" />
+                                                                <TextBlock Text="Позиції з кадру timeline + точна точка смерті з Riot API. Це не відео-реплей клієнта, але видно хто де стояв у цей момент."
+                                                                           FontSize="11" Foreground="#64748B" TextWrapping="Wrap" />
+                                                                <ItemsControl ItemsSource="{Binding SelectedMoment.ContextLines}">
+                                                                    <ItemsControl.ItemTemplate>
+                                                                        <DataTemplate>
+                                                                            <Border Margin="0,2"
+                                                                                    Background="{Binding RowBackground}"
+                                                                                    CornerRadius="6"
+                                                                                    Padding="8,5"
+                                                                                    BorderThickness="1"
+                                                                                    BorderBrush="{Binding RowBorder}">
+                                                                                <Grid ColumnDefinitions="52, *">
+                                                                                    <TextBlock Grid.Column="0" Text="{Binding TimestampText}" FontSize="11" FontWeight="Bold" Foreground="{Binding AccentColor}" />
+                                                                                    <TextBlock Grid.Column="1" Text="{Binding Text}" FontSize="11" Foreground="#E2E8F0" TextWrapping="Wrap" />
+                                                                                </Grid>
+                                                                            </Border>
+                                                                        </DataTemplate>
+                                                                    </ItemsControl.ItemTemplate>
+                                                                </ItemsControl>
+                                                            </StackPanel>
+                                                        </Grid>
+                                                    </Border>
+
+                                                    <ItemsControl ItemsSource="{Binding TacticalReport.TimelineEvents}" x:Name="TacticalTimelineList">
                                                         <ItemsControl.ItemTemplate>
                                                             <DataTemplate>
-                                                                <Border Classes="tactical-node"
-                                                                        Background="{Binding CardBackground}"
-                                                                        CornerRadius="8"
-                                                                        BorderBrush="{Binding CardBorderColor}"
-                                                                        BorderThickness="1"
-                                                                        Padding="12,8"
-                                                                        Margin="0,3">
-                                                                    <Grid ColumnDefinitions="80, 42, *, Auto">
-                                                                        <!-- Col 0: Timestamp & Phase -->
-                                                                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
-                                                                            <Border Background="#181B2B" CornerRadius="4" Padding="6,2" HorizontalAlignment="Left">
-                                                                                <TextBlock Text="{Binding TimestampText}" FontSize="11" FontWeight="Bold" Foreground="#C4B5FD" />
-                                                                            </Border>
-                                                                            <Border Background="#141726" CornerRadius="3" Padding="4,1" HorizontalAlignment="Left">
-                                                                                <TextBlock Text="{Binding PhaseName}" FontSize="8" FontWeight="SemiBold" Foreground="{Binding PhaseBadgeColor}" TextTrimming="CharacterEllipsis" MaxWidth="75" />
-                                                                            </Border>
-                                                                        </StackPanel>
-
-                                                                        <!-- Col 1: Modern Styled Vector HUD Badge with Icon and Glow -->
-                                                                        <Border Grid.Column="1"
-                                                                                Width="34" Height="34"
-                                                                                CornerRadius="17"
-                                                                                Background="{Binding IconBadgeBg}"
-                                                                                BorderBrush="{Binding IconBadgeBorder}"
-                                                                                BorderThickness="1.5"
-                                                                                HorizontalAlignment="Center"
-                                                                                VerticalAlignment="Center">
-                                                                            <PathIcon Data="{Binding IconPath}"
-                                                                                      Width="16" Height="16"
-                                                                                      Foreground="{Binding IconBadgeFg}"
-                                                                                      HorizontalAlignment="Center"
-                                                                                      VerticalAlignment="Center" />
-                                                                        </Border>
-
-                                                                        <!-- Col 2: Tactical Info, Category tag, Severity tag, and Description -->
-                                                                        <StackPanel Grid.Column="2" Spacing="3" VerticalAlignment="Center" Margin="12,0,10,0">
-                                                                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                                                                                <!-- Category Tag Pill -->
-                                                                                <Border Background="#1B1634" BorderBrush="{Binding CategoryTagColor}" BorderThickness="1" CornerRadius="4" Padding="6,1">
-                                                                                    <TextBlock Text="{Binding CategoryTag}" FontSize="9" FontWeight="Bold" Foreground="{Binding CategoryTagColor}" />
+                                                                <Button Command="{Binding $parent[ItemsControl].((vm:PlayerMatchItemViewModel)DataContext).OpenMomentCommand}"
+                                                                        CommandParameter="{Binding}"
+                                                                        Background="Transparent"
+                                                                        BorderThickness="0"
+                                                                        Padding="0"
+                                                                        HorizontalAlignment="Stretch"
+                                                                        HorizontalContentAlignment="Stretch"
+                                                                        Cursor="Hand">
+                                                                    <Border Classes="tactical-node"
+                                                                            Background="{Binding CardBackground}"
+                                                                            CornerRadius="8"
+                                                                            BorderBrush="{Binding CardBorderColor}"
+                                                                            BorderThickness="1"
+                                                                            Padding="12,8"
+                                                                            Margin="0,3">
+                                                                        <Grid ColumnDefinitions="80, 42, *, Auto">
+                                                                            <!-- Col 0: Timestamp & Phase -->
+                                                                            <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                                                                                <Border Background="#181B2B" CornerRadius="4" Padding="6,2" HorizontalAlignment="Left">
+                                                                                    <TextBlock Text="{Binding TimestampText}" FontSize="11" FontWeight="Bold" Foreground="#C4B5FD" />
                                                                                 </Border>
-                                                                                <!-- Severity Tag Pill (Hidden if duplicate) -->
-                                                                                <Border Background="{Binding SeverityBg}" CornerRadius="4" Padding="6,1" IsVisible="{Binding HasSeverityTag}">
-                                                                                    <TextBlock Text="{Binding SeverityTag}" FontSize="9" FontWeight="Bold" Foreground="{Binding SeverityFg}" />
+                                                                                <Border Background="#141726" CornerRadius="3" Padding="4,1" HorizontalAlignment="Left">
+                                                                                    <TextBlock Text="{Binding PhaseName}" FontSize="8" FontWeight="SemiBold" Foreground="{Binding PhaseBadgeColor}" TextTrimming="CharacterEllipsis" MaxWidth="75" />
                                                                                 </Border>
-                                                                                <!-- Event Title -->
-                                                                                <TextBlock Text="{Binding Title}" FontSize="12" FontWeight="Bold" Foreground="#F8FAFC" VerticalAlignment="Center" />
+                                                                                <TextBlock Text="{Binding MomentHint}" FontSize="9" FontWeight="SemiBold" Foreground="#F43F5E" IsVisible="{Binding HasMomentReplay}" />
                                                                             </StackPanel>
-                                                                            <TextBlock Text="{Binding Description}" FontSize="11" Foreground="#CBD5E1" TextWrapping="Wrap" LineHeight="15" />
-                                                                        </StackPanel>
 
-                                                                        <!-- Col 3: Impact Callout Badge -->
-                                                                        <Border Grid.Column="3"
-                                                                                Background="#181B2B"
-                                                                                CornerRadius="6"
-                                                                                BorderBrush="{Binding ImpactColor}"
-                                                                                BorderThickness="1"
-                                                                                Padding="10,4"
-                                                                                VerticalAlignment="Center">
-                                                                            <TextBlock Text="{Binding ImpactText}"
-                                                                                       FontSize="11"
-                                                                                       FontWeight="Bold"
-                                                                                       Foreground="{Binding ImpactColor}" />
-                                                                        </Border>
-                                                                    </Grid>
-                                                                </Border>
+                                                                            <!-- Col 1: Modern Styled Vector HUD Badge with Icon and Glow -->
+                                                                            <Border Grid.Column="1"
+                                                                                    Width="34" Height="34"
+                                                                                    CornerRadius="17"
+                                                                                    Background="{Binding IconBadgeBg}"
+                                                                                    BorderBrush="{Binding IconBadgeBorder}"
+                                                                                    BorderThickness="1.5"
+                                                                                    HorizontalAlignment="Center"
+                                                                                    VerticalAlignment="Center">
+                                                                                <PathIcon Data="{Binding IconPath}"
+                                                                                          Width="16" Height="16"
+                                                                                          Foreground="{Binding IconBadgeFg}"
+                                                                                          HorizontalAlignment="Center"
+                                                                                          VerticalAlignment="Center" />
+                                                                            </Border>
+
+                                                                            <!-- Col 2: Tactical Info, Category tag, Severity tag, and Description -->
+                                                                            <StackPanel Grid.Column="2" Spacing="3" VerticalAlignment="Center" Margin="12,0,10,0">
+                                                                                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                                                    <!-- Category Tag Pill -->
+                                                                                    <Border Background="#1B1634" BorderBrush="{Binding CategoryTagColor}" BorderThickness="1" CornerRadius="4" Padding="6,1">
+                                                                                        <TextBlock Text="{Binding CategoryTag}" FontSize="9" FontWeight="Bold" Foreground="{Binding CategoryTagColor}" />
+                                                                                    </Border>
+                                                                                    <!-- Severity Tag Pill (Hidden if duplicate) -->
+                                                                                    <Border Background="{Binding SeverityBg}" CornerRadius="4" Padding="6,1" IsVisible="{Binding HasSeverityTag}">
+                                                                                        <TextBlock Text="{Binding SeverityTag}" FontSize="9" FontWeight="Bold" Foreground="{Binding SeverityFg}" />
+                                                                                    </Border>
+                                                                                    <!-- Event Title -->
+                                                                                    <TextBlock Text="{Binding Title}" FontSize="12" FontWeight="Bold" Foreground="#F8FAFC" VerticalAlignment="Center" />
+                                                                                </StackPanel>
+                                                                                <TextBlock Text="{Binding Description}" FontSize="11" Foreground="#CBD5E1" TextWrapping="Wrap" LineHeight="15" />
+                                                                            </StackPanel>
+
+                                                                            <!-- Col 3: Impact Callout Badge -->
+                                                                            <Border Grid.Column="3"
+                                                                                    Background="#181B2B"
+                                                                                    CornerRadius="6"
+                                                                                    BorderBrush="{Binding ImpactColor}"
+                                                                                    BorderThickness="1"
+                                                                                    Padding="10,4"
+                                                                                    VerticalAlignment="Center">
+                                                                                <TextBlock Text="{Binding ImpactText}"
+                                                                                           FontSize="11"
+                                                                                           FontWeight="Bold"
+                                                                                           Foreground="{Binding ImpactColor}" />
+                                                                            </Border>
+                                                                        </Grid>
+                                                                    </Border>
+                                                                </Button>
                                                             </DataTemplate>
                                                         </ItemsControl.ItemTemplate>
                                                     </ItemsControl>

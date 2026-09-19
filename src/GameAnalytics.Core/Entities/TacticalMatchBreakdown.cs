@@ -7,12 +7,13 @@ public class TacticalTimelineEvent
 {
     public string TimestampText { get; set; } = "00:00"; // e.g. "03:15"
     public int Minute { get; set; }
+    public int TimestampMs { get; set; }
     public string PhaseName { get; set; } = "Early Game";
     public string PhaseBadgeColor { get; set; } = "#5383E8";
     public string Icon { get; set; } = "⚔️";
     public string IconKind { get; set; } = "sword";
     public string IconPath => TacticalIconHelper.GetPathForKind(IconKind);
-    
+
     // Modern Tactical HUD Telemetry
     public string CategoryTag { get; set; } = "MACRO";
     public string CategoryTagColor { get; set; } = "#818CF8";
@@ -31,6 +32,50 @@ public class TacticalTimelineEvent
     public string ImpactText { get; set; } = string.Empty;
     public string ImpactColor { get; set; } = "#818CF8";
     public bool IsMistake { get; set; }
+
+    /// <summary>Optional interactive moment board (minimap + context) for this event.</summary>
+    public TacticalMomentReplay? Moment { get; set; }
+    public bool HasMomentReplay => Moment != null && Moment.Markers.Count > 0;
+    public string MomentHint => HasMomentReplay ? "▶ Відкрити момент" : string.Empty;
+}
+
+public class TacticalMomentMarker
+{
+    public int ParticipantId { get; set; }
+    public string ChampionName { get; set; } = string.Empty;
+    public string ChampionIconUrl { get; set; } = string.Empty;
+    public string RoleLabel { get; set; } = string.Empty; // ВИ / KILLER / ALLY / ENEMY
+    public string BorderColor { get; set; } = "#94A3B8";
+    public bool IsBlueTeam { get; set; }
+    public bool IsFocus { get; set; }
+    public double MapLeft { get; set; }
+    public double MapTop { get; set; }
+    public int Level { get; set; }
+    public int Gold { get; set; }
+}
+
+public class TacticalMomentContextLine
+{
+    public string TimestampText { get; set; } = "00:00";
+    public string Text { get; set; } = string.Empty;
+    public string AccentColor { get; set; } = "#94A3B8";
+    public bool IsCurrent { get; set; }
+    public string RowBackground => IsCurrent ? "#2A1520" : "#141726";
+    public string RowBorder => IsCurrent ? "#F43F5E" : "#24283E";
+}
+
+public class TacticalMomentReplay
+{
+    public string Title { get; set; } = string.Empty;
+    public string Subtitle { get; set; } = string.Empty;
+    public string TimestampText { get; set; } = "00:00";
+    public string FocusChampionName { get; set; } = string.Empty;
+    public string KillerChampionName { get; set; } = string.Empty;
+    public string AssistsText { get; set; } = string.Empty;
+    public bool IsDeath { get; set; }
+    public double MapSize { get; set; } = 280;
+    public List<TacticalMomentMarker> Markers { get; set; } = new();
+    public List<TacticalMomentContextLine> ContextLines { get; set; } = new();
 }
 
 public class MatchGapItem
