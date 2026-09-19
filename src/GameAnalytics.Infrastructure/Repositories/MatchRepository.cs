@@ -221,12 +221,21 @@ public class MatchRepository : IMatchRepository
 
     public async Task<IReadOnlyList<string>> GetDistinctParticipantPuuidsAsync(int limit = 50, CancellationToken ct = default)
     {
-        return await _context.Participants
-            .Where(p => !string.IsNullOrEmpty(p.Puuid))
+        // Pull a larger pool then randomize so each training epoch explores different players
+        // instead of always replaying the same first N rows from SQLite.
+        var poolSize = Math.Max(limit * 8, 200);
+        var pool = await _context.Participants
+            .AsNoTracking()
+            .Where(p => !string.IsNullOrEmpty(p.Puuid) && !p.Puuid.StartsWith("puuid-"))
             .Select(p => p.Puuid)
             .Distinct()
-            .Take(limit)
+            .Take(poolSize)
             .ToListAsync(ct);
+
+        return pool
+            .OrderBy(_ => Random.Shared.Next())
+            .Take(limit)
+            .ToList();
     }
 
     public async Task<IReadOnlyDictionary<string, int>> GetPlayerMatchLpMapAsync(string puuid, CancellationToken ct = default)

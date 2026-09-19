@@ -67,17 +67,21 @@ sealed class Program
         if (!Directory.Exists(modelDir)) Directory.CreateDirectory(modelDir);
         var dbPath = Path.Combine(baseDir, "game_analytics.db");
 
+        // Cache match count to avoid concurrent DbContext access from HTTP status endpoint
+        // while the training loop is using the same scoped repository.
+        var cachedMatchCount = new int[1];
+        try { cachedMatchCount[0] = await matchRepo.GetTotalMatchesCountAsync(); } catch { }
+
         var syncServer = new VpsHttpSyncServer(
             port: 5050,
             modelDirectory: modelDir,
             databasePath: dbPath,
             statusProvider: () =>
             {
-                var matchesCount = 0;
-                try { matchesCount = matchRepo.GetTotalMatchesCountAsync().GetAwaiter().GetResult(); } catch { }
                 var modelFile = Path.Combine(modelDir, "fasttree_model.zip");
                 var fi = File.Exists(modelFile) ? new FileInfo(modelFile) : null;
                 var metrics = predictionEngine.CurrentModelMetrics;
+                var matchesCount = Volatile.Read(ref cachedMatchCount[0]);
 
                 return new GameAnalytics.Core.Entities.VpsServerStatus
                 {
@@ -116,7 +120,29 @@ sealed class Program
             Console.WriteLine("[VPS ML Trainer] Отримано сигнал завершення роботи (SIGINT/Ctrl+C)...");
         };
 
-        await worker.RunContinuousTrainingAsync(seedPuuid, batchSize: 20, epochDelay: TimeSpan.FromMinutes(2), Console.WriteLine, cts.Token);
+        // Wrap training with post-epoch match-count refresh for the status API
+        await worker.RunContinuousTrainingAsync(
+            seedPuuid,
+            batchSize: 20,
+            epochDelay: TimeSpan.FromMinutes(2),
+            logger: msg =>
+            {
+                Console.WriteLine(msg);
+                if (msg.Contains("Всього матчів у базі даних:", StringComparison.Ordinal))
+                {
+                    // Parse "Всього матчів у базі даних: 951 (...)"
+                    var parts = msg.Split(':');
+                    if (parts.Length >= 2)
+                    {
+                        var numPart = parts[1].Trim().Split(' ')[0];
+                        if (int.TryParse(numPart, out var n))
+                        {
+                            Volatile.Write(ref cachedMatchCount[0], n);
+                        }
+                    }
+                }
+            },
+            ct: cts.Token);
     }
 
     public static AppBuilder BuildAvaloniaApp()

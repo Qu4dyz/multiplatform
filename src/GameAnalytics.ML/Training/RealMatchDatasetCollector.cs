@@ -22,19 +22,33 @@ public class RealMatchDatasetCollector
     /// and saves them into the repository.
     /// </summary>
     public async Task<int> CollectRankedMatchesAsync(
-        string seedPuuid, 
-        int targetNewMatches = 30, 
-        Action<string>? logger = null, 
+        string seedPuuid,
+        int targetNewMatches = 30,
+        Action<string>? logger = null,
         CancellationToken ct = default)
     {
         var visitedPuuids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var candidatePuuids = new Queue<string>();
+        var refillAttempts = 0;
+        const int maxRefillAttempts = 6;
 
-        if (!string.IsNullOrWhiteSpace(seedPuuid))
+        void EnqueueCandidate(string? puuid)
         {
-            visitedPuuids.Add(seedPuuid);
-            candidatePuuids.Enqueue(seedPuuid);
+            if (string.IsNullOrWhiteSpace(puuid)) return;
+            if (puuid.StartsWith("puuid-", StringComparison.OrdinalIgnoreCase)) return;
+            if (!visitedPuuids.Add(puuid)) return;
+            candidatePuuids.Enqueue(puuid);
         }
+
+        void EnqueueParticipants(IEnumerable<Participant> participants)
+        {
+            foreach (var p in participants)
+            {
+                EnqueueCandidate(p.Puuid);
+            }
+        }
+
+        EnqueueCandidate(seedPuuid);
 
         int newlySavedMatches = 0;
 
@@ -42,50 +56,64 @@ public class RealMatchDatasetCollector
 
         while (newlySavedMatches < targetNewMatches && !ct.IsCancellationRequested)
         {
-            // Self-healing: if candidate queue is empty, pull stored PUUIDs from DB
+            // Self-healing: refill crawl queue from DB / high-elo ladders when empty
             if (candidatePuuids.Count == 0)
             {
-                var storedPuuids = await _matchRepo.GetDistinctParticipantPuuidsAsync(limit: 50, ct);
+                refillAttempts++;
+                if (refillAttempts > maxRefillAttempts)
+                {
+                    logger?.Invoke($"[Collector] Досягнуто ліміт refill ({maxRefillAttempts}). Зупинка ітерації зі {newlySavedMatches} новими матчами.");
+                    break;
+                }
+
+                // Forget visitation for DB/ladder refill so we can re-walk teammates of stored games
+                // and discover matches beyond the previously exhausted frontier.
+                visitedPuuids.Clear();
+                if (!string.IsNullOrWhiteSpace(seedPuuid))
+                {
+                    visitedPuuids.Add(seedPuuid);
+                }
+
+                var storedPuuids = await _matchRepo.GetDistinctParticipantPuuidsAsync(limit: 80, ct);
                 foreach (var p in storedPuuids)
                 {
-                    if (!p.StartsWith("puuid-", StringComparison.OrdinalIgnoreCase) && visitedPuuids.Add(p))
-                    {
-                        candidatePuuids.Enqueue(p);
-                    }
+                    EnqueueCandidate(p);
                 }
 
-                if (candidatePuuids.Count == 0)
+                logger?.Invoke($"[Collector] Refill #{refillAttempts}: додано {candidatePuuids.Count} кандидатів з локальної БД.");
+
+                if (candidatePuuids.Count < 15)
                 {
-                    // Query Challenger ladder to obtain high-elo seed players
                     try
                     {
-                        var challengerPuuids = await _apiClient.GetChallengerPlayerPuuidsAsync("RANKED_SOLO_5x5", maxCount: 25, ct: ct);
-                        foreach (var cPuuid in challengerPuuids)
+                        var ladderPuuids = await _apiClient.GetChallengerPlayerPuuidsAsync("RANKED_SOLO_5x5", maxCount: 40, ct: ct);
+                        var before = candidatePuuids.Count;
+                        foreach (var cPuuid in ladderPuuids)
                         {
-                            if (visitedPuuids.Add(cPuuid))
-                            {
-                                candidatePuuids.Enqueue(cPuuid);
-                            }
+                            EnqueueCandidate(cPuuid);
                         }
+                        logger?.Invoke($"[Collector] Ladder refill: +{candidatePuuids.Count - before} гравців з Challenger/GM/Master.");
                     }
-                    catch { /* fallback */ }
+                    catch (Exception ex)
+                    {
+                        logger?.Invoke($"[Collector] Ladder refill failed: {ex.Message}");
+                    }
                 }
 
                 if (candidatePuuids.Count == 0)
                 {
-                    logger?.Invoke("[Collector] Черга кандидатів порожня та база не містить нових гравців. Завершення поточної ітерації.");
+                    logger?.Invoke("[Collector] Черга кандидатів порожня після refill. Завершення поточної ітерації.");
                     break;
                 }
             }
 
             var puuid = candidatePuuids.Dequeue();
 
-            // Query Ranked Solo/Duo queue (420) first to ensure 100% competitive SR games
-            var matchIds = await _apiClient.GetRecentMatchIdsByPuuidAsync(puuid, count: 15, queue: 420, ct: ct);
+            // Deeper lookback: previously collected players still have older ranked games worth mining
+            var matchIds = await _apiClient.GetRecentMatchIdsByPuuidAsync(puuid, count: 30, queue: 420, ct: ct);
             if (matchIds.Count == 0)
             {
-                // Fallback to general matches if queue 420 returned empty
-                matchIds = await _apiClient.GetRecentMatchIdsByPuuidAsync(puuid, count: 10, queue: null, ct: ct);
+                matchIds = await _apiClient.GetRecentMatchIdsByPuuidAsync(puuid, count: 20, queue: null, ct: ct);
             }
 
             foreach (var matchId in matchIds)
@@ -95,11 +123,18 @@ public class RealMatchDatasetCollector
                 var existing = await _matchRepo.GetMatchByMatchIdAsync(matchId, ct);
                 if (existing != null && existing.Teams.Count >= 2 && existing.Teams.Any(t => t.GoldAt15 > 0))
                 {
-                    continue; // Already collected with full timeline
+                    // Critical: expand crawl graph from already-stored matches, otherwise the frontier dies
+                    // once the seed player's recent games are fully collected.
+                    // Cap queue growth to avoid burning the Riot rate limit on endless teammate BFS.
+                    if (candidatePuuids.Count < 150)
+                    {
+                        EnqueueParticipants(existing.Participants);
+                    }
+                    continue;
                 }
 
                 var match = await _apiClient.GetMatchDetailsAsync(matchId, ct);
-                // Strict filter: must not be remake, duration >= 5 mins, and must be Summoner's Rift (420 Ranked Solo, 440 Ranked Flex, 400 Normal Draft)
+                // Strict filter: must not be remake, duration >= 5 mins, and must be Summoner's Rift
                 if (match == null || match.IsRemake || match.GameDurationSeconds < 300)
                 {
                     continue;
@@ -141,14 +176,7 @@ public class RealMatchDatasetCollector
                 newlySavedMatches++;
                 logger?.Invoke($"[Collector] Збережено реальний матч #{newlySavedMatches}/{targetNewMatches}: {match.MatchId} ({match.FormattedDuration}, {match.QueueName})");
 
-                // Discover other high-elo players from this match to expand the crawl graph
-                foreach (var p in match.Participants)
-                {
-                    if (!string.IsNullOrWhiteSpace(p.Puuid) && !p.Puuid.StartsWith("puuid-", StringComparison.OrdinalIgnoreCase) && visitedPuuids.Add(p.Puuid))
-                    {
-                        candidatePuuids.Enqueue(p.Puuid);
-                    }
-                }
+                EnqueueParticipants(match.Participants);
             }
         }
 
