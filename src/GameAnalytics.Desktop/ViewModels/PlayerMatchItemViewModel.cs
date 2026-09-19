@@ -73,10 +73,9 @@ public partial class DetailedParticipantViewModel : ObservableObject
     public List<ItemSlotViewModel> Items { get; set; } = new();
     public ItemSlotViewModel Trinket { get; set; } = new();
 
-    public string NameColor => IsCurrentPlayer ? "#C8AA6E" : "#F0E6D2";
+    public string NameColor => IsCurrentPlayer ? "#F59E0B" : "#F0E6D2";
     public string NameWeight => IsCurrentPlayer ? "Bold" : "Normal";
-    public string IndicatorText => IsCurrentPlayer ? "◆ " : "";
-    public string DisplayName => $"{IndicatorText}{SummonerName}";
+    public string DisplayName => SummonerName;
     public string ToolTipText => IsCurrentPlayer ? $"{FullRiotId} (Ви)" : $"Переглянути профіль {FullRiotId} (клікніть)";
 
     public string BadgeText { get; set; } = string.Empty;
@@ -134,9 +133,8 @@ public partial class MiniParticipantViewModel : ObservableObject
 
     public bool IsCurrentPlayer { get; set; }
     public string FormattedKda { get; set; } = string.Empty;
-    public string IndicatorText => IsCurrentPlayer ? "◆ " : "";
-    public string DisplayName => $"{IndicatorText}{SummonerName}";
-    public string NameColor => IsCurrentPlayer ? "#C8AA6E" : "#8A93A5";
+    public string DisplayName => SummonerName;
+    public string NameColor => IsCurrentPlayer ? "#F59E0B" : "#94A3B8";
     public string NameWeight => IsCurrentPlayer ? "Bold" : "Normal";
     public string ToolTipText => IsCurrentPlayer ? $"{FullRiotId} (Ви)" : $"Переглянути профіль {FullRiotId} (клікніть)";
 
