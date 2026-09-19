@@ -41,17 +41,15 @@
             <Setter Property="Cursor" Value="Hand" />
         </Style>
 
-        <Style Selector="TabControl.headless">
-            <Setter Property="Template">
-                <ControlTemplate>
-                    <ContentPresenter Name="PART_SelectedContentHost"
-                                      Margin="{TemplateBinding Padding}"
-                                      HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                      VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
-                                      Content="{TemplateBinding SelectedContent}"
-                                      ContentTemplate="{TemplateBinding SelectedContentTemplate}" />
-                </ControlTemplate>
-            </Setter>
+        <Style Selector="TabControl.sidebar-tabs">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0" />
+        </Style>
+        <Style Selector="TabControl.sidebar-tabs /template/ ItemsPresenter#PART_ItemsPresenter">
+            <Setter Property="IsVisible" Value="False" />
+        </Style>
+        <Style Selector="TabControl.sidebar-tabs /template/ TabStrip">
+            <Setter Property="IsVisible" Value="False" />
         </Style>
     </Window.Styles>
 
@@ -208,7 +206,7 @@
                     <ScaleTransform ScaleX="{Binding UiScale}" ScaleY="{Binding UiScale}" />
                 </LayoutTransformControl.LayoutTransform>
 
-                <TabControl Classes="headless"
+                <TabControl Classes="sidebar-tabs"
                             SelectedIndex="{Binding SelectedTabIndex}"
                             Margin="0">
                     <!-- View 0: Player Analytics -->

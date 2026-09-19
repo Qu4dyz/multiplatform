@@ -318,8 +318,43 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
                 TierBadgeColor = GetTierColor(profile.Tier);
                 ProfileIconBitmap = BitmapAssetValueConverter.GetOrLoadBitmap(profile.ProfileIconUrl, bmp => ProfileIconBitmap = bmp);
                 StatusMessage = HasApiKey
-                    ? $"Профіль {profile.FullName} успішно завантажено з Riot API."
+                    ? $"Профіль {profile.FullName} успішно завантажено з Riot API. Оновлення матчів..."
                     : $"Профіль {profile.FullName} (Демо-режим). Отримання матчів...";
+
+                // Warm up UI with cached matches from local SQLite immediately for zero delay
+                try
+                {
+                    var cachedMatches = await _analyticsService.GetSavedMatchHistoryAsync();
+                    var playerCached = cachedMatches
+                        .Where(m => m.Participants.Any(p => p.Puuid == profile.Puuid || 
+                                                            p.SummonerName.Equals(profile.GameName, StringComparison.OrdinalIgnoreCase)))
+                        .OrderByDescending(m => m.GameCreation)
+                        .Take(_currentMatchCount)
+                        .ToList();
+
+                    if (playerCached.Count > 0 && RecentMatches.Count == 0)
+                    {
+                        UpdateMomentumAnalysis(playerCached, profile.Puuid);
+                        var lpMapFast = await _analyticsService.GetPlayerMatchLpMapAsync(profile.Puuid);
+                        RecentMatches.Clear();
+                        var fastTier = Summoner?.Tier ?? GameTier.Emerald;
+                        foreach (var m in playerCached)
+                        {
+                            int? overrideLp = lpMapFast.TryGetValue(m.MatchId, out var delta) ? delta : null;
+                            RecentMatches.Add(PlayerMatchItemViewModel.FromMatch(
+                                m, 
+                                profile.Puuid, 
+                                profile.GameName, 
+                                SelectPlayerCommand, 
+                                fastTier, 
+                                mId => _analyticsService.GetMatchTimelineAsync(mId),
+                                overrideLp,
+                                profile.WinRate));
+                        }
+                        ApplyQueueFilter();
+                    }
+                }
+                catch { /* Non-critical cache warm-up */ }
 
                 var matches = await _analyticsService.FetchAndSaveRecentMatchesAsync(profile.Puuid, _currentMatchCount);
 
@@ -345,7 +380,8 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
                         if (p.Item6 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/item/{p.Item6}.png");
                     }
                 }
-                await BitmapAssetValueConverter.PreloadImagesAsync(iconsToPreload);
+                // Preload profile icon, champion icons, and item icons in background
+                _ = BitmapAssetValueConverter.PreloadImagesAsync(iconsToPreload);
 
                 await _analyticsService.TrackAndReconstructLpAsync(profile, matches);
                 var lpMap = await _analyticsService.GetPlayerMatchLpMapAsync(profile.Puuid);
@@ -421,7 +457,8 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
                     if (p.Item6 > 0) iconsToPreload.Add($"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/item/{p.Item6}.png");
                 }
             }
-            await BitmapAssetValueConverter.PreloadImagesAsync(iconsToPreload);
+            // Preload newly fetched icons in background
+            _ = BitmapAssetValueConverter.PreloadImagesAsync(iconsToPreload);
 
             await _analyticsService.TrackAndReconstructLpAsync(Summoner, matches);
             var lpMap = await _analyticsService.GetPlayerMatchLpMapAsync(Summoner.Puuid);
