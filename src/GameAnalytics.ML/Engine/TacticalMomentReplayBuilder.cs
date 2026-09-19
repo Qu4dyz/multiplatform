@@ -13,10 +13,16 @@ public enum TacticalMomentRole
 
 public static class TacticalMomentReplayBuilder
 {
-    public const double DefaultMapSize = 280;
+    public const double DefaultMapSize = 300;
     private const double RiotMapMax = 14870.0;
-    private const int MarkerSize = 24;
+    private const int FightMarkerSize = 30;
+    private const int NearbyMarkerSize = 22;
+    private const int NearbyRadius = 3800;
+    private const int KillRingSize = 18;
     private const int ContextWindowMs = 45_000;
+
+    public static string SummonersRiftMapUrl =>
+        $"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/map/map11.png";
 
     public static TacticalMomentReplay? BuildCombatMoment(
         Match match,
@@ -83,6 +89,17 @@ public static class TacticalMomentReplayBuilder
                 y = killEvent.PositionY!.Value;
             }
 
+            // Keep the board readable: fight cast + nearby champs only.
+            if (!inFight && !isFocus && killEvent.HasPosition)
+            {
+                var dx = x - killEvent.PositionX!.Value;
+                var dy = y - killEvent.PositionY!.Value;
+                if (dx * dx + dy * dy > NearbyRadius * NearbyRadius)
+                {
+                    continue;
+                }
+            }
+
             string roleLabel;
             string border;
             if (isFocus)
@@ -116,7 +133,8 @@ public static class TacticalMomentReplayBuilder
                 border = "#64748B";
             }
 
-            var (left, top) = ToMapPoint(x, y, DefaultMapSize);
+            var size = inFight || isFocus ? FightMarkerSize : NearbyMarkerSize;
+            var (left, top) = ToMapPoint(x, y, DefaultMapSize, size);
             markers.Add(new TacticalMomentMarker
             {
                 ParticipantId = pos.ParticipantId,
@@ -126,6 +144,8 @@ public static class TacticalMomentReplayBuilder
                 BorderColor = border,
                 IsBlueTeam = isBlue,
                 IsFocus = isFocus,
+                IsInFight = inFight,
+                MarkerSize = size,
                 MapLeft = left,
                 MapTop = top,
                 Level = pos.Level,
@@ -137,7 +157,7 @@ public static class TacticalMomentReplayBuilder
 
         // Draw focus / fight participants above everyone else.
         markers = markers
-            .OrderBy(m => m.IsFocus ? 2 : (fightIds.Contains(m.ParticipantId) ? 1 : 0))
+            .OrderBy(m => m.IsFocus ? 2 : (m.IsInFight ? 1 : 0))
             .ToList();
 
         var assistNames = killEvent.AssistingParticipantIds
@@ -174,6 +194,18 @@ public static class TacticalMomentReplayBuilder
             subtitle += $" · у ту ж секунду вас убив {Champ(simultaneousDeath.KillerId)}";
         }
 
+        double killLeft = 0, killTop = 0;
+        var hasKill = false;
+        if (killEvent.HasPosition)
+        {
+            (killLeft, killTop) = ToMapPoint(
+                killEvent.PositionX!.Value,
+                killEvent.PositionY!.Value,
+                DefaultMapSize,
+                KillRingSize);
+            hasKill = true;
+        }
+
         return new TacticalMomentReplay
         {
             Title = title,
@@ -187,26 +219,30 @@ public static class TacticalMomentReplayBuilder
             VictimId = killEvent.VictimId,
             TimestampMs = killEvent.TimestampMs,
             MapSize = DefaultMapSize,
+            MapImageUrl = SummonersRiftMapUrl,
+            HasKillMarker = hasKill,
+            KillMarkerLeft = killLeft,
+            KillMarkerTop = killTop,
             Markers = markers,
             ContextLines = BuildContextLines(match, timeline, killEvent, focusParticipantId)
         };
     }
 
-    public static (double Left, double Top) ToMapPoint(int riotX, int riotY, double mapSize)
+    public static (double Left, double Top) ToMapPoint(int riotX, int riotY, double mapSize, double markerSize = FightMarkerSize)
     {
         var nx = Math.Clamp(riotX / RiotMapMax, 0, 1);
         var ny = Math.Clamp(riotY / RiotMapMax, 0, 1);
-        var left = nx * mapSize - MarkerSize / 2.0;
-        var top = (1.0 - ny) * mapSize - MarkerSize / 2.0;
+        var left = nx * mapSize - markerSize / 2.0;
+        var top = (1.0 - ny) * mapSize - markerSize / 2.0;
         return (left, top);
     }
 
     private static (int X, int Y) FightOffset(int index, int total)
     {
         if (total <= 1) return (0, 0);
-        // Small ring so killer/victim/assists don't fully overlap on the minimap.
-        var angle = (Math.PI * 2 * index) / total;
-        const int radius = 420;
+        // Spread fight icons around the kill so portraits stay readable.
+        var angle = (Math.PI * 2 * index) / total - Math.PI / 2;
+        const int radius = 980;
         return ((int)(Math.Cos(angle) * radius), (int)(Math.Sin(angle) * radius));
     }
 
