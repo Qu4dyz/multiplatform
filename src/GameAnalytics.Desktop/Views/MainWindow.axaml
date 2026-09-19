@@ -4,9 +4,9 @@
         xmlns:views="using:GameAnalytics.Desktop.Views"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="750"
-        Width="1150" Height="800"
-        MinWidth="900" MinHeight="600"
+        mc:Ignorable="d" d:DesignWidth="1260" d:DesignHeight="820"
+        Width="1260" Height="820"
+        MinWidth="1050" MinHeight="680"
         WindowStartupLocation="CenterScreen"
         Background="#0B0C12"
         x:Class="GameAnalytics.Desktop.Views.MainWindow"
@@ -15,160 +15,249 @@
         Title="{Binding AppTitle}">
 
     <Window.Styles>
-        <Style Selector="TabItem">
-            <Setter Property="FontSize" Value="13" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="#94A3B8" />
-            <Setter Property="Padding" Value="20,12" />
+        <Style Selector="Button.nav-btn">
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="Padding" Value="14,10" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Transitions">
                 <Transitions>
-                    <BrushTransition Property="Foreground" Duration="0:0:0.2" />
+                    <BrushTransition Property="Background" Duration="0:0:0.18" />
+                    <BrushTransition Property="Foreground" Duration="0:0:0.18" />
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.18" />
                 </Transitions>
             </Setter>
         </Style>
-        <Style Selector="TabItem:pointerover">
-            <Setter Property="Foreground" Value="#EDE9FE" />
+        <Style Selector="Button.nav-btn:pointerover">
+            <Setter Property="Background" Value="#1C1F32" />
+            <Setter Property="BorderBrush" Value="#7C3AED" />
         </Style>
-        <Style Selector="TabItem:selected">
-            <Setter Property="Foreground" Value="#A78BFA" />
-            <Setter Property="FontWeight" Value="Bold" />
-        </Style>
+
         <Style Selector="Button.scale-btn">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Cursor" Value="Hand" />
         </Style>
+
+        <Style Selector="TabControl.headless">
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <ContentPresenter Name="PART_SelectedContentHost"
+                                      Margin="{TemplateBinding Padding}"
+                                      HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                      VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                                      Content="{TemplateBinding SelectedContent}"
+                                      ContentTemplate="{TemplateBinding SelectedContentTemplate}" />
+                </ControlTemplate>
+            </Setter>
+        </Style>
     </Window.Styles>
 
-    <Grid RowDefinitions="Auto, *, Auto">
-        <!-- Application Top App Bar -->
-        <Border Grid.Row="0"
-                Background="#11131E"
-                BorderBrush="#1E2235"
-                BorderThickness="0,0,0,1"
-                Padding="24,14">
-            <Grid ColumnDefinitions="Auto, *, Auto">
-                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                    <Border Background="#7C3AED"
-                            CornerRadius="8"
-                            Width="36" Height="36">
-                        <TextBlock Text="⚔️"
-                                   FontSize="20"
-                                   HorizontalAlignment="Center"
-                                   VerticalAlignment="Center" />
-                    </Border>
-                    <StackPanel Spacing="2">
-                        <TextBlock Text="GameAnalytics"
-                                   FontWeight="Bold"
-                                   FontSize="16"
-                                   Foreground="#F8FAFC" />
-                        <TextBlock Text="LoL Solo/Duo Ranked Analysis &amp; ML Prediction"
-                                   FontSize="11"
-                                   Foreground="#94A3B8" />
+    <Grid ColumnDefinitions="220, *">
+        <!-- LEFT MODERN SIDEBAR NAVIGATION -->
+        <Border Grid.Column="0"
+                Background="#0E101A"
+                BorderBrush="#1C1F32"
+                BorderThickness="0,0,1,0"
+                Padding="16,18">
+            <Grid RowDefinitions="Auto, *, Auto">
+                <!-- Top Brand Logo -->
+                <StackPanel Grid.Row="0" Spacing="16" Margin="0,0,0,24">
+                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                        <Border Background="#7C3AED"
+                                CornerRadius="10"
+                                Width="38" Height="38">
+                            <TextBlock Text="⚔️"
+                                       FontSize="20"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel Spacing="1" VerticalAlignment="Center">
+                            <TextBlock Text="GameAnalytics"
+                                       FontWeight="Bold"
+                                       FontSize="15"
+                                       Foreground="#F8FAFC" />
+                            <TextBlock Text="LoL Ranked &amp; ML"
+                                       FontSize="10"
+                                       Foreground="#A78BFA" />
+                        </StackPanel>
                     </StackPanel>
                 </StackPanel>
 
-                <!-- Center Badge -->
-                <Border Grid.Column="1"
-                        HorizontalAlignment="Center"
-                        Background="#1B1634"
-                        BorderBrush="#7C3AED"
-                        BorderThickness="1"
-                        CornerRadius="14"
-                        Padding="14,4">
-                    <TextBlock Text="Курсовий проєкт: «Мультиплатформне програмування»"
-                               FontSize="11"
-                               FontWeight="SemiBold"
-                               Foreground="#C4B5FD" />
-                </Border>
+                <!-- Navigation Menu Buttons -->
+                <StackPanel Grid.Row="1" Spacing="8">
+                    <!-- Nav Item 0: Player Analytics -->
+                    <Button Classes="nav-btn"
+                            Command="{Binding SelectTab0Command}"
+                            Background="{Binding Tab0Bg}"
+                            Foreground="{Binding Tab0Fg}"
+                            BorderBrush="{Binding Tab0Border}">
+                        <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                            <TextBlock Text="🔍" FontSize="15" VerticalAlignment="Center" />
+                            <TextBlock Text="Аналітика гравця" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
 
-                <!-- Scale Selector & Author Tag -->
-                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                    <!-- Nav Item 1: Draft Analysis -->
+                    <Button Classes="nav-btn"
+                            Command="{Binding SelectTab1Command}"
+                            Background="{Binding Tab1Bg}"
+                            Foreground="{Binding Tab1Fg}"
+                            BorderBrush="{Binding Tab1Border}">
+                        <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                            <TextBlock Text="🧠" FontSize="15" VerticalAlignment="Center" />
+                            <TextBlock Text="Аналіз драфту" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Nav Item 2: Match History -->
+                    <Button Classes="nav-btn"
+                            Command="{Binding SelectTab2Command}"
+                            Background="{Binding Tab2Bg}"
+                            Foreground="{Binding Tab2Fg}"
+                            BorderBrush="{Binding Tab2Border}">
+                        <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                            <TextBlock Text="📊" FontSize="15" VerticalAlignment="Center" />
+                            <TextBlock Text="Історія матчів" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Nav Item 3: Settings -->
+                    <Button Classes="nav-btn"
+                            Command="{Binding SelectTab3Command}"
+                            Background="{Binding Tab3Bg}"
+                            Foreground="{Binding Tab3Fg}"
+                            BorderBrush="{Binding Tab3Border}">
+                        <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                            <TextBlock Text="⚙️" FontSize="15" VerticalAlignment="Center" />
+                            <TextBlock Text="Налаштування" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+
+                <!-- Bottom User Profile & Scale Footer in Sidebar -->
+                <StackPanel Grid.Row="2" Spacing="12">
                     <!-- Zoom Scale Selector -->
-                    <Border Background="#151726" CornerRadius="6" Padding="4,2" BorderBrush="#252A3E" BorderThickness="1">
-                        <StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
-                            <TextBlock Text="🔍 Масштаб:" FontSize="11" Foreground="#94A3B8" VerticalAlignment="Center" Margin="4,0,4,0" />
-                            <Button Content="100%" Command="{Binding SetScale100Command}" Classes="scale-btn" FontSize="10" FontWeight="Bold" Padding="6,3" CornerRadius="4" Background="{Binding Scale100Bg}" Foreground="{Binding Scale100Fg}" />
-                            <Button Content="115%" Command="{Binding SetScale115Command}" Classes="scale-btn" FontSize="10" FontWeight="Bold" Padding="6,3" CornerRadius="4" Background="{Binding Scale115Bg}" Foreground="{Binding Scale115Fg}" />
-                            <Button Content="125%" Command="{Binding SetScale125Command}" Classes="scale-btn" FontSize="10" FontWeight="Bold" Padding="6,3" CornerRadius="4" Background="{Binding Scale125Bg}" Foreground="{Binding Scale125Fg}" />
+                    <Border Background="#151726" CornerRadius="8" Padding="6,4" BorderBrush="#24283E" BorderThickness="1">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="🔍 Масштаб інтерфейсу" FontSize="10" Foreground="#94A3B8" HorizontalAlignment="Center" />
+                            <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center">
+                                <Button Content="100%" Command="{Binding SetScale100Command}" Classes="scale-btn" FontSize="10" FontWeight="Bold" Padding="8,4" CornerRadius="6" Background="{Binding Scale100Bg}" Foreground="{Binding Scale100Fg}" />
+                                <Button Content="115%" Command="{Binding SetScale115Command}" Classes="scale-btn" FontSize="10" FontWeight="Bold" Padding="8,4" CornerRadius="6" Background="{Binding Scale115Bg}" Foreground="{Binding Scale115Fg}" />
+                                <Button Content="125%" Command="{Binding SetScale125Command}" Classes="scale-btn" FontSize="10" FontWeight="Bold" Padding="8,4" CornerRadius="6" Background="{Binding Scale125Bg}" Foreground="{Binding Scale125Fg}" />
+                            </StackPanel>
                         </StackPanel>
                     </Border>
 
-                    <Border Background="#7C3AED"
-                            CornerRadius="6"
-                            Padding="10,4">
-                        <TextBlock Text="Qu4dyz"
-                                   FontWeight="Bold"
-                                   FontSize="12"
-                                   Foreground="#FFFFFF" />
+                    <!-- User Tag Card -->
+                    <Border Background="#151726" CornerRadius="8" Padding="10,8" BorderBrush="#24283E" BorderThickness="1">
+                        <Grid ColumnDefinitions="Auto, *, Auto">
+                            <Border Grid.Column="0" Background="#7C3AED" CornerRadius="14" Width="28" Height="28">
+                                <TextBlock Text="👤" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <StackPanel Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Text="Qu4dyz" FontSize="12" FontWeight="Bold" Foreground="#F8FAFC" />
+                                <TextBlock Text=".NET 9 / Avalonia 11" FontSize="9" Foreground="#94A3B8" />
+                            </StackPanel>
+                        </Grid>
                     </Border>
-                    <Border Background="#1C1F32"
-                            BorderBrush="#2A2F4A"
-                            BorderThickness="1"
-                            CornerRadius="6"
-                            Padding="8,4">
-                        <TextBlock Text=".NET 9 / Avalonia 11"
-                                   FontSize="11"
-                                   Foreground="#C4B5FD" />
+
+                    <!-- System Status Pill -->
+                    <Border Background="#131F1C" CornerRadius="6" Padding="8,4" BorderBrush="#1B3B32" BorderThickness="1">
+                        <TextBlock Text="● Онлайн (API Ready)" FontSize="10" FontWeight="SemiBold" Foreground="#10B981" HorizontalAlignment="Center" />
                     </Border>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <!-- Main Tab Control for Navigation with Dynamic Scaling -->
-        <LayoutTransformControl Grid.Row="1">
-            <LayoutTransformControl.LayoutTransform>
-                <ScaleTransform ScaleX="{Binding UiScale}" ScaleY="{Binding UiScale}" />
-            </LayoutTransformControl.LayoutTransform>
+        <!-- RIGHT MAIN AREA -->
+        <Grid Grid.Column="1" RowDefinitions="Auto, *, Auto">
+            <!-- Top Header Bar -->
+            <Border Grid.Row="0"
+                    Background="#11131E"
+                    BorderBrush="#1E2235"
+                    BorderThickness="0,0,0,1"
+                    Padding="20,12">
+                <Grid ColumnDefinitions="*, Auto">
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <Border Background="#1B1634"
+                                BorderBrush="#7C3AED"
+                                BorderThickness="1"
+                                CornerRadius="12"
+                                Padding="12,4">
+                            <TextBlock Text="Курсовий проєкт: «Мультиплатформне програмування»"
+                                       FontSize="11"
+                                       FontWeight="SemiBold"
+                                       Foreground="#C4B5FD" />
+                        </Border>
+                    </StackPanel>
 
-            <TabControl SelectedIndex="{Binding SelectedTabIndex}"
-                        Margin="0,8,0,0">
-                <!-- Tab 1: Player Analytics -->
-                <TabItem Header="🔍 Аналітика гравця">
-                    <views:PlayerAnalyticsView DataContext="{Binding PlayerAnalytics}" />
-                </TabItem>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <Border Background="#151726" CornerRadius="6" Padding="10,4" BorderBrush="#252A3E" BorderThickness="1">
+                            <TextBlock Text="ML.NET FastTree + EF Core 9 SQLite" FontSize="11" Foreground="#A78BFA" />
+                        </Border>
+                    </StackPanel>
+                </Grid>
+            </Border>
 
-                <!-- Tab 2: Draft & In-game ML Prediction -->
-                <TabItem Header="🧠 Аналіз драфту / Передбачення">
-                    <views:DraftPredictionView DataContext="{Binding DraftPrediction}" />
-                </TabItem>
+            <!-- Main Content Area with Dynamic Scaling -->
+            <LayoutTransformControl Grid.Row="1">
+                <LayoutTransformControl.LayoutTransform>
+                    <ScaleTransform ScaleX="{Binding UiScale}" ScaleY="{Binding UiScale}" />
+                </LayoutTransformControl.LayoutTransform>
 
-                <!-- Tab 3: Local SQLite Match History -->
-                <TabItem Header="📊 Історія матчів">
-                    <views:MatchHistoryView DataContext="{Binding MatchHistory}" />
-                </TabItem>
+                <TabControl Classes="headless"
+                            SelectedIndex="{Binding SelectedTabIndex}"
+                            Margin="0">
+                    <!-- View 0: Player Analytics -->
+                    <TabItem>
+                        <views:PlayerAnalyticsView DataContext="{Binding PlayerAnalytics}" />
+                    </TabItem>
 
-                <!-- Tab 4: System & VPS Settings -->
-                <TabItem Header="⚙️ Налаштування">
-                    <views:SettingsView DataContext="{Binding Settings}" />
-                </TabItem>
-            </TabControl>
-        </LayoutTransformControl>
+                    <!-- View 1: Draft & In-game ML Prediction -->
+                    <TabItem>
+                        <views:DraftPredictionView DataContext="{Binding DraftPrediction}" />
+                    </TabItem>
 
-        <!-- Bottom Status Bar -->
-        <Border Grid.Row="2"
-                Background="#11131E"
-                BorderBrush="#1E2235"
-                BorderThickness="0,1,0,0"
-                Padding="16,6">
-            <Grid ColumnDefinitions="Auto, *, Auto">
-                <TextBlock Grid.Column="0"
-                           Text="{Binding OsInfo}"
-                           FontSize="11"
-                           Foreground="#94A3B8" />
+                    <!-- View 2: Local SQLite Match History -->
+                    <TabItem>
+                        <views:MatchHistoryView DataContext="{Binding MatchHistory}" />
+                    </TabItem>
 
-                <TextBlock Grid.Column="1"
-                           Text="ML Двигун: ML.NET FastTree (Active) | ORM: Entity Framework Core 9 (SQLite)"
-                           FontSize="11"
-                           Foreground="#818CF8"
-                           HorizontalAlignment="Center" />
+                    <!-- View 3: System & VPS Settings -->
+                    <TabItem>
+                        <views:SettingsView DataContext="{Binding Settings}" />
+                    </TabItem>
+                </TabControl>
+            </LayoutTransformControl>
 
-                <TextBlock Grid.Column="2"
-                           Text="● Стан системи: Онлайн (Mock/API Ready)"
-                           FontSize="11"
-                           FontWeight="SemiBold"
-                           Foreground="#10B981" />
-            </Grid>
-        </Border>
+            <!-- Bottom Status Bar -->
+            <Border Grid.Row="2"
+                    Background="#11131E"
+                    BorderBrush="#1E2235"
+                    BorderThickness="0,1,0,0"
+                    Padding="16,6">
+                <Grid ColumnDefinitions="Auto, *, Auto">
+                    <TextBlock Grid.Column="0"
+                               Text="{Binding OsInfo}"
+                               FontSize="11"
+                               Foreground="#94A3B8" />
+
+                    <TextBlock Grid.Column="1"
+                               Text="ML Двигун: ML.NET FastTree (Active) | ORM: Entity Framework Core 9 (SQLite)"
+                               FontSize="11"
+                               Foreground="#818CF8"
+                               HorizontalAlignment="Center" />
+
+                    <TextBlock Grid.Column="2"
+                               Text="● Стан системи: Онлайн (Mock/API Ready)"
+                               FontSize="11"
+                               FontWeight="SemiBold"
+                               Foreground="#10B981" />
+                </Grid>
+            </Border>
+        </Grid>
     </Grid>
 </Window>

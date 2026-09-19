@@ -528,7 +528,7 @@ public class DataLayerTests
         Assert.True(vm.IsScale100);
         Assert.False(vm.IsScale115);
         Assert.False(vm.IsScale125);
-        Assert.Equal("#0AC8B9", vm.Scale100Bg);
+        Assert.Equal("#7C3AED", vm.Scale100Bg);
         Assert.Equal("Transparent", vm.Scale115Bg);
 
         // Switch to 115%
@@ -537,7 +537,7 @@ public class DataLayerTests
         Assert.False(vm.IsScale100);
         Assert.True(vm.IsScale115);
         Assert.False(vm.IsScale125);
-        Assert.Equal("#0AC8B9", vm.Scale115Bg);
+        Assert.Equal("#7C3AED", vm.Scale115Bg);
         Assert.Equal("Transparent", vm.Scale100Bg);
 
         // Switch to 125%
@@ -546,7 +546,7 @@ public class DataLayerTests
         Assert.False(vm.IsScale100);
         Assert.False(vm.IsScale115);
         Assert.True(vm.IsScale125);
-        Assert.Equal("#0AC8B9", vm.Scale125Bg);
+        Assert.Equal("#7C3AED", vm.Scale125Bg);
 
         // Switch back to 100%
         vm.SetScale100Command.Execute(null);
