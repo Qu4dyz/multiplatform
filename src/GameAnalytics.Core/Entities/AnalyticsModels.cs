@@ -62,6 +62,13 @@ public class ItemDefinition
 public static class GameConstants
 {
     public static string DDragonVersion { get; set; } = "16.18.1";
+
+    /// <summary>
+    /// Local embedded Summoner's Rift minimap (resolved by Desktop BitmapAssetValueConverter).
+    /// Avoids black boards from async CDN loads that never refresh the Image binding.
+    /// </summary>
+    public const string SummonersRiftMinimapAsset = "asset://summoners_rift_minimap";
+
     public static readonly System.Collections.Concurrent.ConcurrentDictionary<int, ItemDefinition> Items = new();
 
     public static string GetItemTooltip(int itemId)

@@ -21,10 +21,9 @@ public static class TacticalMomentReplayBuilder
     private const int KillRingSize = 14;
     private const int ContextWindowMs = 45_000;
 
-    public static string SummonersRiftMapUrl =>
-        "https://raw.communitydragon.org/latest/game/assets/maps/info/map11/2dlevelminimap_base_baron1.png";
+    public static string SummonersRiftMapUrl => GameConstants.SummonersRiftMinimapAsset;
 
-    /// <summary>Fallback if Community Dragon is unreachable.</summary>
+    /// <summary>Network fallback if the embedded asset is missing.</summary>
     public static string SummonersRiftMapUrlFallback =>
         $"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/map/map11.png";
 

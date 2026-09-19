@@ -293,7 +293,7 @@ public partial class PlayerMatchItemViewModel : ObservableObject
     public bool HasSelectedMoment => SelectedMoment != null;
 
     [RelayCommand]
-    private void OpenMoment(TacticalTimelineEvent? timelineEvent)
+    private async Task OpenMoment(TacticalTimelineEvent? timelineEvent)
     {
         if (timelineEvent?.Moment == null || !timelineEvent.HasMomentReplay) return;
 
@@ -309,10 +309,23 @@ public partial class PlayerMatchItemViewModel : ObservableObject
         if (SelectedTimelineEvent != null)
             SelectedTimelineEvent.IsMomentOpen = false;
 
+        // Ensure minimap pixels are in cache BEFORE the board becomes visible
+        // (async CDN loads otherwise leave a permanent black square).
+        var moment = timelineEvent.Moment;
+        if (string.IsNullOrWhiteSpace(moment.MapImageUrl))
+            moment.MapImageUrl = GameConstants.SummonersRiftMinimapAsset;
+
+        await BitmapAssetValueConverter.PreloadImagesAsync(new[] { moment.MapImageUrl });
+        if (!BitmapAssetValueConverter.IsCached(moment.MapImageUrl))
+        {
+            moment.MapImageUrl = TacticalMomentReplayBuilder.SummonersRiftMapUrlFallback;
+            await BitmapAssetValueConverter.PreloadImagesAsync(new[] { moment.MapImageUrl });
+        }
+
         timelineEvent.WasMomentViewed = true;
         timelineEvent.IsMomentOpen = true;
         SelectedTimelineEvent = timelineEvent;
-        SelectedMoment = timelineEvent.Moment;
+        SelectedMoment = moment;
     }
 
     [RelayCommand]

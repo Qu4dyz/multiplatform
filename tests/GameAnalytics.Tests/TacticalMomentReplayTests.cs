@@ -71,7 +71,7 @@ public class TacticalMomentReplayTests
         Assert.Contains("ваш асист", moment.Subtitle);
         Assert.Contains("у ту ж секунду вас убив", moment.Subtitle);
         Assert.False(string.IsNullOrWhiteSpace(moment.MapImageUrl));
-        Assert.Contains("minimap", moment.MapImageUrl, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(GameConstants.SummonersRiftMinimapAsset, moment.MapImageUrl);
         Assert.True(moment.HasKillMarker);
         Assert.Single(moment.ContextLines, l => l.IsCurrent);
         Assert.Contains(moment.ContextLines, l => l.IsCurrent && l.Text.Contains("→") && !l.Text.Contains("★"));
