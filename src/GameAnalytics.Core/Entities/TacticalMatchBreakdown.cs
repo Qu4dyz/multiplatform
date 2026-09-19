@@ -131,7 +131,7 @@ public class TacticalMomentReplay
     public int VictimId { get; set; }
     public int TimestampMs { get; set; }
     public double MapSize { get; set; } = 260;
-    /// <summary>Summoner's Rift minimap (Data Dragon map11).</summary>
+    /// <summary>Summoner's Rift minimap asset key or URL.</summary>
     public string MapImageUrl { get; set; } = string.Empty;
     /// <summary>Kill epicenter marker on the canvas (centered ring).</summary>
     public double KillMarkerLeft { get; set; }

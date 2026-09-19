@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Globalization;
 using Avalonia.Data.Converters;
 using Avalonia.Media.Imaging;
+using Avalonia.Platform;
 using Avalonia.Threading;
 using GameAnalytics.Core.Entities;
 
@@ -9,6 +10,9 @@ namespace GameAnalytics.Desktop.Converters;
 
 public class BitmapAssetValueConverter : IValueConverter
 {
+    private const string EmbeddedMinimapAvares =
+        "avares://GameAnalytics.Desktop/Assets/Maps/summoners_rift.png";
+
     private static readonly HttpClient HttpClient = CreateHttpClient();
     private static readonly ConcurrentDictionary<string, Bitmap?> Cache = new();
 
@@ -36,7 +40,14 @@ public class BitmapAssetValueConverter : IValueConverter
             }
         }
         catch { }
+
+        // Warm the minimap so the first moment open never paints a black square.
+        try { TryLoadEmbeddedMinimap(); }
+        catch { }
     }
+
+    public static bool IsCached(string? url)
+        => !string.IsNullOrWhiteSpace(url) && Cache.TryGetValue(url, out var bmp) && bmp != null;
 
     public static string GetCacheDir()
     {
@@ -57,9 +68,49 @@ public class BitmapAssetValueConverter : IValueConverter
         return Path.Combine(GetCacheDir(), fileName);
     }
 
+    private static Bitmap? TryLoadEmbeddedMinimap()
+    {
+        if (Cache.TryGetValue(GameConstants.SummonersRiftMinimapAsset, out var cached) && cached != null)
+            return cached;
+
+        using var stream = AssetLoader.Open(new Uri(EmbeddedMinimapAvares));
+        var bmp = new Bitmap(stream);
+        Cache[GameConstants.SummonersRiftMinimapAsset] = bmp;
+        Cache[EmbeddedMinimapAvares] = bmp;
+        return bmp;
+    }
+
+    private static Bitmap? LoadAvares(string avaresUrl)
+    {
+        if (Cache.TryGetValue(avaresUrl, out var cached) && cached != null)
+            return cached;
+
+        using var stream = AssetLoader.Open(new Uri(avaresUrl));
+        var bmp = new Bitmap(stream);
+        Cache[avaresUrl] = bmp;
+        return bmp;
+    }
+
     public static Bitmap? GetOrLoadBitmap(string? url, Action<Bitmap>? onLoaded = null)
     {
         if (string.IsNullOrWhiteSpace(url)) return null;
+
+        if (url == GameConstants.SummonersRiftMinimapAsset || url.StartsWith("avares://", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                var embedded = url == GameConstants.SummonersRiftMinimapAsset
+                    ? TryLoadEmbeddedMinimap()
+                    : LoadAvares(url);
+                if (embedded != null)
+                {
+                    onLoaded?.Invoke(embedded);
+                    return embedded;
+                }
+            }
+            catch { }
+            return null;
+        }
 
         if (Cache.TryGetValue(url, out var cached) && cached != null)
         {
@@ -112,6 +163,19 @@ public class BitmapAssetValueConverter : IValueConverter
         {
             if (Cache.ContainsKey(url) && Cache[url] != null) return;
 
+            if (url == GameConstants.SummonersRiftMinimapAsset || url.StartsWith("avares://", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    if (url == GameConstants.SummonersRiftMinimapAsset)
+                        TryLoadEmbeddedMinimap();
+                    else
+                        LoadAvares(url);
+                }
+                catch { }
+                return;
+            }
+
             try
             {
                 var localPath = GetLocalPathForUrl(url);
@@ -148,6 +212,20 @@ public class BitmapAssetValueConverter : IValueConverter
             return null;
         }
 
+        if (url == GameConstants.SummonersRiftMinimapAsset || url.StartsWith("avares://", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                return url == GameConstants.SummonersRiftMinimapAsset
+                    ? TryLoadEmbeddedMinimap()
+                    : LoadAvares(url);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
         if (Cache.TryGetValue(url, out var cachedBitmap) && cachedBitmap != null)
         {
             return cachedBitmap;
@@ -171,7 +249,7 @@ public class BitmapAssetValueConverter : IValueConverter
             }
         }
 
-        // Download in background
+        // Download in background — binding will not auto-refresh; callers should preload first.
         _ = Task.Run(async () =>
         {
             try
