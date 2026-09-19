@@ -572,45 +572,12 @@ public class RiotApiClient : IRiotApiClient
                 var result = new MatchTimelineData { MatchId = matchId };
                 var frameCount = framesElem.GetArrayLength();
 
-                // Frame 15 snapshot for gold
-                var targetIndex = Math.Min(15, frameCount - 1);
-                var frame15 = framesElem[targetIndex];
+                // Frame 10 + 15 snapshots for gold momentum features
+                ExtractTeamGoldFrame(framesElem, frameCount, 10, out var gold10Blue, out var gold10Red, out _, out _, out _, out _);
+                ExtractTeamGoldFrame(framesElem, frameCount, 15, out var goldBlue, out var goldRed, out var csBlue, out var csRed, out var xpBlue, out var xpRed);
 
-                int goldBlue = 0;
-                int goldRed = 0;
-                int csBlue = 0;
-                int csRed = 0;
-                int xpBlue = 0;
-                int xpRed = 0;
-
-                if (frame15.TryGetProperty("participantFrames", out var pFrames))
-                {
-                    for (int i = 1; i <= 10; i++)
-                    {
-                        if (pFrames.TryGetProperty(i.ToString(), out var pf))
-                        {
-                            var totalGold = pf.TryGetProperty("totalGold", out var g) ? g.GetInt32() : 0;
-                            var minions = pf.TryGetProperty("minionsKilled", out var m) ? m.GetInt32() : 0;
-                            var jgMinions = pf.TryGetProperty("jungleMinionsKilled", out var jm) ? jm.GetInt32() : 0;
-                            var xp = pf.TryGetProperty("xp", out var x) ? x.GetInt32() : 0;
-                            var totalCs = minions + jgMinions;
-
-                            if (i <= 5)
-                            {
-                                goldBlue += totalGold;
-                                csBlue += totalCs;
-                                xpBlue += xp;
-                            }
-                            else
-                            {
-                                goldRed += totalGold;
-                                csRed += totalCs;
-                                xpRed += xp;
-                            }
-                        }
-                    }
-                }
-
+                result.GoldAt10Blue = gold10Blue;
+                result.GoldAt10Red = gold10Red;
                 result.GoldAt15Blue = goldBlue > 0 ? goldBlue : 24500;
                 result.GoldAt15Red = goldRed > 0 ? goldRed : 23800;
                 result.CsAt15Blue = csBlue;
@@ -622,6 +589,7 @@ public class RiotApiClient : IRiotApiClient
                 bool firstTowerSet = false;
                 bool firstDragonSet = false;
 
+                const int tenMinMs = 10 * 60 * 1000;
                 const int fifteenMinMs = 15 * 60 * 1000;
 
                 // Process all frames to collect real events + participant positions for moment replay
@@ -715,6 +683,12 @@ public class RiotApiClient : IRiotApiClient
                             {
                                 if (killerId <= 5) result.KillsAt15Blue++;
                                 else result.KillsAt15Red++;
+                            }
+
+                            if (ts <= tenMinMs)
+                            {
+                                if (killerId <= 5) result.KillsAt10Blue++;
+                                else result.KillsAt10Red++;
                             }
                         }
                         else if (evType == "ELITE_MONSTER_KILL")
@@ -811,6 +785,64 @@ public class RiotApiClient : IRiotApiClient
         }
 
         return GenerateMockTimeline(matchId);
+    }
+
+    private static void ExtractTeamGoldFrame(
+        JsonElement framesElem,
+        int frameCount,
+        int minute,
+        out int goldBlue,
+        out int goldRed,
+        out int csBlue,
+        out int csRed,
+        out int xpBlue,
+        out int xpRed)
+    {
+        goldBlue = goldRed = csBlue = csRed = xpBlue = xpRed = 0;
+        if (frameCount <= 0) return;
+
+        var targetIndex = Math.Min(minute, frameCount - 1);
+        // Prefer a frame whose timestamp is near the requested minute when available
+        var bestIdx = targetIndex;
+        var targetMs = minute * 60_000;
+        var bestDelta = int.MaxValue;
+        for (var i = 0; i < frameCount; i++)
+        {
+            var f = framesElem[i];
+            var ts = f.TryGetProperty("timestamp", out var tProp) ? tProp.GetInt32() : i * 60_000;
+            var delta = Math.Abs(ts - targetMs);
+            if (delta < bestDelta && ts <= targetMs + 30_000)
+            {
+                bestDelta = delta;
+                bestIdx = i;
+            }
+        }
+
+        var frame = framesElem[bestIdx];
+        if (!frame.TryGetProperty("participantFrames", out var pFrames)) return;
+
+        for (int i = 1; i <= 10; i++)
+        {
+            if (!pFrames.TryGetProperty(i.ToString(), out var pf)) continue;
+            var totalGold = pf.TryGetProperty("totalGold", out var g) ? g.GetInt32() : 0;
+            var minions = pf.TryGetProperty("minionsKilled", out var m) ? m.GetInt32() : 0;
+            var jgMinions = pf.TryGetProperty("jungleMinionsKilled", out var jm) ? jm.GetInt32() : 0;
+            var xp = pf.TryGetProperty("xp", out var x) ? x.GetInt32() : 0;
+            var totalCs = minions + jgMinions;
+
+            if (i <= 5)
+            {
+                goldBlue += totalGold;
+                csBlue += totalCs;
+                xpBlue += xp;
+            }
+            else
+            {
+                goldRed += totalGold;
+                csRed += totalCs;
+                xpRed += xp;
+            }
+        }
     }
 
     private static GameTier ParseTier(string? tierStr)

@@ -225,6 +225,9 @@ public class RealMatchDatasetCollector
         blue.FirstRiftHerald = timeline.HeraldsAt15Blue > 0;
         match.HasMinute15Objectives = true;
 
+        match.GoldDiff10 = timeline.GoldDiffAt10;
+        match.KillDiff10 = timeline.KillDiffAt10;
+
         ApplyLaneAndLevelDiffs(match, timeline);
         return true;
     }
@@ -300,16 +303,24 @@ public class RealMatchDatasetCollector
     /// <summary>
     /// Converts stored historical matches into honest minute-15 ML features.
     /// Skips matches without a real 15' gold snapshot and never falls back to end-of-game towers/kills/CS.
-    /// Adds draft scaling, real champion win rates, lane gold, and rank-aware gold conversion.
+    /// Champion win rates are chronological past-only (no future label leakage).
+    /// Adds draft scaling, composition tags, gold@10 momentum, lane gold, and rank-aware gold conversion.
     /// Preserves chronological order when the input is ordered by GameCreation.
     /// </summary>
     public static List<MatchInputData> ExtractFeaturesFromMatches(IEnumerable<Match> matches)
     {
         var matchList = matches as IList<Match> ?? matches.ToList();
-        var champWinRates = BuildChampionWinRates(matchList);
+        // Ensure chronological processing so rolling WR never sees the future.
+        var ordered = matchList
+            .OrderBy(m => m.GameCreation)
+            .ThenBy(m => m.MatchId, StringComparer.Ordinal)
+            .ToList();
+
+        var champWins = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var champGames = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var result = new List<MatchInputData>();
 
-        foreach (var match in matchList)
+        foreach (var match in ordered)
         {
             if (match.IsRemake || match.GameDurationSeconds < 300) continue;
             if (match.QueueId != 420 && match.QueueId != 440 && match.QueueId != 400 && match.QueueId != 0) continue;
@@ -340,7 +351,9 @@ public class RealMatchDatasetCollector
             var redChamps = match.Participants.Where(p => p.TeamSide == TeamSide.Red).Select(p => p.ChampionName).ToList();
 
             var (earlyDiff, lateDiff) = ComputeDraftPowerDiffs(blueChamps, redChamps);
-            var (blueWr, redWr) = ComputeTeamChampionWinRates(blueChamps, redChamps, champWinRates);
+            var pastRates = SnapshotWinRates(champWins, champGames);
+            var (blueWr, redWr) = ComputeTeamChampionWinRates(blueChamps, redChamps, pastRates);
+            var (engageDiff, tankDiff, adApDiff) = ChampionCompositionHelper.ComputeDiffs(blueChamps, redChamps);
 
             var rankScore = match.ApproxRankScore > 0 ? match.ApproxRankScore : RankScoreHelper.DefaultMixedLobby;
             var goldPace = (blue.GoldAt15 + red.GoldAt15) / 1000f;
@@ -356,6 +369,15 @@ public class RealMatchDatasetCollector
             var levelDiff = match.LevelDiff15 != 0
                 ? match.LevelDiff15
                 : xpDiff15 / 180f; // rough fallback: ~180 XP ≈ 1 level across a team
+
+            var goldDiff10 = match.GoldDiff10;
+            var killDiff10 = match.KillDiff10;
+            // If 10' snapshot missing, approximate from 15' (slightly weaker signal, still honest).
+            if (goldDiff10 == 0 && goldDiff15 != 0)
+                goldDiff10 = goldDiff15 * 0.65f;
+            var goldMomentum = goldDiff15 - goldDiff10;
+            var winRateDiff = blueWr - redWr;
+            var snowball = (killDiff15 * 400f + goldDiff15) / 1000f;
 
             result.Add(new MatchInputData
             {
@@ -383,11 +405,55 @@ public class RealMatchDatasetCollector
                 LevelDiff15 = levelDiff,
                 ObjectiveScoreDiff = objectiveScore,
                 RankAdjustedGoldDiff = rankAdjustedGold,
+                GoldDiff10 = goldDiff10,
+                KillDiff10 = killDiff10,
+                GoldMomentum15 = goldMomentum,
+                WinRateDiff = winRateDiff,
+                EngageDiff = engageDiff,
+                TankDiff = tankDiff,
+                AdApBalanceDiff = adApDiff,
+                SnowballScore = snowball,
                 Label = match.WinningTeam == TeamSide.Blue
             });
+
+            // Update rolling WR AFTER featurizing this match so labels never leak into its own features.
+            foreach (var p in match.Participants)
+            {
+                if (string.IsNullOrWhiteSpace(p.ChampionName)) continue;
+                champGames.TryGetValue(p.ChampionName, out var g);
+                champGames[p.ChampionName] = g + 1;
+                if (p.Win)
+                {
+                    champWins.TryGetValue(p.ChampionName, out var w);
+                    champWins[p.ChampionName] = w + 1;
+                }
+            }
         }
 
         return result;
+    }
+
+    private static Dictionary<string, float> SnapshotWinRates(
+        IReadOnlyDictionary<string, int> wins,
+        IReadOnlyDictionary<string, int> games)
+    {
+        var rates = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (champ, count) in games)
+        {
+            if (count < 6)
+            {
+                rates[champ] = 50f;
+                continue;
+            }
+
+            var w = wins.TryGetValue(champ, out var ww) ? ww : 0;
+            // Shrink toward 50% so sparse champs don't overfit.
+            var raw = 100f * w / count;
+            var weight = Math.Min(1f, count / 25f);
+            rates[champ] = 50f + (raw - 50f) * weight;
+        }
+
+        return rates;
     }
 
     public static Dictionary<string, float> BuildChampionWinRates(IEnumerable<Match> matches)
@@ -411,20 +477,7 @@ public class RealMatchDatasetCollector
             }
         }
 
-        var rates = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (champ, count) in games)
-        {
-            if (count < 8)
-            {
-                rates[champ] = 50f; // not enough sample — neutral prior
-                continue;
-            }
-
-            var w = wins.TryGetValue(champ, out var ww) ? ww : 0;
-            rates[champ] = 100f * w / count;
-        }
-
-        return rates;
+        return SnapshotWinRates(wins, games);
     }
 
     public static (float BlueWr, float RedWr) ComputeTeamChampionWinRates(

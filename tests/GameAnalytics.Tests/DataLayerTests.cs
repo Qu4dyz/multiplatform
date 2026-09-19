@@ -1387,10 +1387,15 @@ public class DataLayerTests
         var features = GameAnalytics.ML.Training.RealMatchDatasetCollector.ExtractFeaturesFromMatches(matches);
         Assert.Equal(12, features.Count);
         Assert.Equal(8f, features[0].AvgRankScore);
-        Assert.True(features[0].BlueAvgWinRate > features[0].RedAvgWinRate);
+        // First match has no past history → neutral WR; later matches see rolling blue-favoring WR.
+        Assert.Equal(50f, features[0].BlueAvgWinRate);
+        Assert.Equal(50f, features[0].RedAvgWinRate);
+        Assert.True(features[^1].BlueAvgWinRate > features[^1].RedAvgWinRate);
+        Assert.True(features[^1].WinRateDiff > 0);
         // Renekton/Lee early vs Kayle/Kassadin late → blue early lead, red late lead
         Assert.True(features[0].EarlyPowerDiff > 0);
         Assert.True(features[0].LatePowerDiff < 0);
+        Assert.True(features[0].EngageDiff != 0 || features[0].TankDiff != 0);
     }
 
     [Fact]

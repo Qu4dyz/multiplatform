@@ -82,7 +82,34 @@ public class MatchInputData
     [LoadColumn(23)]
     public float RankAdjustedGoldDiff { get; set; }
 
-    [LoadColumn(24), ColumnName("Label")]
+    [LoadColumn(24)]
+    public float GoldDiff10 { get; set; }
+
+    [LoadColumn(25)]
+    public float KillDiff10 { get; set; }
+
+    /// <summary>GoldDiff15 − GoldDiff10: is the lead growing or fading?</summary>
+    [LoadColumn(26)]
+    public float GoldMomentum15 { get; set; }
+
+    /// <summary>BlueWr − RedWr from chronological past-only champion stats.</summary>
+    [LoadColumn(27)]
+    public float WinRateDiff { get; set; }
+
+    [LoadColumn(28)]
+    public float EngageDiff { get; set; }
+
+    [LoadColumn(29)]
+    public float TankDiff { get; set; }
+
+    [LoadColumn(30)]
+    public float AdApBalanceDiff { get; set; }
+
+    /// <summary>Combined early snowball signal (kills + gold), scaled.</summary>
+    [LoadColumn(31)]
+    public float SnowballScore { get; set; }
+
+    [LoadColumn(32), ColumnName("Label")]
     public bool Label { get; set; }
 }
 

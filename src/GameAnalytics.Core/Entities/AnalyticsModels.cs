@@ -176,5 +176,12 @@ public class MatchInputFeatures
     public float MidGoldDiff15 { get; set; }
     public float BotDuoGoldDiff15 { get; set; }
     public float LevelDiff15 { get; set; }
+
+    public float GoldDiff10 { get; set; }
+    public float KillDiff10 { get; set; }
+    public float GoldMomentum15 { get; set; }
+    public float EngageDiff { get; set; }
+    public float TankDiff { get; set; }
+    public float AdApBalanceDiff { get; set; }
 }
 
