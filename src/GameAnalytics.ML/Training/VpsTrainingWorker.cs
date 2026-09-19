@@ -63,6 +63,11 @@ public class VpsTrainingWorker
                     {
                         var m = _predictionEngine.CurrentModelMetrics;
                         log($"[VPS ML Trainer] Результати навчання: Точність (Accuracy) = {m.Accuracy:P1} | AUC = {m.AreaUnderRocCurve:F3} | F1-Score = {m.F1Score:F3}");
+                        if (m.AccuracyWhenConfident > 0 && m.ConfidentCoverage > 0)
+                        {
+                            log($"[VPS ML Trainer] Впевнені предикти (|p-0.5|≥0.15): Accuracy = {m.AccuracyWhenConfident:P1} на {m.ConfidentCoverage:P0} тест-вибірки | Brier = {m.BrierScore:F3}" +
+                                (m.UsedHighEloSpecialist ? " | HighElo specialist: ON" : ""));
+                        }
                         if (m.AccuracyByRankBucket.Count > 0)
                         {
                             var byRank = string.Join(" | ", m.AccuracyByRankBucket.Select(kv => $"{kv.Key}: {kv.Value:P0}"));

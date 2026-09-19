@@ -26,6 +26,21 @@ public class ModelMetrics
     /// <summary>Temporal-holdout accuracy broken down by lobby rank bucket (lab reporting).</summary>
     public Dictionary<string, double> AccuracyByRankBucket { get; set; } = new();
 
+    /// <summary>
+    /// Accuracy only on confident predictions (|p−0.5| ≥ ConfidentMargin).
+    /// Strong lab metric: abstain on coin-flip games, measure when the model commits.
+    /// </summary>
+    public double AccuracyWhenConfident { get; set; }
+
+    /// <summary>Fraction of the temporal test set that was confident enough to score.</summary>
+    public double ConfidentCoverage { get; set; }
+
+    /// <summary>Mean squared error of probabilities (lower is better calibration).</summary>
+    public double BrierScore { get; set; }
+
+    /// <summary>True when a Diamond+ specialist model was blended into evaluation/prediction.</summary>
+    public bool UsedHighEloSpecialist { get; set; }
+
     public string FormattedAccuracy => $"{Accuracy * 100:F1}%";
     public string FormattedAuc => $"{AreaUnderRocCurve:F3}";
     public string FormattedF1 => $"{F1Score:F3}";

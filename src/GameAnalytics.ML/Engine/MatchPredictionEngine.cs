@@ -14,8 +14,10 @@ public class MatchPredictionEngine : IPredictionEngine
     private readonly string _modelDirectory;
     private ITransformer? _model;
     private ITransformer? _ensembleForestModel;
+    private ITransformer? _highEloModel;
     private PredictionEngine<MatchInputData, MatchPrediction>? _predictionEngine;
     private PredictionEngine<MatchInputData, MatchPrediction>? _ensembleForestEngine;
+    private PredictionEngine<MatchInputData, MatchPrediction>? _highEloEngine;
     private readonly object _lock = new();
 
     public MLAlgorithmType ActiveAlgorithm { get; private set; } = MLAlgorithmType.FastTree;
@@ -65,6 +67,13 @@ public class MatchPredictionEngine : IPredictionEngine
                     {
                         _ensembleForestModel = _mlContext.Model.Load(forestFile, out _);
                         _ensembleForestEngine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(_ensembleForestModel);
+                    }
+
+                    var highFile = Path.Combine(_modelDirectory, "fasttree_highelo_model.zip");
+                    if (File.Exists(highFile))
+                    {
+                        _highEloModel = _mlContext.Model.Load(highFile, out _);
+                        _highEloEngine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(_highEloModel);
                     }
 
                     IsTrainedOnRealData = true;
@@ -238,6 +247,13 @@ public class MatchPredictionEngine : IPredictionEngine
                 blueProb = Math.Clamp((blueProb + forestProb) * 0.5f, 0.05f, 0.95f);
             }
 
+            // Diamond+ lobbies: blend in the high-elo specialist (ranks convert leads differently).
+            if (_highEloEngine != null && input.AvgRankScore >= ModelBenchmarkService.HighEloRankThreshold)
+            {
+                var highProb = Math.Clamp(_highEloEngine.Predict(input).Probability, 0.05f, 0.95f);
+                blueProb = Math.Clamp(blueProb * 0.40f + highProb * 0.60f, 0.05f, 0.95f);
+            }
+
             var redProb = 1.0f - blueProb;
             var predictedWinner = blueProb >= 0.5f ? TeamSide.Blue : TeamSide.Red;
             var confidence = Math.Abs(blueProb - 0.5f) * 2.0;
@@ -405,29 +421,57 @@ public class MatchPredictionEngine : IPredictionEngine
 
                         var treeEngine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(treeModel);
                         var forestEngine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(forestModel);
+
+                        PredictionEngine<MatchInputData, MatchPrediction>? highEloEngine = null;
+                        var highTrain = trainSet
+                            .Where(r => r.AvgRankScore >= ModelBenchmarkService.HighEloRankThreshold)
+                            .ToList();
+                        if (highTrain.Count >= 180)
+                        {
+                            var highView = _mlContext.Data.LoadFromEnumerable(highTrain);
+                            var highModel = treePipeline.Fit(highView);
+                            highEloEngine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(highModel);
+                        }
+
                         CurrentModelMetrics = ModelBenchmarkService.EvaluateSoftEnsemble(
-                            _mlContext, treeEngine, forestEngine, testSet);
+                            _mlContext, treeEngine, forestEngine, testSet, highEloEngine);
 
                         // Retrain on the full chronological corpus for the shipped model weights.
                         _model = treePipeline.Fit(dataView);
                         _ensembleForestModel = forestPipeline.Fit(dataView);
+
+                        var highFull = matchDataList
+                            .Where(r => r.AvgRankScore >= ModelBenchmarkService.HighEloRankThreshold)
+                            .ToList();
+                        _highEloModel = highFull.Count >= 180
+                            ? treePipeline.Fit(_mlContext.Data.LoadFromEnumerable(highFull))
+                            : null;
                     }
                     else
                     {
                         _model = treePipeline.Fit(dataView);
                         _ensembleForestModel = forestPipeline.Fit(dataView);
+                        _highEloModel = null;
                     }
 
                     var trainer = new ModelTrainer();
                     var modelFile = Path.Combine(_modelDirectory, $"{ActiveAlgorithm.ToString().ToLower()}_model.zip");
                     var forestFile = Path.Combine(_modelDirectory, "fastforest_model.zip");
+                    var highFile = Path.Combine(_modelDirectory, "fasttree_highelo_model.zip");
                     trainer.SaveModel(_model, dataView.Schema, modelFile);
                     if (_ensembleForestModel != null)
                         trainer.SaveModel(_ensembleForestModel, dataView.Schema, forestFile);
+                    if (_highEloModel != null)
+                        trainer.SaveModel(_highEloModel, dataView.Schema, highFile);
+                    else if (File.Exists(highFile))
+                        File.Delete(highFile);
 
                     _predictionEngine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(_model);
                     _ensembleForestEngine = _ensembleForestModel != null
                         ? _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(_ensembleForestModel)
+                        : null;
+                    _highEloEngine = _highEloModel != null
+                        ? _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(_highEloModel)
                         : null;
 
                     IsTrainedOnRealData = true;

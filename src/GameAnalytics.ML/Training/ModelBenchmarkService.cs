@@ -148,21 +148,34 @@ public class ModelBenchmarkService
     }
 
     /// <summary>
-    /// Soft-vote ensemble: average calibrated probabilities from FastTree + FastForest.
-    /// Returns Accuracy / AUC / F1 computed on the averaged scores.
+    /// Soft-vote ensemble: average calibrated probabilities from FastTree + FastForest,
+    /// optionally blended with a Diamond+ specialist for high-rank lobbies.
+    /// Also reports confidence-gated accuracy (lab-friendly abstention metric).
     /// </summary>
+    public const float HighEloRankThreshold = 7.0f; // Diamond+
+    public const float ConfidentProbabilityMargin = 0.15f; // |p-0.5| ≥ 0.15
+
     public static ModelMetrics EvaluateSoftEnsemble(
         MLContext mlContext,
         PredictionEngine<MatchInputData, MatchPrediction> treeEngine,
         PredictionEngine<MatchInputData, MatchPrediction> forestEngine,
-        IReadOnlyList<MatchInputData> testSet)
+        IReadOnlyList<MatchInputData> testSet,
+        PredictionEngine<MatchInputData, MatchPrediction>? highEloEngine = null)
     {
         var rows = new List<(bool Label, float Prob, float Rank)>(testSet.Count);
         foreach (var row in testSet)
         {
             var p1 = Math.Clamp(treeEngine.Predict(row).Probability, 0.01f, 0.99f);
             var p2 = Math.Clamp(forestEngine.Predict(row).Probability, 0.01f, 0.99f);
-            rows.Add((row.Label, (p1 + p2) * 0.5f, row.AvgRankScore));
+            var p = (p1 + p2) * 0.5f;
+            if (highEloEngine != null && row.AvgRankScore >= HighEloRankThreshold)
+            {
+                var ph = Math.Clamp(highEloEngine.Predict(row).Probability, 0.01f, 0.99f);
+                // Specialist gets majority weight where rank playstyle differs most.
+                p = p * 0.40f + ph * 0.60f;
+            }
+
+            rows.Add((row.Label, p, row.AvgRankScore));
         }
 
         var accuracy = rows.Count == 0 ? 0 : rows.Count(r => (r.Prob >= 0.5f) == r.Label) / (double)rows.Count;
@@ -181,6 +194,22 @@ public class ModelBenchmarkService
                 return r.Label ? -Math.Log(p) : -Math.Log(1 - p);
             });
 
+        var confident = rows
+            .Where(r => Math.Abs(r.Prob - 0.5f) >= ConfidentProbabilityMargin)
+            .ToList();
+        var accConfident = confident.Count == 0
+            ? 0
+            : confident.Count(r => (r.Prob >= 0.5f) == r.Label) / (double)confident.Count;
+        var coverage = rows.Count == 0 ? 0 : confident.Count / (double)rows.Count;
+        var brier = rows.Count == 0
+            ? 0.25
+            : rows.Average(r =>
+            {
+                var y = r.Label ? 1.0 : 0.0;
+                var d = r.Prob - y;
+                return d * d;
+            });
+
         return new ModelMetrics
         {
             AlgorithmType = MLAlgorithmType.FastTree,
@@ -191,7 +220,11 @@ public class ModelBenchmarkService
             PositiveRecall = recall,
             LogLoss = logLoss,
             FeatureImportance = ComputeFeatureImportance(null!, null!),
-            AccuracyByRankBucket = ComputeRankBucketAccuracy(rows)
+            AccuracyByRankBucket = ComputeRankBucketAccuracy(rows),
+            AccuracyWhenConfident = accConfident,
+            ConfidentCoverage = coverage,
+            BrierScore = brier,
+            UsedHighEloSpecialist = highEloEngine != null
         };
     }
 
