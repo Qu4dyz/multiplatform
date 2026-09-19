@@ -48,10 +48,14 @@ public class TacticalMomentMarker
     public string BorderColor { get; set; } = "#94A3B8";
     public bool IsBlueTeam { get; set; }
     public bool IsFocus { get; set; }
+    /// <summary>True for killer/victim/assists — drawn larger and on top.</summary>
+    public bool IsInFight { get; set; }
+    public double MarkerSize { get; set; } = 28;
     public double MapLeft { get; set; }
     public double MapTop { get; set; }
     public int Level { get; set; }
     public int Gold { get; set; }
+    public double Opacity => IsInFight || IsFocus ? 1.0 : 0.72;
 }
 
 public class TacticalMomentContextLine
@@ -76,7 +80,13 @@ public class TacticalMomentReplay
     public int KillerId { get; set; }
     public int VictimId { get; set; }
     public int TimestampMs { get; set; }
-    public double MapSize { get; set; } = 280;
+    public double MapSize { get; set; } = 300;
+    /// <summary>Summoner's Rift minimap (Data Dragon map11).</summary>
+    public string MapImageUrl { get; set; } = string.Empty;
+    /// <summary>Kill epicenter marker on the canvas (centered ring).</summary>
+    public double KillMarkerLeft { get; set; }
+    public double KillMarkerTop { get; set; }
+    public bool HasKillMarker { get; set; }
     public List<TacticalMomentMarker> Markers { get; set; } = new();
     public List<TacticalMomentContextLine> ContextLines { get; set; } = new();
 }
