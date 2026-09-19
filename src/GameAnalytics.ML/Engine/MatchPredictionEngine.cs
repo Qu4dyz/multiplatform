@@ -300,7 +300,13 @@ public class MatchPredictionEngine : IPredictionEngine
     {
         return Task.Run(() =>
         {
-            var matchDataList = RealMatchDatasetCollector.ExtractFeaturesFromMatches(historicalMatches);
+            // Chronological order first so the held-out slice is "future" games, not a random leaky mix.
+            var orderedMatches = historicalMatches
+                .OrderBy(m => m.GameCreation)
+                .ThenBy(m => m.MatchId, StringComparer.Ordinal)
+                .ToList();
+
+            var matchDataList = RealMatchDatasetCollector.ExtractFeaturesFromMatches(orderedMatches);
 
             if (matchDataList.Count >= 10)
             {
@@ -312,9 +318,17 @@ public class MatchPredictionEngine : IPredictionEngine
 
                     if (matchDataList.Count >= 20)
                     {
-                        var split = _mlContext.Data.TrainTestSplit(dataView, testFraction: 0.2, seed: 42);
-                        _model = pipeline.Fit(split.TrainSet);
-                        var predictions = _model.Transform(split.TestSet);
+                        // Temporal holdout: train on older ~80%, evaluate on newest ~20%.
+                        var testCount = Math.Max(1, (int)Math.Round(matchDataList.Count * 0.2));
+                        var trainCount = matchDataList.Count - testCount;
+                        var trainSet = matchDataList.Take(trainCount).ToList();
+                        var testSet = matchDataList.Skip(trainCount).ToList();
+
+                        var trainView = _mlContext.Data.LoadFromEnumerable(trainSet);
+                        var testView = _mlContext.Data.LoadFromEnumerable(testSet);
+
+                        _model = pipeline.Fit(trainView);
+                        var predictions = _model.Transform(testView);
                         try
                         {
                             var eval = _mlContext.BinaryClassification.Evaluate(predictions, labelColumnName: "Label");
@@ -343,6 +357,9 @@ public class MatchPredictionEngine : IPredictionEngine
                                 LogLoss = 0.5
                             };
                         }
+
+                        // Retrain on the full chronological corpus for the shipped model weights.
+                        _model = pipeline.Fit(dataView);
                     }
                     else
                     {

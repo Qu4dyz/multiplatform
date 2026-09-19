@@ -12,6 +12,8 @@ public class Match
     public string GameVersion { get; set; } = string.Empty;
     public TeamSide WinningTeam { get; set; }
     public bool IsRemake { get; set; }
+    /// <summary>True once timeline towers/dragons/grubs at minute 15 were written (even if all zeros).</summary>
+    public bool HasMinute15Objectives { get; set; }
 
     public List<Participant> Participants { get; set; } = new();
     public List<TeamStats> Teams { get; set; } = new();
@@ -116,6 +118,10 @@ public class TeamStats
     public int KillsAt15 { get; set; }
     public int CsAt15 { get; set; }
     public int XpAt15 { get; set; }
+    /// <summary>Towers destroyed by this team by minute 15 (not end-of-game).</summary>
+    public int TowersAt15 { get; set; }
+    /// <summary>Dragons taken by this team by minute 15 (not end-of-game).</summary>
+    public int DragonsAt15 { get; set; }
 
     public int VoidgrubKills { get; set; }
     public int RiftHeraldKills { get; set; }

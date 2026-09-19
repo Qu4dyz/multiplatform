@@ -31,6 +31,7 @@ public class RealMatchDatasetCollector
         var candidatePuuids = new Queue<string>();
         var refillAttempts = 0;
         const int maxRefillAttempts = 6;
+        var objectiveBackfills = 0;
 
         void EnqueueCandidate(string? puuid)
         {
@@ -123,6 +124,19 @@ public class RealMatchDatasetCollector
                 var existing = await _matchRepo.GetMatchByMatchIdAsync(matchId, ct);
                 if (existing != null && existing.Teams.Count >= 2 && existing.Teams.Any(t => t.GoldAt15 > 0))
                 {
+                    // Backfill towers/dragons at 15' for older rows that only have gold/XP snapshots.
+                    // Cap per collect pass so we keep discovering fresh matches under the rate limit.
+                    if (NeedsAt15ObjectiveBackfill(existing) && objectiveBackfills < 12)
+                    {
+                        var timelineBackfill = await _apiClient.GetMatchTimelineAsync(matchId, ct);
+                        if (timelineBackfill != null && ApplyTimelineSnapshot(existing, timelineBackfill))
+                        {
+                            await _matchRepo.UpsertMatchAsync(existing, ct);
+                            objectiveBackfills++;
+                            logger?.Invoke($"[Collector] Backfill 15' objectives: {matchId} ({objectiveBackfills}/12)");
+                        }
+                    }
+
                     // Critical: expand crawl graph from already-stored matches, otherwise the frontier dies
                     // once the seed player's recent games are fully collected.
                     // Cap queue growth to avoid burning the Riot rate limit on endless teammate BFS.
@@ -144,32 +158,11 @@ public class RealMatchDatasetCollector
                     continue; // Skip ARAM, Arena, Fun modes
                 }
 
-                // Fetch real timeline to get exact 15-minute game state (Gold, CS, XP, Grubs, Herald)
+                // Fetch real timeline to get exact 15-minute game state (Gold, CS, XP, Grubs, Herald, towers/dragons)
                 var timeline = await _apiClient.GetMatchTimelineAsync(matchId, ct);
                 if (timeline != null)
                 {
-                    var blue = match.Teams.FirstOrDefault(t => t.TeamSide == TeamSide.Blue);
-                    var red = match.Teams.FirstOrDefault(t => t.TeamSide == TeamSide.Red);
-                    if (blue != null && red != null)
-                    {
-                        blue.GoldAt15 = timeline.GoldAt15Blue;
-                        red.GoldAt15 = timeline.GoldAt15Red;
-                        blue.KillsAt15 = timeline.KillsAt15Blue;
-                        red.KillsAt15 = timeline.KillsAt15Red;
-                        blue.CsAt15 = timeline.CsAt15Blue;
-                        red.CsAt15 = timeline.CsAt15Red;
-                        blue.XpAt15 = timeline.XpAt15Blue;
-                        red.XpAt15 = timeline.XpAt15Red;
-                        blue.VoidgrubKills = timeline.VoidgrubsAt15Blue;
-                        red.VoidgrubKills = timeline.VoidgrubsAt15Red;
-                        blue.RiftHeraldKills = timeline.HeraldsAt15Blue;
-                        red.RiftHeraldKills = timeline.HeraldsAt15Red;
-                        blue.FirstBlood = timeline.BlueFirstBlood;
-                        blue.FirstTower = timeline.BlueFirstTower;
-                        blue.FirstDragon = timeline.BlueFirstDragon;
-                        blue.FirstVoidgrub = timeline.VoidgrubsAt15Blue > 0;
-                        blue.FirstRiftHerald = timeline.HeraldsAt15Blue > 0;
-                    }
+                    ApplyTimelineSnapshot(match, timeline);
                 }
 
                 await _matchRepo.UpsertMatchAsync(match, ct);
@@ -185,7 +178,53 @@ public class RealMatchDatasetCollector
     }
 
     /// <summary>
-    /// Converts stored historical matches into rich ML training features.
+    /// Applies a minute-15 timeline snapshot onto team rows.
+    /// Intentionally overwrites Voidgrub/Herald with at-15 counts so training never sees end-game leakage.
+    /// </summary>
+    public static bool ApplyTimelineSnapshot(Match match, MatchTimelineData timeline)
+    {
+        var blue = match.Teams.FirstOrDefault(t => t.TeamSide == TeamSide.Blue);
+        var red = match.Teams.FirstOrDefault(t => t.TeamSide == TeamSide.Red);
+        if (blue == null || red == null) return false;
+
+        blue.GoldAt15 = timeline.GoldAt15Blue;
+        red.GoldAt15 = timeline.GoldAt15Red;
+        blue.KillsAt15 = timeline.KillsAt15Blue;
+        red.KillsAt15 = timeline.KillsAt15Red;
+        blue.CsAt15 = timeline.CsAt15Blue;
+        red.CsAt15 = timeline.CsAt15Red;
+        blue.XpAt15 = timeline.XpAt15Blue;
+        red.XpAt15 = timeline.XpAt15Red;
+        blue.TowersAt15 = timeline.TowersAt15Blue;
+        red.TowersAt15 = timeline.TowersAt15Red;
+        blue.DragonsAt15 = timeline.DragonsAt15Blue;
+        red.DragonsAt15 = timeline.DragonsAt15Red;
+        blue.VoidgrubKills = timeline.VoidgrubsAt15Blue;
+        red.VoidgrubKills = timeline.VoidgrubsAt15Red;
+        blue.RiftHeraldKills = timeline.HeraldsAt15Blue;
+        red.RiftHeraldKills = timeline.HeraldsAt15Red;
+        blue.FirstBlood = timeline.BlueFirstBlood;
+        blue.FirstTower = timeline.BlueFirstTower;
+        blue.FirstDragon = timeline.BlueFirstDragon;
+        blue.FirstVoidgrub = timeline.VoidgrubsAt15Blue > 0;
+        blue.FirstRiftHerald = timeline.HeraldsAt15Blue > 0;
+        match.HasMinute15Objectives = true;
+        return true;
+    }
+
+    private static bool NeedsAt15ObjectiveBackfill(Match match)
+    {
+        if (match.HasMinute15Objectives) return false;
+        var blue = match.Teams.FirstOrDefault(t => t.TeamSide == TeamSide.Blue);
+        var red = match.Teams.FirstOrDefault(t => t.TeamSide == TeamSide.Red);
+        if (blue == null || red == null) return false;
+        return blue.GoldAt15 > 0 || red.GoldAt15 > 0;
+    }
+
+    /// <summary>
+    /// Converts stored historical matches into honest minute-15 ML features.
+    /// Skips matches without a real 15' gold snapshot and never falls back to end-of-game towers/kills/CS.
+    /// Preserves chronological order when the input is ordered by GameCreation.
     /// </summary>
     public static List<MatchInputData> ExtractFeaturesFromMatches(IEnumerable<Match> matches)
     {
@@ -200,29 +239,21 @@ public class RealMatchDatasetCollector
             var red = match.Teams.FirstOrDefault(t => t.TeamSide == TeamSide.Red);
             if (blue == null || red == null) continue;
 
-            // 15-min gold diff
-            var goldDiff15 = (blue.GoldAt15 > 0 || red.GoldAt15 > 0)
-                ? (blue.GoldAt15 - red.GoldAt15)
-                : (float)Math.Round((blue.TowerKills - red.TowerKills) * 650.0 + (blue.DragonKills - red.DragonKills) * 400.0);
+            // Require a real timeline gold snapshot — never invent diffs from final scoreboard.
+            if (blue.GoldAt15 <= 0 && red.GoldAt15 <= 0) continue;
 
-            // 15-min kill diff
-            var killDiff15 = (blue.KillsAt15 > 0 || red.KillsAt15 > 0)
-                ? (blue.KillsAt15 - red.KillsAt15)
-                : (match.Participants.Where(p => p.TeamSide == TeamSide.Blue).Sum(p => p.Kills) -
-                   match.Participants.Where(p => p.TeamSide == TeamSide.Red).Sum(p => p.Kills));
-
-            // 15-min CS diff
-            var csDiff15 = (blue.CsAt15 > 0 || red.CsAt15 > 0)
-                ? (float)(blue.CsAt15 - red.CsAt15)
-                : (float)(match.Participants.Where(p => p.TeamSide == TeamSide.Blue).Sum(p => p.TotalMinionsKilled) -
-                          match.Participants.Where(p => p.TeamSide == TeamSide.Red).Sum(p => p.TotalMinionsKilled)) * 0.6f;
-
-            // 15-min XP diff
+            var goldDiff15 = (float)(blue.GoldAt15 - red.GoldAt15);
+            var killDiff15 = (float)(blue.KillsAt15 - red.KillsAt15);
+            var csDiff15 = (float)(blue.CsAt15 - red.CsAt15);
             var xpDiff15 = (blue.XpAt15 > 0 || red.XpAt15 > 0)
                 ? (float)(blue.XpAt15 - red.XpAt15)
                 : goldDiff15 * 0.65f;
 
-            // Voidgrubs & Herald diff
+            // Towers/dragons MUST be at-15 counts. End-of-game TowerKills/DragonKills are label leakage.
+            var towerDiff = (float)(blue.TowersAt15 - red.TowersAt15);
+            var dragonDiff = (float)(blue.DragonsAt15 - red.DragonsAt15);
+
+            // After timeline apply, Voidgrub/Herald rows are also at-15 snapshots.
             var voidgrubDiff = (float)(blue.VoidgrubKills - red.VoidgrubKills);
             var heraldDiff = (float)(blue.RiftHeraldKills - red.RiftHeraldKills);
 
@@ -237,10 +268,11 @@ public class RealMatchDatasetCollector
                 XpDiff15 = xpDiff15,
                 VoidgrubDiff = voidgrubDiff,
                 HeraldDiff = heraldDiff,
+                // Placeholder until per-player ranked WR is wired; kept for schema stability, excluded from pipeline.
                 BlueAvgWinRate = 50.0f,
                 RedAvgWinRate = 50.0f,
-                TowerDiff = blue.TowerKills - red.TowerKills,
-                DragonDiff = blue.DragonKills - red.DragonKills,
+                TowerDiff = towerDiff,
+                DragonDiff = dragonDiff,
                 Label = match.WinningTeam == TeamSide.Blue
             });
         }

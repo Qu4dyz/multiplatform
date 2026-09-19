@@ -1324,8 +1324,8 @@ public class DataLayerTests
                 WinningTeam = TeamSide.Blue,
                 Teams = new List<TeamStats>
                 {
-                    new TeamStats { TeamSide = TeamSide.Blue, GoldAt15 = 26000, KillsAt15 = 10, CsAt15 = 240, XpAt15 = 18000, VoidgrubKills = 5, RiftHeraldKills = 1, FirstBlood = true, FirstTower = true, FirstDragon = true, TowerKills = 7, DragonKills = 3 },
-                    new TeamStats { TeamSide = TeamSide.Red, GoldAt15 = 23000, KillsAt15 = 4, CsAt15 = 200, XpAt15 = 16000, VoidgrubKills = 1, RiftHeraldKills = 0, FirstBlood = false, FirstTower = false, FirstDragon = false, TowerKills = 2, DragonKills = 1 }
+                    new TeamStats { TeamSide = TeamSide.Blue, GoldAt15 = 26000, KillsAt15 = 10, CsAt15 = 240, XpAt15 = 18000, VoidgrubKills = 5, RiftHeraldKills = 1, FirstBlood = true, FirstTower = true, FirstDragon = true, TowersAt15 = 2, DragonsAt15 = 1, TowerKills = 7, DragonKills = 3 },
+                    new TeamStats { TeamSide = TeamSide.Red, GoldAt15 = 23000, KillsAt15 = 4, CsAt15 = 200, XpAt15 = 16000, VoidgrubKills = 1, RiftHeraldKills = 0, FirstBlood = false, FirstTower = false, FirstDragon = false, TowersAt15 = 0, DragonsAt15 = 0, TowerKills = 2, DragonKills = 1 }
                 },
                 Participants = new List<Participant>()
             }
@@ -1344,8 +1344,57 @@ public class DataLayerTests
         Assert.Equal(1f, features[0].FirstBlood);
         Assert.Equal(1f, features[0].FirstTower);
         Assert.Equal(1f, features[0].FirstDragon);
-        Assert.Equal(5f, features[0].TowerDiff);
-        Assert.Equal(2f, features[0].DragonDiff);
+        // Must use at-15 towers/dragons, never end-of-game 7-2 / 3-1.
+        Assert.Equal(2f, features[0].TowerDiff);
+        Assert.Equal(1f, features[0].DragonDiff);
+    }
+
+    [Fact]
+    public void RealMatchDatasetCollector_ExtractFeatures_SkipsMatchesWithoutGoldAt15()
+    {
+        var matches = new List<Match>
+        {
+            new Match
+            {
+                MatchId = "EUW1_NO15",
+                GameDurationSeconds = 1800,
+                WinningTeam = TeamSide.Blue,
+                Teams = new List<TeamStats>
+                {
+                    new TeamStats { TeamSide = TeamSide.Blue, TowerKills = 9, DragonKills = 4 },
+                    new TeamStats { TeamSide = TeamSide.Red, TowerKills = 1, DragonKills = 0 }
+                }
+            }
+        };
+
+        var features = GameAnalytics.ML.Training.RealMatchDatasetCollector.ExtractFeaturesFromMatches(matches);
+        Assert.Empty(features);
+    }
+
+    [Fact]
+    public void RealMatchDatasetCollector_ExtractFeatures_IgnoresEndGameTowerDragonLeakage()
+    {
+        var matches = new List<Match>
+        {
+            new Match
+            {
+                MatchId = "EUW1_LEAK",
+                GameDurationSeconds = 2000,
+                WinningTeam = TeamSide.Red,
+                Teams = new List<TeamStats>
+                {
+                    // Blue slightly ahead at 15', but crushed end-game scoreboard — must not leak.
+                    new TeamStats { TeamSide = TeamSide.Blue, GoldAt15 = 25500, KillsAt15 = 7, CsAt15 = 220, XpAt15 = 17000, TowersAt15 = 1, DragonsAt15 = 1, TowerKills = 1, DragonKills = 0 },
+                    new TeamStats { TeamSide = TeamSide.Red, GoldAt15 = 24800, KillsAt15 = 6, CsAt15 = 210, XpAt15 = 16800, TowersAt15 = 1, DragonsAt15 = 0, TowerKills = 9, DragonKills = 4 }
+                }
+            }
+        };
+
+        var features = GameAnalytics.ML.Training.RealMatchDatasetCollector.ExtractFeaturesFromMatches(matches);
+        Assert.Single(features);
+        Assert.Equal(0f, features[0].TowerDiff);
+        Assert.Equal(1f, features[0].DragonDiff);
+        Assert.False(features[0].Label);
     }
 
     [Fact]
