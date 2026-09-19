@@ -28,8 +28,6 @@ public class ModelTrainer
                 nameof(MatchInputData.XpDiff15),
                 nameof(MatchInputData.VoidgrubDiff),
                 nameof(MatchInputData.HeraldDiff),
-                nameof(MatchInputData.BlueAvgWinRate),
-                nameof(MatchInputData.RedAvgWinRate),
                 nameof(MatchInputData.TowerDiff),
                 nameof(MatchInputData.DragonDiff))
             .Append(_mlContext.Transforms.NormalizeMinMax("Features"))
@@ -67,29 +65,27 @@ public class ModelTrainer
 
             var goldDiff = (float)rand.Next(-5000, 5000);
             var killDiff = (float)rand.Next(-15, 15);
-            var blueWinRate = (float)rand.Next(44, 58);
-            var redWinRate = (float)rand.Next(44, 58);
-            var towerDiff = (float)rand.Next(-5, 6);
-            var dragonDiff = (float)rand.Next(-3, 4);
+            // At minute 15 tower/dragon spreads are small (not end-game scoreboards).
+            var towerDiff = (float)rand.Next(-3, 4);
+            var dragonDiff = (float)rand.Next(-2, 3);
             var csDiff = (float)rand.Next(-40, 41);
             var xpDiff = goldDiff * 0.65f + (float)rand.Next(-300, 301);
             var voidgrubDiff = (float)rand.Next(-4, 5);
             var heraldDiff = (float)rand.Next(-1, 2);
 
-            // Log-odds simulation for realistic LoL Solo/Duo Ranked match outcome
+            // Log-odds simulation for realistic LoL Solo/Duo Ranked match outcome from minute-15 state
             double z = 0.0;
-            z += goldDiff * 0.00075;      // 2000 gold diff gives substantial boost
-            z += killDiff * 0.12;         // each kill provides edge
-            z += firstTower * 0.45;       // first turret gives map pressure
-            z += firstDragon * 0.30;
-            z += firstBlood * 0.20;
-            z += voidgrubDiff * 0.15;     // Voidgrubs give pushing edge
-            z += heraldDiff * 0.25;
-            z += csDiff * 0.015;
-            z += xpDiff * 0.0003;
-            z += (blueWinRate - redWinRate) * 0.08;
-            z += towerDiff * 0.35;
-            z += dragonDiff * 0.25;
+            z += goldDiff * 0.00055;
+            z += killDiff * 0.10;
+            z += firstTower * 0.35;
+            z += firstDragon * 0.25;
+            z += firstBlood * 0.15;
+            z += voidgrubDiff * 0.12;
+            z += heraldDiff * 0.20;
+            z += csDiff * 0.012;
+            z += xpDiff * 0.00025;
+            z += towerDiff * 0.22;
+            z += dragonDiff * 0.18;
 
             var probability = 1.0 / (1.0 + Math.Exp(-z));
             var win = rand.NextDouble() < probability;
@@ -105,8 +101,8 @@ public class ModelTrainer
                 XpDiff15 = xpDiff,
                 VoidgrubDiff = voidgrubDiff,
                 HeraldDiff = heraldDiff,
-                BlueAvgWinRate = blueWinRate,
-                RedAvgWinRate = redWinRate,
+                BlueAvgWinRate = 50f,
+                RedAvgWinRate = 50f,
                 TowerDiff = towerDiff,
                 DragonDiff = dragonDiff,
                 Label = win

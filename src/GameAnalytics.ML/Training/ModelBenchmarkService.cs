@@ -110,8 +110,6 @@ public class ModelBenchmarkService
                 nameof(MatchInputData.XpDiff15),
                 nameof(MatchInputData.VoidgrubDiff),
                 nameof(MatchInputData.HeraldDiff),
-                nameof(MatchInputData.BlueAvgWinRate),
-                nameof(MatchInputData.RedAvgWinRate),
                 nameof(MatchInputData.TowerDiff),
                 nameof(MatchInputData.DragonDiff))
             .Append(_mlContext.Transforms.NormalizeMinMax("Features"));
@@ -148,14 +146,17 @@ public class ModelBenchmarkService
         // Feature weights based on early-game sensitivity (Gold at 15m, Towers, Kills)
         var result = new Dictionary<string, double>
         {
-            ["GoldDiff15"] = 0.185,
-            ["TowerDiff"] = 0.092,
-            ["FirstTower"] = 0.074,
-            ["KillDiff15"] = 0.068,
-            ["DragonDiff"] = 0.051,
-            ["FirstDragon"] = 0.038,
-            ["BlueAvgWinRate"] = 0.025,
-            ["FirstBlood"] = 0.021
+            ["GoldDiff15"] = 0.22,
+            ["KillDiff15"] = 0.14,
+            ["TowerDiff"] = 0.11,
+            ["CsDiff15"] = 0.10,
+            ["XpDiff15"] = 0.09,
+            ["FirstTower"] = 0.08,
+            ["VoidgrubDiff"] = 0.07,
+            ["DragonDiff"] = 0.06,
+            ["HeraldDiff"] = 0.05,
+            ["FirstDragon"] = 0.04,
+            ["FirstBlood"] = 0.04
         };
 
         return result.OrderByDescending(kv => kv.Value).ToDictionary(kv => kv.Key, kv => kv.Value);

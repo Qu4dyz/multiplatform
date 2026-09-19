@@ -114,7 +114,9 @@ public class MatchRepository : IMatchRepository
             "ALTER TABLE TeamStats ADD COLUMN VoidgrubKills INTEGER NOT NULL DEFAULT 0;",
             "ALTER TABLE TeamStats ADD COLUMN RiftHeraldKills INTEGER NOT NULL DEFAULT 0;",
             "ALTER TABLE TeamStats ADD COLUMN FirstVoidgrub INTEGER NOT NULL DEFAULT 0;",
-            "ALTER TABLE TeamStats ADD COLUMN FirstRiftHerald INTEGER NOT NULL DEFAULT 0;"
+            "ALTER TABLE TeamStats ADD COLUMN FirstRiftHerald INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE TeamStats ADD COLUMN TowersAt15 INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE TeamStats ADD COLUMN DragonsAt15 INTEGER NOT NULL DEFAULT 0;"
         };
 
         foreach (var sql in teamColumns)
@@ -125,6 +127,13 @@ public class MatchRepository : IMatchRepository
             }
             catch { /* Column already exists */ }
         }
+
+        try
+        {
+            _context.Database.ExecuteSqlRaw(
+                "ALTER TABLE Matches ADD COLUMN HasMinute15Objectives INTEGER NOT NULL DEFAULT 0;");
+        }
+        catch { /* Column already exists */ }
 
         try
         {
