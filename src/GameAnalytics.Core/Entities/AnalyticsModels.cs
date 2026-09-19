@@ -190,5 +190,10 @@ public class MatchInputFeatures
     public float FirstDragonTempo { get; set; }
     public float FirstDragonValue { get; set; }
     public float LaneMatchupDiff { get; set; }
+    public float PlatesDiff15 { get; set; }
+    /// <summary>KillDiff15 − KillDiff10.</summary>
+    public float KillMomentum15 { get; set; }
+    /// <summary>(GoldDiff/2k) × (LatePower/10): ahead-but-enemy-scales vs snowball-and-close.</summary>
+    public float LeadVsScaling { get; set; }
 }
 

@@ -54,6 +54,23 @@ public class MlFeatureV2Tests
         Assert.True(last.LaneMatchupDiff > 0);
     }
 
+    [Fact]
+    public void ExtractFeatures_ComputesKillMomentumAndLeadVsScaling()
+    {
+        var match = MakeMatch("LS1", TeamSide.Blue, "Garen", "Darius", DateTime.UtcNow, goldDiff: 2000);
+        match.GoldDiff10 = 800;
+        match.KillDiff10 = 2;
+        match.Teams.First(t => t.TeamSide == TeamSide.Blue).KillsAt15 = 10;
+        match.Teams.First(t => t.TeamSide == TeamSide.Red).KillsAt15 = 5;
+        match.PlatesDiff15 = 3;
+
+        var features = RealMatchDatasetCollector.ExtractFeaturesFromMatches(new[] { match });
+        Assert.Single(features);
+        Assert.Equal(3f, features[0].PlatesDiff15);
+        Assert.Equal(3f, features[0].KillMomentum15); // (10-5) - 2
+        Assert.True(float.IsFinite(features[0].LeadVsScaling));
+    }
+
     private static Match MakeMatch(
         string id,
         TeamSide winner,

@@ -36,6 +36,7 @@ public class RealMatchDatasetCollector
         var refillAttempts = 0;
         const int maxRefillAttempts = 6;
         var objectiveBackfills = 0;
+        var ladderSeeded = false;
 
         void RememberRankHint(string? puuid, float rankScore)
         {
@@ -61,7 +62,28 @@ public class RealMatchDatasetCollector
             }
         }
 
+        async Task SeedLadderAsync()
+        {
+            if (ladderSeeded) return;
+            ladderSeeded = true;
+            try
+            {
+                var ladder = await _apiClient.GetHighEloLadderPlayersAsync("RANKED_SOLO_5x5", maxCount: 50, ct: ct);
+                var before = candidatePuuids.Count;
+                foreach (var entry in ladder)
+                {
+                    EnqueueCandidate(entry.Puuid, RankScoreHelper.FromTier(entry.Tier));
+                }
+                logger?.Invoke($"[Collector] Ladder seed: +{candidatePuuids.Count - before} high-elo гравців (rank hints для лобі).");
+            }
+            catch (Exception ex)
+            {
+                logger?.Invoke($"[Collector] Ladder seed failed: {ex.Message}");
+            }
+        }
+
         EnqueueCandidate(seedPuuid);
+        await SeedLadderAsync();
 
         int newlySavedMatches = 0;
 
@@ -138,14 +160,14 @@ public class RealMatchDatasetCollector
                 {
                     // Backfill towers/dragons at 15' for older rows that only have gold/XP snapshots.
                     // Cap per collect pass so we keep discovering fresh matches under the rate limit.
-                    if (NeedsAt15ObjectiveBackfill(existing) && objectiveBackfills < 12)
+                    if (NeedsAt15ObjectiveBackfill(existing) && objectiveBackfills < 20)
                     {
                         var timelineBackfill = await _apiClient.GetMatchTimelineAsync(matchId, ct);
                         if (timelineBackfill != null && ApplyTimelineSnapshot(existing, timelineBackfill))
                         {
                             await _matchRepo.UpsertMatchAsync(existing, ct);
                             objectiveBackfills++;
-                            logger?.Invoke($"[Collector] Backfill 15' objectives: {matchId} ({objectiveBackfills}/12)");
+                            logger?.Invoke($"[Collector] Backfill 15' objectives: {matchId} ({objectiveBackfills}/20)");
                         }
                     }
 
@@ -235,25 +257,30 @@ public class RealMatchDatasetCollector
             timeline.BlueFirstDragon, timeline.FirstDragonSubType, timeline.FirstDragonTimeMs);
         if (timeline.CarryGoldDiff15 != 0)
             match.CarryGoldDiff15 = timeline.CarryGoldDiff15;
+        match.PlatesDiff15 = timeline.PlatesDiffAt15;
 
         ApplyLaneAndLevelDiffs(match, timeline);
         return true;
     }
 
-    /// <summary>Tags a match with the strongest known ladder rank among its participants.</summary>
+    /// <summary>Tags a match with the average known ladder rank among its participants (lobby skill).</summary>
     public static void TagMatchRankScore(Match match, IReadOnlyDictionary<string, float> puuidRankHints)
     {
         if (match.ApproxRankScore > 0) return;
-        float best = 0;
+        float sum = 0;
+        var n = 0;
         foreach (var p in match.Participants)
         {
             if (string.IsNullOrWhiteSpace(p.Puuid)) continue;
-            if (puuidRankHints.TryGetValue(p.Puuid, out var score) && score > best)
-                best = score;
+            if (puuidRankHints.TryGetValue(p.Puuid, out var score) && score > 0)
+            {
+                sum += score;
+                n++;
+            }
         }
 
-        if (best > 0)
-            match.ApproxRankScore = best;
+        if (n > 0)
+            match.ApproxRankScore = sum / n;
     }
 
     public static void ApplyLaneAndLevelDiffs(Match match, MatchTimelineData timeline)
@@ -398,6 +425,8 @@ public class RealMatchDatasetCollector
             var goldMomentum = goldDiff15 - goldDiff10;
             var winRateDiff = blueWr - redWr;
             var snowball = (killDiff15 * 400f + goldDiff15) / 1000f;
+            var killMomentum = killDiff15 - killDiff10;
+            var leadVsScaling = (goldDiff15 / 2000f) * (lateDiff / 10f);
 
             // Carry lead: prefer stored timeline value; fall back to fraction of team gold lead.
             var carryGold = match.CarryGoldDiff15 != 0
@@ -444,6 +473,9 @@ public class RealMatchDatasetCollector
                 FirstDragonTempo = match.FirstDragonTempo,
                 FirstDragonValue = match.FirstDragonValue,
                 LaneMatchupDiff = laneMatchupDiff,
+                PlatesDiff15 = match.PlatesDiff15,
+                KillMomentum15 = killMomentum,
+                LeadVsScaling = leadVsScaling,
                 Label = match.WinningTeam == TeamSide.Blue
             });
 

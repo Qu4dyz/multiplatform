@@ -123,7 +123,7 @@ sealed class Program
         // Wrap training with post-epoch match-count refresh for the status API
         await worker.RunContinuousTrainingAsync(
             seedPuuid,
-            batchSize: 20,
+            batchSize: 30,
             epochDelay: TimeSpan.FromMinutes(2),
             logger: msg =>
             {
