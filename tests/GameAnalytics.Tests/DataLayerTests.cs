@@ -183,7 +183,7 @@ public class DataLayerTests
         Assert.False(vmFlag.IsVictory);
         Assert.Equal("РЕМЕЙК", vmFlag.ResultText);
         Assert.Equal("#A0A8B6", vmFlag.ResultColor);
-        Assert.Equal("#1C222B", vmFlag.ResultBgColor);
+        Assert.Equal("#181D26", vmFlag.ResultBgColor);
 
         Assert.True(vmDuration.IsRemake);
         Assert.False(vmDuration.IsVictory);
@@ -804,19 +804,19 @@ public class DataLayerTests
         // Ranked Win
         var (winDelta, winText, winBg, winFg) = GlobalCoachingAnalyzer.CalculateLpDelta(rankedMatch, isVictory: true, isRemake: false, isMvp: false, isAce: false);
         Assert.Equal(20, winDelta);
-        Assert.Equal("+20 LP", winText);
-        Assert.Equal("#0AC8B9", winFg);
+        Assert.Equal("▲ 20 LP", winText);
+        Assert.Equal("#5383E8", winFg);
 
         // Ranked Loss
         var (lossDelta, lossText, lossBg, lossFg) = GlobalCoachingAnalyzer.CalculateLpDelta(rankedMatch, isVictory: false, isRemake: false, isMvp: false, isAce: false);
         Assert.Equal(-20, lossDelta);
-        Assert.Equal("-20 LP", lossText);
+        Assert.Equal("▼ 20 LP", lossText);
         Assert.Equal("#E84057", lossFg);
 
         // Exact override LP delta (-20 LP as in user request)
         var (overrideDelta, overrideText, _, _) = GlobalCoachingAnalyzer.CalculateLpDelta(rankedMatch, isVictory: false, isRemake: false, isMvp: false, isAce: false, overrideLpDelta: -20);
         Assert.Equal(-20, overrideDelta);
-        Assert.Equal("-20 LP", overrideText);
+        Assert.Equal("▼ 20 LP", overrideText);
 
         // Remake
         var (remakeDelta, remakeText, _, _) = GlobalCoachingAnalyzer.CalculateLpDelta(rankedMatch, isVictory: false, isRemake: true, isMvp: false, isAce: false);
@@ -872,7 +872,7 @@ public class DataLayerTests
         var vm = PlayerMatchItemViewModel.FromMatch(match, "star-puuid");
 
         Assert.True(vm.HasLpChange);
-        Assert.StartsWith("+", vm.LpChangeText);
+        Assert.StartsWith("▲", vm.LpChangeText);
         Assert.NotEmpty(vm.MatchGrade);
         Assert.Contains(vm.MatchGrade, new[] { "S+", "S", "A" });
         Assert.True(vm.HasCoachingBadge);
@@ -938,18 +938,18 @@ public class DataLayerTests
         var rankedMatch = new Match { QueueId = 420 };
         var (lossDelta, lossText, lossBg, lossFg) = GlobalCoachingAnalyzer.CalculateLpDelta(rankedMatch, isVictory: false, isRemake: false, isMvp: false, isAce: false);
         Assert.Equal(-20, lossDelta);
-        Assert.Equal("-20 LP", lossText);
+        Assert.Equal("▼ 20 LP", lossText);
         Assert.Equal("#E84057", lossFg);
 
         // 3. Baseline Ranked Win must be +20 LP
         var (winDelta, winText, _, _) = GlobalCoachingAnalyzer.CalculateLpDelta(rankedMatch, isVictory: true, isRemake: false, isMvp: false, isAce: false);
         Assert.Equal(20, winDelta);
-        Assert.Equal("+20 LP", winText);
+        Assert.Equal("▲ 20 LP", winText);
 
         // 4. Exact override LP delta (-20 LP as in user request)
         var (ovDelta, ovText, _, _) = GlobalCoachingAnalyzer.CalculateLpDelta(rankedMatch, isVictory: false, isRemake: false, isMvp: false, isAce: false, overrideLpDelta: -20);
         Assert.Equal(-20, ovDelta);
-        Assert.Equal("-20 LP", ovText);
+        Assert.Equal("▼ 20 LP", ovText);
     }
 
     [Fact]

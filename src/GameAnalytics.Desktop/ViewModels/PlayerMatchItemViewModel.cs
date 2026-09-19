@@ -150,8 +150,8 @@ public partial class PlayerMatchItemViewModel : ObservableObject
     public bool IsVictory { get; set; }
     public string ResultText => IsRemake ? "РЕМЕЙК" : (IsVictory ? "ПЕРЕМОГА" : "ПОРАЗКА");
     public string ResultColor => IsRemake ? "#A0A8B6" : (IsVictory ? "#5383E8" : "#E84057");
-    public string ResultBgColor => IsRemake ? "#1C222B" : (IsVictory ? "#16243A" : "#2C1822");
-    public string ResultBorderColor => IsRemake ? "#363E4D" : (IsVictory ? "#283852" : "#4D222E");
+    public string ResultBgColor => IsRemake ? "#181D26" : (IsVictory ? "#15273C" : "#2A1620");
+    public string ResultBorderColor => IsRemake ? "#2A3240" : (IsVictory ? "#1D3D60" : "#4A1E2B");
     public string AccentBarColor => IsRemake ? "#758092" : (IsVictory ? "#5383E8" : "#E84057");
 
     public string PerformanceBadgeText { get; set; } = string.Empty;
@@ -552,10 +552,28 @@ public partial class PlayerMatchItemViewModel : ObservableObject
             vm.MatchGradeBg = gradeColor;
             vm.CoachingBadgeText = tag;
 
-            vm.Summoner1Id = player.Summoner1Id > 0 ? player.Summoner1Id : 4;
-            vm.Summoner2Id = player.Summoner2Id > 0 ? player.Summoner2Id : 14;
-            vm.PrimaryRuneId = player.PrimaryRuneId > 0 ? player.PrimaryRuneId : 8010;
-            vm.SecondaryRuneStyleId = player.SecondaryRuneStyleId > 0 ? player.SecondaryRuneStyleId : 8100;
+            var rune = player.PrimaryRuneId;
+            var runeStyle = player.SecondaryRuneStyleId;
+            var sp1 = player.Summoner1Id;
+            var sp2 = player.Summoner2Id;
+
+            if ((rune <= 0 || (rune == 8010 && runeStyle == 8100 && !SpellRuneHelper.IsConquerorChampion(player.ChampionName)))
+                && !string.IsNullOrWhiteSpace(player.ChampionName))
+            {
+                var rec = SpellRuneHelper.GetRecommendedRunesAndSpells(player.ChampionName, player.Position);
+                rune = rec.PrimaryRune;
+                runeStyle = rec.SecondaryStyle;
+                if (sp1 <= 0 || (sp1 == 4 && sp2 == 14))
+                {
+                    sp1 = rec.Spell1;
+                    sp2 = rec.Spell2;
+                }
+            }
+
+            vm.Summoner1Id = sp1 > 0 ? sp1 : 4;
+            vm.Summoner2Id = sp2 > 0 ? sp2 : 14;
+            vm.PrimaryRuneId = rune > 0 ? rune : 8010;
+            vm.SecondaryRuneStyleId = runeStyle > 0 ? runeStyle : 8100;
             vm.VisionScore = player.VisionScore;
             vm.WardsPlaced = player.WardsPlaced;
             vm.ControlWardsBought = player.ControlWardsBought;
@@ -667,10 +685,10 @@ public partial class PlayerMatchItemViewModel : ObservableObject
                 DamagePercentOfMax = Math.Round((double)p.TotalDamageDealtToChampions / maxDamage * 100, 1),
                 GoldEarned = p.GoldEarned,
                 MinionsKilled = p.TotalMinionsKilled,
-                Summoner1Id = p.Summoner1Id > 0 ? p.Summoner1Id : 4,
-                Summoner2Id = p.Summoner2Id > 0 ? p.Summoner2Id : 14,
-                PrimaryRuneId = p.PrimaryRuneId > 0 ? p.PrimaryRuneId : 8010,
-                SecondaryRuneStyleId = p.SecondaryRuneStyleId > 0 ? p.SecondaryRuneStyleId : 8100,
+                Summoner1Id = (p.Summoner1Id > 0 && p.Summoner1Id != 4) ? p.Summoner1Id : SpellRuneHelper.GetRecommendedRunesAndSpells(p.ChampionName, p.Position).Spell1,
+                Summoner2Id = (p.Summoner2Id > 0 && p.Summoner2Id != 14) ? p.Summoner2Id : SpellRuneHelper.GetRecommendedRunesAndSpells(p.ChampionName, p.Position).Spell2,
+                PrimaryRuneId = (p.PrimaryRuneId > 0 && (p.PrimaryRuneId != 8010 || SpellRuneHelper.IsConquerorChampion(p.ChampionName))) ? p.PrimaryRuneId : SpellRuneHelper.GetRecommendedRunesAndSpells(p.ChampionName, p.Position).PrimaryRune,
+                SecondaryRuneStyleId = (p.SecondaryRuneStyleId > 0 && (p.SecondaryRuneStyleId != 8100 || SpellRuneHelper.IsConquerorChampion(p.ChampionName))) ? p.SecondaryRuneStyleId : SpellRuneHelper.GetRecommendedRunesAndSpells(p.ChampionName, p.Position).SecondaryStyle,
                 VisionScore = p.VisionScore,
                 WardsPlaced = p.WardsPlaced,
                 ControlWardsBought = p.ControlWardsBought,
@@ -758,10 +776,10 @@ public partial class PlayerMatchItemViewModel : ObservableObject
                 DamagePercentOfMax = Math.Round((double)p.TotalDamageDealtToChampions / maxDamage * 100, 1),
                 GoldEarned = p.GoldEarned,
                 MinionsKilled = p.TotalMinionsKilled,
-                Summoner1Id = p.Summoner1Id > 0 ? p.Summoner1Id : 4,
-                Summoner2Id = p.Summoner2Id > 0 ? p.Summoner2Id : 14,
-                PrimaryRuneId = p.PrimaryRuneId > 0 ? p.PrimaryRuneId : 8010,
-                SecondaryRuneStyleId = p.SecondaryRuneStyleId > 0 ? p.SecondaryRuneStyleId : 8100,
+                Summoner1Id = (p.Summoner1Id > 0 && p.Summoner1Id != 4) ? p.Summoner1Id : SpellRuneHelper.GetRecommendedRunesAndSpells(p.ChampionName, p.Position).Spell1,
+                Summoner2Id = (p.Summoner2Id > 0 && p.Summoner2Id != 14) ? p.Summoner2Id : SpellRuneHelper.GetRecommendedRunesAndSpells(p.ChampionName, p.Position).Spell2,
+                PrimaryRuneId = (p.PrimaryRuneId > 0 && (p.PrimaryRuneId != 8010 || SpellRuneHelper.IsConquerorChampion(p.ChampionName))) ? p.PrimaryRuneId : SpellRuneHelper.GetRecommendedRunesAndSpells(p.ChampionName, p.Position).PrimaryRune,
+                SecondaryRuneStyleId = (p.SecondaryRuneStyleId > 0 && (p.SecondaryRuneStyleId != 8100 || SpellRuneHelper.IsConquerorChampion(p.ChampionName))) ? p.SecondaryRuneStyleId : SpellRuneHelper.GetRecommendedRunesAndSpells(p.ChampionName, p.Position).SecondaryStyle,
                 VisionScore = p.VisionScore,
                 WardsPlaced = p.WardsPlaced,
                 ControlWardsBought = p.ControlWardsBought,

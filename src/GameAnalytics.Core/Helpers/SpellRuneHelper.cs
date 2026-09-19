@@ -104,4 +104,97 @@ public static class SpellRuneHelper
         32 => "Mark",
         _ => "Summoner Spell"
     };
+
+    public static bool IsConquerorChampion(string? champName)
+    {
+        if (string.IsNullOrWhiteSpace(champName)) return false;
+        var clean = champName.Trim().ToLowerInvariant();
+        return clean is "aatrox" or "darius" or "garen" or "mordekaiser" or "irelia" or "riven" 
+            or "renekton" or "olaf" or "sett" or "jax" or "leesin" or "lee sin" or "diana" 
+            or "kayn" or "sylas" or "swain" or "pantheon" or "illaoi" or "fiora" or "briar" or "xinzhao" or "xin zhao";
+    }
+
+    public static (int PrimaryRune, int SecondaryStyle, int Spell1, int Spell2) GetRecommendedRunesAndSpells(string? champName, GameAnalytics.Core.Enums.Position pos)
+    {
+        var clean = champName?.Trim().ToLowerInvariant() ?? string.Empty;
+
+        // Specific champion signatures
+        switch (clean)
+        {
+            case "lux":
+                return (8369, 8200, 4, 21); // First Strike + Sorcery, Flash + Barrier
+            case "volibear":
+                return (8005, 8400, 4, 12); // Press the Attack + Resolve, Flash + Teleport
+            case "yone":
+            case "yasuo":
+                return (8008, 8400, 4, 12); // Lethal Tempo + Resolve, Flash + Teleport
+            case "ahri":
+                return (8112, 8200, 4, 14); // Electrocute + Sorcery, Flash + Ignite
+            case "jinx":
+            case "caitlyn":
+            case "ashe":
+            case "varus":
+            case "sivir":
+                return (8008, 8300, 4, 7);  // Lethal Tempo + Inspiration, Flash + Heal
+            case "ezreal":
+                return (8005, 8300, 4, 12); // Press the Attack + Inspiration, Flash + Teleport
+            case "vayne":
+            case "kaisa":
+            case "kai'sa":
+                return (8008, 8300, 4, 6);  // Lethal Tempo + Inspiration, Flash + Ghost
+            case "kennen":
+                return (8230, 8100, 4, 12); // Phase Rush + Domination, Flash + Teleport
+            case "fiddlesticks":
+                return (8369, 8100, 4, 11); // First Strike + Domination, Flash + Smite
+            case "zed":
+            case "talon":
+            case "leblanc":
+            case "akali":
+                return (8112, 8200, 4, 14); // Electrocute + Sorcery, Flash + Ignite
+            case "syndra":
+            case "viktor":
+            case "orianna":
+            case "hwei":
+                return (8369, 8200, 4, 12); // First Strike + Sorcery, Flash + Teleport
+            case "malphite":
+                return (8229, 8400, 4, 12); // Arcane Comet + Resolve, Flash + Teleport
+            case "thresh":
+            case "nautilus":
+            case "leona":
+            case "alistar":
+                return (8439, 8300, 4, 14); // Aftershock + Inspiration, Flash + Ignite
+            case "blitzcrank":
+                return (8351, 8300, 4, 14); // Glacial Augment + Inspiration, Flash + Ignite
+            case "lulu":
+            case "janna":
+            case "soraka":
+            case "yuumi":
+            case "nami":
+                return (8214, 8300, 4, 3);  // Summon Aery + Inspiration, Flash + Exhaust
+            case "teemo":
+                return (8005, 8400, 4, 14); // Press the Attack + Resolve, Flash + Ignite
+            case "leesin":
+            case "lee sin":
+            case "viego":
+            case "jarvaniv":
+            case "jarvan iv":
+                return (8010, 8300, 4, 11); // Conqueror + Inspiration, Flash + Smite
+            case "graves":
+            case "kindred":
+                return (8005, 8100, 4, 11); // Press the Attack + Domination, Flash + Smite
+            case "hecarim":
+                return (8230, 8000, 6, 11); // Phase Rush + Precision, Ghost + Smite
+        }
+
+        // Role-based fallbacks
+        return pos switch
+        {
+            GameAnalytics.Core.Enums.Position.Jungle => (8010, 8300, 4, 11),
+            GameAnalytics.Core.Enums.Position.Bottom => (8008, 8300, 4, 7),
+            GameAnalytics.Core.Enums.Position.Utility => (8439, 8300, 4, 14),
+            GameAnalytics.Core.Enums.Position.Middle => (8112, 8200, 4, 14),
+            GameAnalytics.Core.Enums.Position.Top => (8010, 8400, 4, 12),
+            _ => (8005, 8400, 4, 12)
+        };
+    }
 }
