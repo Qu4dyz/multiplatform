@@ -78,6 +78,9 @@ public class ModelTrainer
             var fdTempo = firstDragon * (1f + (float)rand.NextDouble() * 6f) * (rand.Next(0, 2) == 0 ? 1f : -1f);
             var dragonVal = firstDragon * (0.9f + (float)rand.NextDouble() * 0.4f) * (rand.Next(0, 2) == 0 ? 1f : -1f);
             var laneMu = (float)(rand.NextDouble() * 10 - 5);
+            var plates = (float)rand.Next(-6, 7);
+            var killMom = killDiff - kill10;
+            var leadScale = (goldDiff / 2000f) * (lateDiff / 10f);
 
             double z = 0.0;
             z += goldDiff * 0.00055;
@@ -112,6 +115,9 @@ public class ModelTrainer
             z += fdTempo * 0.035;
             z += dragonVal * 0.12;
             z += laneMu * 0.035;
+            z += leadScale * 0.15;
+            z += killMom * 0.04;
+            z += plates * 0.06;
             z += Math.Abs(goldDiff) * (rankScore - 5.5) * 0.00002;
 
             var probability = 1.0 / (1.0 + Math.Exp(-z));
@@ -157,6 +163,9 @@ public class ModelTrainer
                 FirstDragonTempo = fdTempo,
                 FirstDragonValue = dragonVal,
                 LaneMatchupDiff = laneMu,
+                PlatesDiff15 = plates,
+                KillMomentum15 = killMom,
+                LeadVsScaling = leadScale,
                 Label = win
             });
         }

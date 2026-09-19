@@ -777,6 +777,20 @@ public class RiotApiClient : IRiotApiClient
                                 }
                             }
                         }
+                        else if (evType == "TURRET_PLATE_DESTROYED")
+                        {
+                            // teamId = team that OWNED the turret (lost the plate). Killer takes it.
+                            var killerId = ev.TryGetProperty("killerId", out var kProp) ? kProp.GetInt32() : 0;
+                            var teamId = ev.TryGetProperty("teamId", out var tProp) ? tProp.GetInt32() : 0;
+                            if (ts > fifteenMinMs) continue;
+
+                            var blueTookPlate = killerId > 0
+                                ? killerId <= 5
+                                : teamId == 200; // destroyed red's plate ⇒ blue gold
+
+                            if (blueTookPlate) result.PlatesAt15Blue++;
+                            else result.PlatesAt15Red++;
+                        }
                     }
                 }
 

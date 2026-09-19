@@ -131,7 +131,16 @@ public class MatchInputData
     [LoadColumn(37)]
     public float LaneMatchupDiff { get; set; }
 
-    [LoadColumn(38), ColumnName("Label")]
+    [LoadColumn(38)]
+    public float PlatesDiff15 { get; set; }
+
+    [LoadColumn(39)]
+    public float KillMomentum15 { get; set; }
+
+    [LoadColumn(40)]
+    public float LeadVsScaling { get; set; }
+
+    [LoadColumn(41), ColumnName("Label")]
     public bool Label { get; set; }
 }
 

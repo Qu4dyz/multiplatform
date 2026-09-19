@@ -58,6 +58,10 @@ public class MatchTimelineData
     /// <summary>Richest blue player gold − richest red player gold at ~15'.</summary>
     public float CarryGoldDiff15 { get; set; }
 
+    public int PlatesAt15Blue { get; set; }
+    public int PlatesAt15Red { get; set; }
+    public int PlatesDiffAt15 => PlatesAt15Blue - PlatesAt15Red;
+
     public List<TimelineEventRecord> RealEvents { get; set; } = new();
     public bool HasRealTimelineEvents => RealEvents.Count > 0;
 

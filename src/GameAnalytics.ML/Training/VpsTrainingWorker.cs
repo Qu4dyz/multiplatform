@@ -30,7 +30,7 @@ public class VpsTrainingWorker
     /// </summary>
     public async Task RunContinuousTrainingAsync(
         string seedPuuid, 
-        int batchSize = 20, 
+        int batchSize = 30, 
         TimeSpan? epochDelay = null,
         Action<string>? logger = null, 
         CancellationToken ct = default)
@@ -66,7 +66,7 @@ public class VpsTrainingWorker
                         if (m.AccuracyByRankBucket.Count > 0)
                         {
                             var byRank = string.Join(" | ", m.AccuracyByRankBucket.Select(kv => $"{kv.Key}: {kv.Value:P0}"));
-                            log($"[VPS ML Trainer] Accuracy по рангах: {byRank}");
+                            log($"[VPS ML Trainer] Accuracy по рангах (для лаб): {byRank}");
                         }
                         if (m.FeatureImportance.Count > 0)
                         {

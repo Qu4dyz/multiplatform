@@ -48,6 +48,9 @@ public class Match
     /// <summary>Signed first-dragon type value (blue +, red −). 0 if none by 15'.</summary>
     public float FirstDragonValue { get; set; }
 
+    /// <summary>Blue − Red turret plates destroyed by minute 15.</summary>
+    public float PlatesDiff15 { get; set; }
+
     public List<Participant> Participants { get; set; } = new();
     public List<TeamStats> Teams { get; set; } = new();
 

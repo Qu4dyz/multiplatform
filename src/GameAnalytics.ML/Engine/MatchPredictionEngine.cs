@@ -218,7 +218,14 @@ public class MatchPredictionEngine : IPredictionEngine
                 FirstTowerTempo = features.FirstTowerTempo,
                 FirstDragonTempo = features.FirstDragonTempo,
                 FirstDragonValue = features.FirstDragonValue,
-                LaneMatchupDiff = features.LaneMatchupDiff
+                LaneMatchupDiff = features.LaneMatchupDiff,
+                PlatesDiff15 = features.PlatesDiff15,
+                KillMomentum15 = features.KillMomentum15 != 0
+                    ? features.KillMomentum15
+                    : features.KillDiffAt15 - features.KillDiff10,
+                LeadVsScaling = features.LeadVsScaling != 0
+                    ? features.LeadVsScaling
+                    : (features.GoldDiffAt15 / 2000f) * (features.LatePowerDiff / 10f)
             };
 
             var prediction = _predictionEngine!.Predict(input);

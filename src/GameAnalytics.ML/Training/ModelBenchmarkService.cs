@@ -112,7 +112,10 @@ public class ModelBenchmarkService
                 nameof(MatchInputData.FirstTowerTempo),
                 nameof(MatchInputData.FirstDragonTempo),
                 nameof(MatchInputData.FirstDragonValue),
-                nameof(MatchInputData.LaneMatchupDiff))
+                nameof(MatchInputData.LaneMatchupDiff),
+                nameof(MatchInputData.PlatesDiff15),
+                nameof(MatchInputData.KillMomentum15),
+                nameof(MatchInputData.LeadVsScaling))
             .Append(_mlContext.Transforms.NormalizeMinMax("Features"));
 
         return algorithmType switch
@@ -206,7 +209,7 @@ public class ModelBenchmarkService
         foreach (var group in rows.GroupBy(r => Bucket(r.Rank)))
         {
             var list = group.ToList();
-            if (list.Count < 8) continue; // skip tiny buckets — noisy for labs
+            if (list.Count < 5) continue; // skip tiny buckets — noisy for labs
             result[group.Key] = list.Count(r => (r.Prob >= 0.5f) == r.Label) / (double)list.Count;
         }
 
@@ -239,6 +242,9 @@ public class ModelBenchmarkService
             ["RankAdjustedGoldDiff"] = 0.10,
             ["SnowballScore"] = 0.08,
             ["CarryGoldDiff15"] = 0.06,
+            ["PlatesDiff15"] = 0.05,
+            ["LeadVsScaling"] = 0.05,
+            ["KillMomentum15"] = 0.04,
             ["GoldMomentum15"] = 0.06,
             ["GoldDiff10"] = 0.05,
             ["KillDiff15"] = 0.05,
