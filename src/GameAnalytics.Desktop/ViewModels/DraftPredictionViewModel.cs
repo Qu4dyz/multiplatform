@@ -390,6 +390,10 @@ public partial class DraftPredictionViewModel : ViewModelBase
     [RelayCommand]
     public void CalculatePrediction()
     {
+        var blueNames = BlueDraftSlots.Where(s => s.Champion != null).Select(s => s.Champion!.Name).ToList();
+        var redNames = RedDraftSlots.Where(s => s.Champion != null).Select(s => s.Champion!.Name).ToList();
+        var (engageDiff, tankDiff, adApDiff) = ChampionCompositionHelper.ComputeDiffs(blueNames, redNames);
+
         var features = new MatchInputFeatures
         {
             BlueFirstBlood = BlueFirstBlood,
@@ -414,7 +418,12 @@ public partial class DraftPredictionViewModel : ViewModelBase
             BlueScalingAdvantage = PowerSpikes?.LateAdvantage ?? 0.0,
             EarlyPowerDiff = (float)(PowerSpikes?.EarlyAdvantage ?? 0.0),
             LatePowerDiff = (float)(PowerSpikes?.LateAdvantage ?? 0.0),
-            AvgRankScore = RankScoreHelper.FromTier(SelectedLobbyTier)
+            AvgRankScore = RankScoreHelper.FromTier(SelectedLobbyTier),
+            EngageDiff = engageDiff,
+            TankDiff = tankDiff,
+            AdApBalanceDiff = adApDiff,
+            GoldDiff10 = GoldDiffAt15 * 0.65f,
+            GoldMomentum15 = GoldDiffAt15 * 0.35f
         };
 
         Prediction = _analyticsService.PredictOutcome(features);

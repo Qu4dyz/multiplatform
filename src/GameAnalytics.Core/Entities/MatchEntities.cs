@@ -32,6 +32,11 @@ public class Match
     /// <summary>Blue − Red sum of champion levels at minute 15.</summary>
     public float LevelDiff15 { get; set; }
 
+    /// <summary>Blue − Red gold at minute 10 (timeline). 0 if unknown.</summary>
+    public float GoldDiff10 { get; set; }
+    /// <summary>Blue − Red kills by minute 10.</summary>
+    public float KillDiff10 { get; set; }
+
     public List<Participant> Participants { get; set; } = new();
     public List<TeamStats> Teams { get; set; } = new();
 

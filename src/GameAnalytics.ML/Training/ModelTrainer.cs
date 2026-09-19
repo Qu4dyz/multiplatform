@@ -64,11 +64,22 @@ public class ModelTrainer
             var levelDiff = (float)rand.Next(-8, 9);
             var objScore = towerDiff * 1.5f + dragonDiff * 1.2f + voidgrubDiff * 0.35f + heraldDiff;
             var rankAdjGold = goldDiff * (rankScore / RankScoreHelper.DefaultMixedLobby);
+            var gold10 = goldDiff * (0.55f + (float)rand.NextDouble() * 0.25f);
+            var kill10 = killDiff * (0.5f + (float)rand.NextDouble() * 0.3f);
+            var momentum = goldDiff - gold10;
+            var wrDiff = blueWr - redWr;
+            var engage = (float)rand.Next(-3, 4);
+            var tank = (float)rand.Next(-3, 4);
+            var adAp = (float)rand.Next(-3, 4);
+            var snowball = (killDiff * 400f + goldDiff) / 1000f;
 
             double z = 0.0;
             z += goldDiff * 0.00055;
             z += rankAdjGold * 0.00025;
+            z += gold10 * 0.0003;
+            z += momentum * 0.0004;
             z += killDiff * 0.10;
+            z += kill10 * 0.05;
             z += firstTower * 0.35;
             z += firstDragon * 0.25;
             z += firstBlood * 0.15;
@@ -80,12 +91,15 @@ public class ModelTrainer
             z += dragonDiff * 0.18;
             z += earlyDiff * 0.012;
             z += lateDiff * 0.008;
-            z += (blueWr - redWr) * 0.04;
+            z += wrDiff * 0.04;
             z += midGold * 0.0002;
             z += botGold * 0.00015;
             z += levelDiff * 0.04;
             z += objScore * 0.08;
-            // At higher ranks the same lead is more decisive
+            z += snowball * 0.08;
+            z += engage * 0.05;
+            z += tank * 0.03;
+            z += adAp * 0.02;
             z += Math.Abs(goldDiff) * (rankScore - 5.5) * 0.00002;
 
             var probability = 1.0 / (1.0 + Math.Exp(-z));
@@ -117,6 +131,14 @@ public class ModelTrainer
                 LevelDiff15 = levelDiff,
                 ObjectiveScoreDiff = objScore,
                 RankAdjustedGoldDiff = rankAdjGold,
+                GoldDiff10 = gold10,
+                KillDiff10 = kill10,
+                GoldMomentum15 = momentum,
+                WinRateDiff = wrDiff,
+                EngageDiff = engage,
+                TankDiff = tank,
+                AdApBalanceDiff = adAp,
+                SnowballScore = snowball,
                 Label = win
             });
         }

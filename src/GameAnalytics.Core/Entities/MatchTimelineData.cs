@@ -6,6 +6,14 @@ public class MatchTimelineData
 {
     public string MatchId { get; set; } = string.Empty;
 
+    // Minute 10 snapshot (early snowball / momentum vs 15')
+    public int GoldAt10Blue { get; set; }
+    public int GoldAt10Red { get; set; }
+    public int GoldDiffAt10 => GoldAt10Blue - GoldAt10Red;
+    public int KillsAt10Blue { get; set; }
+    public int KillsAt10Red { get; set; }
+    public int KillDiffAt10 => KillsAt10Blue - KillsAt10Red;
+
     // Minute 15 snapshot (standard metric mark for LoL competitive analysis)
     public int GoldAt15Blue { get; set; }
     public int GoldAt15Red { get; set; }

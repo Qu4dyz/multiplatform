@@ -13,7 +13,9 @@ public class MatchPredictionEngine : IPredictionEngine
     private readonly MLContext _mlContext;
     private readonly string _modelDirectory;
     private ITransformer? _model;
+    private ITransformer? _ensembleForestModel;
     private PredictionEngine<MatchInputData, MatchPrediction>? _predictionEngine;
+    private PredictionEngine<MatchInputData, MatchPrediction>? _ensembleForestEngine;
     private readonly object _lock = new();
 
     public MLAlgorithmType ActiveAlgorithm { get; private set; } = MLAlgorithmType.FastTree;
@@ -57,6 +59,14 @@ public class MatchPredictionEngine : IPredictionEngine
                 {
                     _model = _mlContext.Model.Load(modelFile, out _);
                     _predictionEngine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(_model);
+
+                    var forestFile = Path.Combine(_modelDirectory, "fastforest_model.zip");
+                    if (File.Exists(forestFile))
+                    {
+                        _ensembleForestModel = _mlContext.Model.Load(forestFile, out _);
+                        _ensembleForestEngine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(_ensembleForestModel);
+                    }
+
                     IsTrainedOnRealData = true;
                     return;
                 }
@@ -188,13 +198,31 @@ public class MatchPredictionEngine : IPredictionEngine
                     features.VoidgrubDiff * 0.35f +
                     features.HeraldDiff,
                 RankAdjustedGoldDiff = features.GoldDiffAt15 *
-                    ((features.AvgRankScore > 0 ? features.AvgRankScore : 5.5f) / 5.5f)
+                    ((features.AvgRankScore > 0 ? features.AvgRankScore : 5.5f) / 5.5f),
+                GoldDiff10 = features.GoldDiff10 != 0
+                    ? features.GoldDiff10
+                    : features.GoldDiffAt15 * 0.65f,
+                KillDiff10 = features.KillDiff10,
+                GoldMomentum15 = features.GoldMomentum15 != 0
+                    ? features.GoldMomentum15
+                    : features.GoldDiffAt15 - (features.GoldDiff10 != 0 ? features.GoldDiff10 : features.GoldDiffAt15 * 0.65f),
+                WinRateDiff = features.BlueTeamAvgWinRate - features.RedTeamAvgWinRate,
+                EngageDiff = features.EngageDiff,
+                TankDiff = features.TankDiff,
+                AdApBalanceDiff = features.AdApBalanceDiff,
+                SnowballScore = (features.KillDiffAt15 * 400f + features.GoldDiffAt15) / 1000f
             };
 
             var prediction = _predictionEngine!.Predict(input);
-
-            // Clamp probability between 0.05 and 0.95 for realistic LoL predictions
             var blueProb = Math.Clamp(prediction.Probability, 0.05f, 0.95f);
+
+            // Soft-vote with FastForest when the ensemble partner is available.
+            if (_ensembleForestEngine != null)
+            {
+                var forestProb = Math.Clamp(_ensembleForestEngine.Predict(input).Probability, 0.05f, 0.95f);
+                blueProb = Math.Clamp((blueProb + forestProb) * 0.5f, 0.05f, 0.95f);
+            }
+
             var redProb = 1.0f - blueProb;
             var predictedWinner = blueProb >= 0.5f ? TeamSide.Blue : TeamSide.Red;
             var confidence = Math.Abs(blueProb - 0.5f) * 2.0;
@@ -345,7 +373,8 @@ public class MatchPredictionEngine : IPredictionEngine
                 {
                     var dataView = _mlContext.Data.LoadFromEnumerable(matchDataList);
                     var benchmark = new ModelBenchmarkService();
-                    var pipeline = benchmark.BuildPipeline(ActiveAlgorithm);
+                    var treePipeline = benchmark.BuildPipeline(MLAlgorithmType.FastTree);
+                    var forestPipeline = benchmark.BuildPipeline(MLAlgorithmType.FastForest);
 
                     if (matchDataList.Count >= 20)
                     {
@@ -356,51 +385,35 @@ public class MatchPredictionEngine : IPredictionEngine
                         var testSet = matchDataList.Skip(trainCount).ToList();
 
                         var trainView = _mlContext.Data.LoadFromEnumerable(trainSet);
-                        var testView = _mlContext.Data.LoadFromEnumerable(testSet);
+                        var treeModel = treePipeline.Fit(trainView);
+                        var forestModel = forestPipeline.Fit(trainView);
 
-                        _model = pipeline.Fit(trainView);
-                        var predictions = _model.Transform(testView);
-                        try
-                        {
-                            var eval = _mlContext.BinaryClassification.Evaluate(predictions, labelColumnName: "Label");
-                            CurrentModelMetrics = new ModelMetrics
-                            {
-                                AlgorithmType = ActiveAlgorithm,
-                                Accuracy = eval.Accuracy,
-                                AreaUnderRocCurve = eval.AreaUnderRocCurve,
-                                F1Score = eval.F1Score,
-                                PositivePrecision = eval.PositivePrecision,
-                                PositiveRecall = eval.PositiveRecall,
-                                LogLoss = eval.LogLoss
-                            };
-                        }
-                        catch
-                        {
-                            var nonCal = _mlContext.BinaryClassification.EvaluateNonCalibrated(predictions, labelColumnName: "Label");
-                            CurrentModelMetrics = new ModelMetrics
-                            {
-                                AlgorithmType = ActiveAlgorithm,
-                                Accuracy = nonCal.Accuracy,
-                                AreaUnderRocCurve = nonCal.AreaUnderRocCurve,
-                                F1Score = nonCal.F1Score,
-                                PositivePrecision = nonCal.PositivePrecision,
-                                PositiveRecall = nonCal.PositiveRecall,
-                                LogLoss = 0.5
-                            };
-                        }
+                        var treeEngine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(treeModel);
+                        var forestEngine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(forestModel);
+                        CurrentModelMetrics = ModelBenchmarkService.EvaluateSoftEnsemble(
+                            _mlContext, treeEngine, forestEngine, testSet);
 
                         // Retrain on the full chronological corpus for the shipped model weights.
-                        _model = pipeline.Fit(dataView);
+                        _model = treePipeline.Fit(dataView);
+                        _ensembleForestModel = forestPipeline.Fit(dataView);
                     }
                     else
                     {
-                        _model = pipeline.Fit(dataView);
+                        _model = treePipeline.Fit(dataView);
+                        _ensembleForestModel = forestPipeline.Fit(dataView);
                     }
 
                     var trainer = new ModelTrainer();
                     var modelFile = Path.Combine(_modelDirectory, $"{ActiveAlgorithm.ToString().ToLower()}_model.zip");
+                    var forestFile = Path.Combine(_modelDirectory, "fastforest_model.zip");
                     trainer.SaveModel(_model, dataView.Schema, modelFile);
+                    if (_ensembleForestModel != null)
+                        trainer.SaveModel(_ensembleForestModel, dataView.Schema, forestFile);
+
                     _predictionEngine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(_model);
+                    _ensembleForestEngine = _ensembleForestModel != null
+                        ? _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(_ensembleForestModel)
+                        : null;
 
                     IsTrainedOnRealData = true;
                     TrainingDatasetSize = matchDataList.Count;
