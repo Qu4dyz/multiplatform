@@ -71,7 +71,7 @@ public class TacticalMomentReplayTests
         Assert.Contains("ваш асист", moment.Subtitle);
         Assert.Contains("у ту ж секунду вас убив", moment.Subtitle);
         Assert.False(string.IsNullOrWhiteSpace(moment.MapImageUrl));
-        Assert.Contains("map11.png", moment.MapImageUrl);
+        Assert.Contains("minimap", moment.MapImageUrl, StringComparison.OrdinalIgnoreCase);
         Assert.True(moment.HasKillMarker);
         Assert.Single(moment.ContextLines, l => l.IsCurrent);
         Assert.Contains(moment.ContextLines, l => l.IsCurrent && l.Text.Contains("→") && !l.Text.Contains("★"));
@@ -127,6 +127,53 @@ public class TacticalMomentReplayTests
         Assert.StartsWith("Смерть на", moment!.Title);
         Assert.Equal(1, moment.ContextLines.Count(l => l.IsCurrent));
         Assert.Contains(moment.ContextLines, l => l.IsCurrent && l.Text.Contains("★"));
+    }
+
+    [Fact]
+    public void TimelineEvent_MomentHint_ReflectsOpenAndViewedState()
+    {
+        var match = BuildTenManMatch("Vex", 1);
+        var kill = new TimelineEventRecord
+        {
+            TimestampMs = 100_000,
+            EventType = "CHAMPION_KILL",
+            KillerId = 1,
+            VictimId = 6,
+            PositionX = 7000,
+            PositionY = 7000
+        };
+        var timeline = new MatchTimelineData
+        {
+            RealEvents = { kill },
+            Frames =
+            {
+                new TimelineFrameSnapshot
+                {
+                    TimestampMs = 90_000,
+                    Participants = Enumerable.Range(1, 10).Select(i => new TimelineParticipantPos
+                    {
+                        ParticipantId = i,
+                        X = 1000 * i,
+                        Y = 1000 * i,
+                        Level = 5,
+                        TotalGold = 2000
+                    }).ToList()
+                }
+            }
+        };
+
+        var report = MatchTacticalAnalyzer.AnalyzeMatchTactics(match, match.Participants[0], timeline);
+        var evt = Assert.Single(report.TimelineEvents, e => e.HasMomentReplay);
+        Assert.Equal("▶ Відкрити момент", evt.MomentHint);
+
+        evt.WasMomentViewed = true;
+        evt.IsMomentOpen = true;
+        Assert.Equal("▼ Закрити момент", evt.MomentHint);
+        Assert.Equal("#FBBF24", evt.MomentHintColor);
+
+        evt.IsMomentOpen = false;
+        Assert.Equal("✓ Переглянуто · відкрити", evt.MomentHint);
+        Assert.Equal("#94A3B8", evt.MomentHintColor);
     }
 
     [Fact]

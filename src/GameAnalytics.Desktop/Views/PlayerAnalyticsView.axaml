@@ -1618,199 +1618,197 @@
                                                         <TextBlock Grid.Column="1" Text="⏳ Завантаження подій Riot Timeline..." FontSize="11" Foreground="#A78BFA" IsVisible="{Binding IsLoadingTimeline}" />
                                                     </Grid>
 
-                                                    <!-- MOMENT REPLAY BOARD -->
-                                                    <Border Background="#10131F"
-                                                            CornerRadius="12"
-                                                            BorderBrush="#3B1F2E"
-                                                            BorderThickness="1"
-                                                            Padding="14"
-                                                            IsVisible="{Binding HasSelectedMoment}">
-                                                        <Grid ColumnDefinitions="Auto, 16, *">
-                                                            <!-- Minimap -->
-                                                            <StackPanel Grid.Column="0" Spacing="8" Width="300">
-                                                                <Grid ColumnDefinitions="*, Auto">
-                                                                    <TextBlock Grid.Column="0" Text="{Binding SelectedMoment.Title}" FontSize="13" FontWeight="Bold" Foreground="#F8FAFC" TextWrapping="Wrap" />
-                                                                    <Button Grid.Column="1"
-                                                                            Command="{Binding CloseMomentCommand}"
-                                                                            Content="✕"
-                                                                            FontSize="11"
-                                                                            Padding="8,2"
-                                                                            Background="#1B1634"
-                                                                            Foreground="#C4B5FD"
-                                                                            BorderBrush="#3E4466"
-                                                                            BorderThickness="1"
-                                                                            CornerRadius="6"
-                                                                            Cursor="Hand" />
-                                                                </Grid>
-                                                                <TextBlock Text="{Binding SelectedMoment.Subtitle}" FontSize="11" Foreground="#94A3B8" TextWrapping="Wrap" />
-                                                                <Border Width="300" Height="300" CornerRadius="10" ClipToBounds="True"
-                                                                        BorderBrush="#2A3148" BorderThickness="1"
-                                                                        Background="#05070D">
-                                                                    <Canvas Width="300" Height="300">
-                                                                        <!-- Real Summoner's Rift minimap -->
-                                                                        <Image Source="{Binding SelectedMoment.MapImageUrl, Converter={StaticResource BitmapAssetConverter}}"
-                                                                               Width="300" Height="300"
-                                                                               Stretch="UniformToFill"
-                                                                               RenderOptions.BitmapInterpolationMode="HighQuality"
-                                                                               Canvas.Left="0" Canvas.Top="0" />
-                                                                        <!-- Soft darken so champion rings stay readable -->
-                                                                        <Border Width="300" Height="300" Background="#66050A12"
-                                                                                IsHitTestVisible="False"
-                                                                                Canvas.Left="0" Canvas.Top="0" />
-                                                                        <!-- Kill epicenter -->
-                                                                        <Ellipse Width="18" Height="18"
-                                                                                 IsVisible="{Binding SelectedMoment.HasKillMarker}"
-                                                                                 Stroke="#F43F5E" StrokeThickness="2"
-                                                                                 Fill="#55F43F5E"
-                                                                                 IsHitTestVisible="False"
-                                                                                 Canvas.Left="{Binding SelectedMoment.KillMarkerLeft}"
-                                                                                 Canvas.Top="{Binding SelectedMoment.KillMarkerTop}" />
-                                                                        <ItemsControl ItemsSource="{Binding SelectedMoment.Markers}"
-                                                                                      Width="300" Height="300"
-                                                                                      Canvas.Left="0" Canvas.Top="0">
-                                                                            <ItemsControl.ItemsPanel>
-                                                                                <ItemsPanelTemplate>
-                                                                                    <Canvas Width="300" Height="300" />
-                                                                                </ItemsPanelTemplate>
-                                                                            </ItemsControl.ItemsPanel>
-                                                                            <ItemsControl.ItemContainerTheme>
-                                                                                <ControlTheme TargetType="ContentPresenter" x:DataType="coreEntities:TacticalMomentMarker">
-                                                                                    <Setter Property="Canvas.Left" Value="{Binding MapLeft}" />
-                                                                                    <Setter Property="Canvas.Top" Value="{Binding MapTop}" />
-                                                                                </ControlTheme>
-                                                                            </ItemsControl.ItemContainerTheme>
-                                                                            <ItemsControl.ItemTemplate>
-                                                                                <DataTemplate x:DataType="coreEntities:TacticalMomentMarker">
-                                                                                    <Border Width="{Binding MarkerSize}" Height="{Binding MarkerSize}"
-                                                                                            CornerRadius="99"
-                                                                                            BorderBrush="{Binding BorderColor}" BorderThickness="2.5"
-                                                                                            Background="#0B0C12" ClipToBounds="True"
-                                                                                            Opacity="{Binding Opacity}"
-                                                                                            ToolTip.Tip="{Binding RoleLabel}">
-                                                                                        <Image Source="{Binding ChampionIconUrl, Converter={StaticResource BitmapAssetConverter}}"
-                                                                                               Stretch="UniformToFill"
-                                                                                               RenderOptions.BitmapInterpolationMode="HighQuality" />
-                                                                                    </Border>
-                                                                                </DataTemplate>
-                                                                            </ItemsControl.ItemTemplate>
-                                                                        </ItemsControl>
-                                                                    </Canvas>
-                                                                </Border>
-                                                                <StackPanel Orientation="Horizontal" Spacing="6">
-                                                                    <Border Background="#2E121C" CornerRadius="4" Padding="6,2">
-                                                                        <TextBlock Text="{Binding SelectedMoment.TimestampText}" FontSize="10" FontWeight="Bold" Foreground="#FB7185" />
-                                                                    </Border>
-                                                                    <Border Background="#181B2B" CornerRadius="4" Padding="6,2">
-                                                                        <TextBlock Text="{Binding SelectedMoment.AssistsText}" FontSize="10" Foreground="#94A3B8" TextWrapping="Wrap" MaxWidth="220" />
-                                                                    </Border>
-                                                                </StackPanel>
-                                                            </StackPanel>
-
-                                                            <!-- Context strip -->
-                                                            <StackPanel Grid.Column="2" Spacing="8">
-                                                                <TextBlock Text="КОНТЕКСТ ±45 СЕК" FontSize="11" FontWeight="Bold" Foreground="#C4B5FD" LetterSpacing="1" />
-                                                                <TextBlock Text="Справжня міні-карта Summoner's Rift. Червоне кільце — точка кілу; великі іконки — учасники файту, дрібні — хто був поруч. ★ смерть / ◆ ваш кіл / ✚ ваш асист."
-                                                                           FontSize="11" Foreground="#64748B" TextWrapping="Wrap" />
-                                                                <ItemsControl ItemsSource="{Binding SelectedMoment.ContextLines}">
-                                                                    <ItemsControl.ItemTemplate>
-                                                                        <DataTemplate>
-                                                                            <Border Margin="0,2"
-                                                                                    Background="{Binding RowBackground}"
-                                                                                    CornerRadius="6"
-                                                                                    Padding="8,5"
-                                                                                    BorderThickness="1"
-                                                                                    BorderBrush="{Binding RowBorder}">
-                                                                                <Grid ColumnDefinitions="52, *">
-                                                                                    <TextBlock Grid.Column="0" Text="{Binding TimestampText}" FontSize="11" FontWeight="Bold" Foreground="{Binding AccentColor}" />
-                                                                                    <TextBlock Grid.Column="1" Text="{Binding Text}" FontSize="11" Foreground="#E2E8F0" TextWrapping="Wrap" />
-                                                                                </Grid>
-                                                                            </Border>
-                                                                        </DataTemplate>
-                                                                    </ItemsControl.ItemTemplate>
-                                                                </ItemsControl>
-                                                            </StackPanel>
-                                                        </Grid>
-                                                    </Border>
-
                                                     <ItemsControl ItemsSource="{Binding TacticalReport.TimelineEvents}" x:Name="TacticalTimelineList">
                                                         <ItemsControl.ItemTemplate>
                                                             <DataTemplate>
-                                                                <Button Command="{Binding $parent[ItemsControl].((vm:PlayerMatchItemViewModel)DataContext).OpenMomentCommand}"
-                                                                        CommandParameter="{Binding}"
-                                                                        Background="Transparent"
-                                                                        BorderThickness="0"
-                                                                        Padding="0"
-                                                                        HorizontalAlignment="Stretch"
-                                                                        HorizontalContentAlignment="Stretch"
-                                                                        Cursor="Hand">
-                                                                    <Border Classes="tactical-node"
-                                                                            Background="{Binding CardBackground}"
-                                                                            CornerRadius="8"
-                                                                            BorderBrush="{Binding CardBorderColor}"
-                                                                            BorderThickness="1"
-                                                                            Padding="12,8"
-                                                                            Margin="0,3">
-                                                                        <Grid ColumnDefinitions="80, 42, *, Auto">
-                                                                            <!-- Col 0: Timestamp & Phase -->
-                                                                            <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
-                                                                                <Border Background="#181B2B" CornerRadius="4" Padding="6,2" HorizontalAlignment="Left">
-                                                                                    <TextBlock Text="{Binding TimestampText}" FontSize="11" FontWeight="Bold" Foreground="#C4B5FD" />
-                                                                                </Border>
-                                                                                <Border Background="#141726" CornerRadius="3" Padding="4,1" HorizontalAlignment="Left">
-                                                                                    <TextBlock Text="{Binding PhaseName}" FontSize="8" FontWeight="SemiBold" Foreground="{Binding PhaseBadgeColor}" TextTrimming="CharacterEllipsis" MaxWidth="75" />
-                                                                                </Border>
-                                                                                <TextBlock Text="{Binding MomentHint}" FontSize="9" FontWeight="SemiBold" Foreground="#F43F5E" IsVisible="{Binding HasMomentReplay}" />
-                                                                            </StackPanel>
-
-                                                                            <!-- Col 1: Modern Styled Vector HUD Badge with Icon and Glow -->
-                                                                            <Border Grid.Column="1"
-                                                                                    Width="34" Height="34"
-                                                                                    CornerRadius="17"
-                                                                                    Background="{Binding IconBadgeBg}"
-                                                                                    BorderBrush="{Binding IconBadgeBorder}"
-                                                                                    BorderThickness="1.5"
-                                                                                    HorizontalAlignment="Center"
-                                                                                    VerticalAlignment="Center">
-                                                                                <PathIcon Data="{Binding IconPath}"
-                                                                                          Width="16" Height="16"
-                                                                                          Foreground="{Binding IconBadgeFg}"
-                                                                                          HorizontalAlignment="Center"
-                                                                                          VerticalAlignment="Center" />
-                                                                            </Border>
-
-                                                                            <!-- Col 2: Tactical Info, Category tag, Severity tag, and Description -->
-                                                                            <StackPanel Grid.Column="2" Spacing="3" VerticalAlignment="Center" Margin="12,0,10,0">
-                                                                                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                                                                                    <!-- Category Tag Pill -->
-                                                                                    <Border Background="#1B1634" BorderBrush="{Binding CategoryTagColor}" BorderThickness="1" CornerRadius="4" Padding="6,1">
-                                                                                        <TextBlock Text="{Binding CategoryTag}" FontSize="9" FontWeight="Bold" Foreground="{Binding CategoryTagColor}" />
+                                                                <StackPanel Margin="0,3" Spacing="0">
+                                                                    <Button Command="{Binding $parent[ItemsControl].((vm:PlayerMatchItemViewModel)DataContext).OpenMomentCommand}"
+                                                                            CommandParameter="{Binding}"
+                                                                            Background="Transparent"
+                                                                            BorderThickness="0"
+                                                                            Padding="0"
+                                                                            HorizontalAlignment="Stretch"
+                                                                            HorizontalContentAlignment="Stretch"
+                                                                            Cursor="Hand">
+                                                                        <Border Classes="tactical-node"
+                                                                                Background="{Binding CardBackground}"
+                                                                                CornerRadius="8"
+                                                                                BorderBrush="{Binding CardBorderColor}"
+                                                                                BorderThickness="1"
+                                                                                Padding="12,8">
+                                                                            <Grid ColumnDefinitions="80, 42, *, Auto">
+                                                                                <!-- Col 0: Timestamp & Phase -->
+                                                                                <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                                                                                    <Border Background="#181B2B" CornerRadius="4" Padding="6,2" HorizontalAlignment="Left">
+                                                                                        <TextBlock Text="{Binding TimestampText}" FontSize="11" FontWeight="Bold" Foreground="#C4B5FD" />
                                                                                     </Border>
-                                                                                    <!-- Severity Tag Pill (Hidden if duplicate) -->
-                                                                                    <Border Background="{Binding SeverityBg}" CornerRadius="4" Padding="6,1" IsVisible="{Binding HasSeverityTag}">
-                                                                                        <TextBlock Text="{Binding SeverityTag}" FontSize="9" FontWeight="Bold" Foreground="{Binding SeverityFg}" />
+                                                                                    <Border Background="#141726" CornerRadius="3" Padding="4,1" HorizontalAlignment="Left">
+                                                                                        <TextBlock Text="{Binding PhaseName}" FontSize="8" FontWeight="SemiBold" Foreground="{Binding PhaseBadgeColor}" TextTrimming="CharacterEllipsis" MaxWidth="75" />
                                                                                     </Border>
-                                                                                    <!-- Event Title -->
-                                                                                    <TextBlock Text="{Binding Title}" FontSize="12" FontWeight="Bold" Foreground="#F8FAFC" VerticalAlignment="Center" />
+                                                                                    <TextBlock Text="{Binding MomentHint}"
+                                                                                               FontSize="9"
+                                                                                               FontWeight="SemiBold"
+                                                                                               Foreground="{Binding MomentHintColor}"
+                                                                                               IsVisible="{Binding HasMomentReplay}" />
                                                                                 </StackPanel>
-                                                                                <TextBlock Text="{Binding Description}" FontSize="11" Foreground="#CBD5E1" TextWrapping="Wrap" LineHeight="15" />
+
+                                                                                <!-- Col 1: Modern Styled Vector HUD Badge with Icon and Glow -->
+                                                                                <Border Grid.Column="1"
+                                                                                        Width="34" Height="34"
+                                                                                        CornerRadius="17"
+                                                                                        Background="{Binding IconBadgeBg}"
+                                                                                        BorderBrush="{Binding IconBadgeBorder}"
+                                                                                        BorderThickness="1.5"
+                                                                                        HorizontalAlignment="Center"
+                                                                                        VerticalAlignment="Center">
+                                                                                    <PathIcon Data="{Binding IconPath}"
+                                                                                              Width="16" Height="16"
+                                                                                              Foreground="{Binding IconBadgeFg}"
+                                                                                              HorizontalAlignment="Center"
+                                                                                              VerticalAlignment="Center" />
+                                                                                </Border>
+
+                                                                                <!-- Col 2: Tactical Info, Category tag, Severity tag, and Description -->
+                                                                                <StackPanel Grid.Column="2" Spacing="3" VerticalAlignment="Center" Margin="12,0,10,0">
+                                                                                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                                                        <Border Background="#1B1634" BorderBrush="{Binding CategoryTagColor}" BorderThickness="1" CornerRadius="4" Padding="6,1">
+                                                                                            <TextBlock Text="{Binding CategoryTag}" FontSize="9" FontWeight="Bold" Foreground="{Binding CategoryTagColor}" />
+                                                                                        </Border>
+                                                                                        <Border Background="{Binding SeverityBg}" CornerRadius="4" Padding="6,1" IsVisible="{Binding HasSeverityTag}">
+                                                                                            <TextBlock Text="{Binding SeverityTag}" FontSize="9" FontWeight="Bold" Foreground="{Binding SeverityFg}" />
+                                                                                        </Border>
+                                                                                        <TextBlock Text="{Binding Title}" FontSize="12" FontWeight="Bold" Foreground="#F8FAFC" VerticalAlignment="Center" />
+                                                                                    </StackPanel>
+                                                                                    <TextBlock Text="{Binding Description}" FontSize="11" Foreground="#CBD5E1" TextWrapping="Wrap" LineHeight="15" />
+                                                                                </StackPanel>
+
+                                                                                <!-- Col 3: Impact Callout Badge -->
+                                                                                <Border Grid.Column="3"
+                                                                                        Background="#181B2B"
+                                                                                        CornerRadius="6"
+                                                                                        BorderBrush="{Binding ImpactColor}"
+                                                                                        BorderThickness="1"
+                                                                                        Padding="10,4"
+                                                                                        VerticalAlignment="Center">
+                                                                                    <TextBlock Text="{Binding ImpactText}"
+                                                                                               FontSize="11"
+                                                                                               FontWeight="Bold"
+                                                                                               Foreground="{Binding ImpactColor}" />
+                                                                                </Border>
+                                                                            </Grid>
+                                                                        </Border>
+                                                                    </Button>
+
+                                                                    <!-- INLINE moment board — opens under the clicked row -->
+                                                                    <Border Background="#0C101C"
+                                                                            CornerRadius="0,0,10,10"
+                                                                            BorderBrush="#F43F5E"
+                                                                            BorderThickness="1,0,1,1"
+                                                                            Padding="12"
+                                                                            Margin="0,-1,0,4"
+                                                                            IsVisible="{Binding IsMomentOpen}">
+                                                                        <Grid ColumnDefinitions="Auto, 14, *">
+                                                                            <StackPanel Grid.Column="0" Spacing="6" Width="260">
+                                                                                <Grid ColumnDefinitions="*, Auto">
+                                                                                    <TextBlock Grid.Column="0" Text="{Binding Moment.Title}" FontSize="12" FontWeight="Bold" Foreground="#F8FAFC" TextWrapping="Wrap" />
+                                                                                    <Button Grid.Column="1"
+                                                                                            Command="{Binding $parent[ItemsControl].((vm:PlayerMatchItemViewModel)DataContext).CloseMomentCommand}"
+                                                                                            Content="✕"
+                                                                                            FontSize="11"
+                                                                                            Padding="8,2"
+                                                                                            Background="#1B1634"
+                                                                                            Foreground="#C4B5FD"
+                                                                                            BorderBrush="#3E4466"
+                                                                                            BorderThickness="1"
+                                                                                            CornerRadius="6"
+                                                                                            Cursor="Hand" />
+                                                                                </Grid>
+                                                                                <TextBlock Text="{Binding Moment.Subtitle}" FontSize="10" Foreground="#94A3B8" TextWrapping="Wrap" />
+                                                                                <Border Width="260" Height="260" CornerRadius="8" ClipToBounds="True"
+                                                                                        BorderBrush="#3A425C" BorderThickness="1"
+                                                                                        Background="#05070D"
+                                                                                        BoxShadow="0 8 24 0 #40000000">
+                                                                                    <Canvas Width="260" Height="260">
+                                                                                        <Image Source="{Binding Moment.MapImageUrl, Converter={StaticResource BitmapAssetConverter}}"
+                                                                                               Width="260" Height="260"
+                                                                                               Stretch="UniformToFill"
+                                                                                               RenderOptions.BitmapInterpolationMode="HighQuality"
+                                                                                               Canvas.Left="0" Canvas.Top="0" />
+                                                                                        <Border Width="260" Height="260" Background="#22050A12"
+                                                                                                IsHitTestVisible="False"
+                                                                                                Canvas.Left="0" Canvas.Top="0" />
+                                                                                        <Ellipse Width="14" Height="14"
+                                                                                                 IsVisible="{Binding Moment.HasKillMarker}"
+                                                                                                 Stroke="#FB7185" StrokeThickness="1.5"
+                                                                                                 Fill="#40F43F5E"
+                                                                                                 IsHitTestVisible="False"
+                                                                                                 Canvas.Left="{Binding Moment.KillMarkerLeft}"
+                                                                                                 Canvas.Top="{Binding Moment.KillMarkerTop}" />
+                                                                                        <ItemsControl ItemsSource="{Binding Moment.Markers}"
+                                                                                                      Width="260" Height="260"
+                                                                                                      Canvas.Left="0" Canvas.Top="0">
+                                                                                            <ItemsControl.ItemsPanel>
+                                                                                                <ItemsPanelTemplate>
+                                                                                                    <Canvas Width="260" Height="260" />
+                                                                                                </ItemsPanelTemplate>
+                                                                                            </ItemsControl.ItemsPanel>
+                                                                                            <ItemsControl.ItemContainerTheme>
+                                                                                                <ControlTheme TargetType="ContentPresenter" x:DataType="coreEntities:TacticalMomentMarker">
+                                                                                                    <Setter Property="Canvas.Left" Value="{Binding MapLeft}" />
+                                                                                                    <Setter Property="Canvas.Top" Value="{Binding MapTop}" />
+                                                                                                </ControlTheme>
+                                                                                            </ItemsControl.ItemContainerTheme>
+                                                                                            <ItemsControl.ItemTemplate>
+                                                                                                <DataTemplate x:DataType="coreEntities:TacticalMomentMarker">
+                                                                                                    <Border Width="{Binding MarkerSize}" Height="{Binding MarkerSize}"
+                                                                                                            CornerRadius="99"
+                                                                                                            BorderBrush="{Binding BorderColor}" BorderThickness="2"
+                                                                                                            Background="#0B0C12" ClipToBounds="True"
+                                                                                                            Opacity="{Binding Opacity}"
+                                                                                                            BoxShadow="0 2 6 0 #80000000"
+                                                                                                            ToolTip.Tip="{Binding RoleLabel}">
+                                                                                                        <Image Source="{Binding ChampionIconUrl, Converter={StaticResource BitmapAssetConverter}}"
+                                                                                                               Stretch="UniformToFill"
+                                                                                                               RenderOptions.BitmapInterpolationMode="HighQuality" />
+                                                                                                    </Border>
+                                                                                                </DataTemplate>
+                                                                                            </ItemsControl.ItemTemplate>
+                                                                                        </ItemsControl>
+                                                                                    </Canvas>
+                                                                                </Border>
+                                                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                                    <Border Background="#2E121C" CornerRadius="4" Padding="6,2">
+                                                                                        <TextBlock Text="{Binding Moment.TimestampText}" FontSize="10" FontWeight="Bold" Foreground="#FB7185" />
+                                                                                    </Border>
+                                                                                    <Border Background="#181B2B" CornerRadius="4" Padding="6,2">
+                                                                                        <TextBlock Text="{Binding Moment.AssistsText}" FontSize="10" Foreground="#94A3B8" TextWrapping="Wrap" MaxWidth="180" />
+                                                                                    </Border>
+                                                                                </StackPanel>
                                                                             </StackPanel>
 
-                                                                            <!-- Col 3: Impact Callout Badge -->
-                                                                            <Border Grid.Column="3"
-                                                                                    Background="#181B2B"
-                                                                                    CornerRadius="6"
-                                                                                    BorderBrush="{Binding ImpactColor}"
-                                                                                    BorderThickness="1"
-                                                                                    Padding="10,4"
-                                                                                    VerticalAlignment="Center">
-                                                                                <TextBlock Text="{Binding ImpactText}"
-                                                                                           FontSize="11"
-                                                                                           FontWeight="Bold"
-                                                                                           Foreground="{Binding ImpactColor}" />
-                                                                            </Border>
+                                                                            <StackPanel Grid.Column="2" Spacing="6">
+                                                                                <TextBlock Text="КОНТЕКСТ ±45 СЕК" FontSize="10" FontWeight="Bold" Foreground="#C4B5FD" LetterSpacing="1" />
+                                                                                <ItemsControl ItemsSource="{Binding Moment.ContextLines}">
+                                                                                    <ItemsControl.ItemTemplate>
+                                                                                        <DataTemplate>
+                                                                                            <Border Margin="0,2"
+                                                                                                    Background="{Binding RowBackground}"
+                                                                                                    CornerRadius="6"
+                                                                                                    Padding="8,5"
+                                                                                                    BorderThickness="1"
+                                                                                                    BorderBrush="{Binding RowBorder}">
+                                                                                                <Grid ColumnDefinitions="52, *">
+                                                                                                    <TextBlock Grid.Column="0" Text="{Binding TimestampText}" FontSize="11" FontWeight="Bold" Foreground="{Binding AccentColor}" />
+                                                                                                    <TextBlock Grid.Column="1" Text="{Binding Text}" FontSize="11" Foreground="#E2E8F0" TextWrapping="Wrap" />
+                                                                                                </Grid>
+                                                                                            </Border>
+                                                                                        </DataTemplate>
+                                                                                    </ItemsControl.ItemTemplate>
+                                                                                </ItemsControl>
+                                                                            </StackPanel>
                                                                         </Grid>
                                                                     </Border>
-                                                                </Button>
+                                                                </StackPanel>
                                                             </DataTemplate>
                                                         </ItemsControl.ItemTemplate>
                                                     </ItemsControl>
