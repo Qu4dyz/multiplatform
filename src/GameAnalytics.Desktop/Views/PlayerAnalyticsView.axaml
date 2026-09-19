@@ -34,14 +34,15 @@
             <Setter Property="Transitions">
                 <Transitions>
                     <BrushTransition Property="BorderBrush" Duration="0:0:0.25" />
+                    <BrushTransition Property="Background" Duration="0:0:0.25" />
                     <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" />
                 </Transitions>
             </Setter>
             <Setter Property="RenderTransform" Value="scale(1.0)" />
         </Style>
         <Style Selector="Border.match-card:pointerover">
-            <Setter Property="RenderTransform" Value="scale(1.01)" />
-            <Setter Property="BorderBrush" Value="#C8AA6E" />
+            <Setter Property="RenderTransform" Value="scale(1.008)" />
+            <Setter Property="BorderBrush" Value="#8B5CF6" />
         </Style>
 
         <!-- Player Nickname Link Button -->
@@ -60,7 +61,7 @@
             <Setter Property="Background" Value="Transparent" />
         </Style>
         <Style Selector="Button.player-link:pointerover TextBlock">
-            <Setter Property="Foreground" Value="#0AC8B9" />
+            <Setter Property="Foreground" Value="#C4B5FD" />
             <Setter Property="TextDecorations" Value="Underline" />
         </Style>
 
@@ -76,7 +77,7 @@
         </Style>
         <Style Selector="Border.item-slot:pointerover">
             <Setter Property="RenderTransform" Value="scale(1.08)" />
-            <Setter Property="BorderBrush" Value="#0AC8B9" />
+            <Setter Property="BorderBrush" Value="#8B5CF6" />
         </Style>
 
         <!-- Tactical Node Hover Effect -->
@@ -89,8 +90,8 @@
             </Setter>
         </Style>
         <Style Selector="Border.tactical-node:pointerover">
-            <Setter Property="Background" Value="#172233" />
-            <Setter Property="BorderBrush" Value="#385375" />
+            <Setter Property="Background" Value="#1A1D30" />
+            <Setter Property="BorderBrush" Value="#3E4466" />
         </Style>
 
         <!-- Expand Button Hover Effect -->
@@ -103,7 +104,8 @@
             <Setter Property="RenderTransform" Value="scale(1.0)" />
         </Style>
         <Style Selector="Button.expand-btn:pointerover">
-            <Setter Property="RenderTransform" Value="scale(1.08)" />
+            <Setter Property="RenderTransform" Value="scale(1.05)" />
+            <Setter Property="BorderBrush" Value="#7C3AED" />
         </Style>
     </UserControl.Styles>
 
@@ -111,10 +113,10 @@
         <StackPanel Margin="20,18" Spacing="16" MaxWidth="1420" HorizontalAlignment="Stretch">
 
             <!-- 1. RIOT ID SEARCH & REGION CONSOLE -->
-            <Border Background="#121824"
-                    CornerRadius="10"
+            <Border Background="#131522"
+                    CornerRadius="12"
                     Padding="20"
-                    BorderBrush="#1E283A"
+                    BorderBrush="#22263C"
                     BorderThickness="1">
                 <StackPanel Spacing="14">
                     <!-- Title Bar -->
@@ -122,26 +124,26 @@
                         <StackPanel Grid.Column="0" Spacing="2">
                             <TextBlock Text="🔍 ПОШУК ГРАВЦЯ У СИСТЕМІ RIOT ID"
                                        FontWeight="Bold"
-                                       FontSize="15"
-                                       Foreground="#C8AA6E"
+                                       FontSize="14"
+                                       Foreground="#C4B5FD"
                                        LetterSpacing="1.2" />
                             <TextBlock Text="Введіть ігрове ім'я, тег після # та оберіть ігровий сервер (EUW, EUNE, NA, KR тощо)"
-                                       FontSize="12"
-                                       Foreground="#8A93A5" />
+                                       FontSize="11"
+                                       Foreground="#94A3B8" />
                         </StackPanel>
 
                         <!-- API Status Pill -->
                         <Border Grid.Column="1"
-                                Background="#091428"
-                                BorderBrush="#252D3D"
+                                Background="#1B1634"
+                                BorderBrush="#7C3AED"
                                 BorderThickness="1"
                                 CornerRadius="14"
-                                Padding="14,6"
+                                Padding="14,5"
                                 VerticalAlignment="Center">
                             <TextBlock Text="{Binding ApiStatusText}"
                                        FontSize="11"
                                        FontWeight="SemiBold"
-                                       Foreground="#0AC8B9" />
+                                       Foreground="#A78BFA" />
                         </Border>
                     </Grid>
 
@@ -170,7 +172,7 @@
                                    Text="#"
                                    FontSize="18"
                                    FontWeight="Bold"
-                                   Foreground="#C8AA6E"
+                                   Foreground="#A78BFA"
                                    HorizontalAlignment="Center"
                                    VerticalAlignment="Center" />
 
@@ -189,26 +191,27 @@
                                 Classes="action-btn"
                                 Content="⚡ ЗНАЙТИ ГРАВЦЯ"
                                 Height="40"
-                                Background="#0AC8B9"
-                                Foreground="#010A13"
+                                Background="#7C3AED"
+                                Foreground="#FFFFFF"
                                 FontWeight="Bold"
                                 FontSize="13"
-                                Padding="20,0"
+                                Padding="22,0"
+                                CornerRadius="8"
                                 Cursor="Hand" />
                     </Grid>
 
                     <!-- Demo Mode Options & API Key Bar -->
-                    <Border Background="#091428"
-                            CornerRadius="6"
+                    <Border Background="#181B2B"
+                            CornerRadius="8"
                             Padding="12,8"
-                            BorderBrush="#1E283A"
+                            BorderBrush="#252A42"
                             BorderThickness="1">
                         <Grid ColumnDefinitions="Auto, 160, *, Auto">
                             <!-- Demo Tier Selector -->
                             <TextBlock Grid.Column="0"
                                        Text="🎮 Бажаний ранг у демо-режимі:"
                                        FontSize="12"
-                                       Foreground="#8A93A5"
+                                       Foreground="#94A3B8"
                                        VerticalAlignment="Center"
                                        Margin="0,0,10,0" />
 
@@ -235,10 +238,13 @@
                                     Classes="action-btn"
                                     Content="💾 Застосувати ключ"
                                     Height="30"
-                                    Background="#1E283A"
-                                    Foreground="#F0E6D2"
+                                    Background="#1A1D2E"
+                                    BorderBrush="#2A2F4A"
+                                    BorderThickness="1"
+                                    Foreground="#C4B5FD"
                                     FontSize="11"
-                                    Padding="10,0"
+                                    Padding="12,0"
+                                    CornerRadius="6"
                                     Cursor="Hand" />
                         </Grid>
                     </Border>
@@ -246,15 +252,15 @@
                     <!-- Status Text -->
                     <TextBlock Text="{Binding StatusMessage}"
                                FontSize="12"
-                               Foreground="#C8AA6E" />
+                               Foreground="#C4B5FD" />
                 </StackPanel>
             </Border>
 
             <!-- 2. PLAYER PROFILE HEXTECH CARD (Rendered when profile is loaded) -->
-            <Border Background="#121824"
-                    CornerRadius="10"
+            <Border Background="#131522"
+                    CornerRadius="12"
                     Padding="22"
-                    BorderBrush="#252D3D"
+                    BorderBrush="#22263C"
                     BorderThickness="1"
                     IsVisible="{Binding Summoner, Converter={x:Static ObjectConverters.IsNotNull}}">
                 <Grid ColumnDefinitions="Auto, *, Auto">
@@ -263,16 +269,17 @@
                         <Border Width="88" Height="88"
                                 CornerRadius="44"
                                 ClipToBounds="True"
-                                Background="#091428"
+                                Background="#181B2B"
                                 BorderBrush="{Binding TierBadgeColor}"
                                 BorderThickness="3">
                             <Image Source="{Binding ProfileIconBitmap}"
                                    Width="88" Height="88"
-                                   Stretch="UniformToFill" />
+                                   Stretch="UniformToFill"
+                                   RenderOptions.BitmapInterpolationMode="HighQuality" />
                         </Border>
 
                         <!-- Level Tag floating at bottom -->
-                        <Border Background="#091428"
+                        <Border Background="#181B2B"
                                 BorderBrush="{Binding TierBadgeColor}"
                                 BorderThickness="1"
                                 CornerRadius="10"
@@ -293,16 +300,16 @@
                             <TextBlock Text="{Binding Summoner.GameName}"
                                        FontSize="26"
                                        FontWeight="Bold"
-                                       Foreground="#F0E6D2" />
+                                       Foreground="#F8FAFC" />
                             <TextBlock Text="{Binding Summoner.TagLine, StringFormat='#{0}'}"
                                        FontSize="24"
                                        FontWeight="Bold"
-                                       Foreground="#0AC8B9" />
-                            <Border Background="#091428" CornerRadius="4" Padding="8,3" VerticalAlignment="Center" BorderBrush="#252D3D" BorderThickness="1">
+                                       Foreground="#A78BFA" />
+                            <Border Background="#181B2B" CornerRadius="4" Padding="8,3" VerticalAlignment="Center" BorderBrush="#252A42" BorderThickness="1">
                                 <TextBlock Text="{Binding SelectedRegion.DisplayName}"
                                            FontSize="11"
                                            FontWeight="SemiBold"
-                                           Foreground="#C8AA6E" />
+                                           Foreground="#C4B5FD" />
                             </Border>
                         </StackPanel>
 
@@ -314,25 +321,25 @@
                                 <TextBlock Text="{Binding Summoner.Tier, StringFormat='{}{0}'}"
                                            FontSize="13"
                                            FontWeight="Bold"
-                                           Foreground="#010A13" />
+                                           Foreground="#0B0C12" />
                             </Border>
 
                             <TextBlock Text="{Binding Summoner.Rank}"
                                        FontSize="16"
                                        FontWeight="Bold"
-                                       Foreground="#F0E6D2"
+                                       Foreground="#F8FAFC"
                                        VerticalAlignment="Center" />
 
                             <TextBlock Text="{Binding Summoner.LeaguePoints, StringFormat='{}{0} LP'}"
                                        FontSize="15"
                                        FontWeight="Bold"
-                                       Foreground="#C8AA6E"
+                                       Foreground="#A78BFA"
                                        VerticalAlignment="Center" />
 
-                            <Border Background="#091428" CornerRadius="4" Padding="6,2" BorderBrush="#252D3D" BorderThickness="1" VerticalAlignment="Center">
+                            <Border Background="#181B2B" CornerRadius="4" Padding="6,2" BorderBrush="#252A42" BorderThickness="1" VerticalAlignment="Center">
                                 <TextBlock Text="Ranked Solo/Duo 5v5"
                                            FontSize="11"
-                                           Foreground="#8A93A5"
+                                           Foreground="#94A3B8"
                                            FontWeight="SemiBold" />
                             </Border>
                         </StackPanel>
@@ -344,19 +351,20 @@
                                          Maximum="100"
                                          Height="5"
                                          Width="120"
-                                         Foreground="#C8AA6E"
-                                         Background="#091428"
+                                         CornerRadius="2.5"
+                                         Foreground="#8B5CF6"
+                                         Background="#1A1D2E"
                                          VerticalAlignment="Center" />
                             <TextBlock Text="{Binding NextTierProgressText}"
                                        FontSize="11"
                                        FontWeight="SemiBold"
-                                       Foreground="#8A93A5"
+                                       Foreground="#94A3B8"
                                        VerticalAlignment="Center" />
                         </StackPanel>
 
                         <!-- Top Champion Masteries -->
                         <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,2,0,0" IsVisible="{Binding Summoner.TopMasteries.Count}">
-                            <TextBlock Text="МАЙСТЕРНІСТЬ:" FontSize="9" FontWeight="Bold" Foreground="#8A93A5" VerticalAlignment="Center" />
+                            <TextBlock Text="МАЙСТЕРНІСТЬ:" FontSize="9" FontWeight="Bold" Foreground="#94A3B8" VerticalAlignment="Center" />
                             <ItemsControl ItemsSource="{Binding Summoner.TopMasteries}">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
@@ -365,15 +373,15 @@
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="coreEntities:ChampionMasteryInfo">
-                                        <Border Background="#091428" BorderBrush="#252D3D" BorderThickness="1" CornerRadius="4" Padding="5,2"
+                                        <Border Background="#181B2B" BorderBrush="#252A42" BorderThickness="1" CornerRadius="4" Padding="5,2"
                                                 ToolTip.Tip="{Binding FormattedPoints, StringFormat='{}{0} очок майстерності'}">
                                             <StackPanel Orientation="Horizontal" Spacing="4">
                                                 <Border Width="16" Height="16" CornerRadius="8" ClipToBounds="True">
-                                                    <Image Source="{Binding ChampionIconUrl, Converter={StaticResource BitmapAssetConverter}}" Width="16" Height="16" Stretch="UniformToFill" />
+                                                    <Image Source="{Binding ChampionIconUrl, Converter={StaticResource BitmapAssetConverter}}" Width="16" Height="16" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality" />
                                                 </Border>
-                                                <TextBlock Text="{Binding ChampionName}" FontSize="10" FontWeight="Bold" Foreground="#F0E6D2" VerticalAlignment="Center" />
-                                                <Border Background="#C8AA6E" CornerRadius="2" Padding="3,0" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding ChampionLevel, StringFormat='M{0}'}" FontSize="8" FontWeight="Bold" Foreground="#010A13" />
+                                                <TextBlock Text="{Binding ChampionName}" FontSize="10" FontWeight="Bold" Foreground="#F8FAFC" VerticalAlignment="Center" />
+                                                <Border Background="#7C3AED" CornerRadius="2" Padding="3,0" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding ChampionLevel, StringFormat='M{0}'}" FontSize="8" FontWeight="Bold" Foreground="#FFFFFF" />
                                                 </Border>
                                             </StackPanel>
                                         </Border>
@@ -385,31 +393,31 @@
 
                     <!-- Right: WinRate & Record Badge -->
                     <Border Grid.Column="2"
-                            Background="#091428"
-                            CornerRadius="8"
+                            Background="#181B2B"
+                            CornerRadius="10"
                             Padding="18,14"
-                            BorderBrush="#252D3D"
+                            BorderBrush="#252A42"
                             BorderThickness="1"
                             VerticalAlignment="Center">
                         <StackPanel Spacing="6" HorizontalAlignment="Right">
                             <TextBlock Text="{Binding Summoner.WinRate, StringFormat='Вінрейт: {0}%'}"
                                        FontSize="20"
                                        FontWeight="Bold"
-                                       Foreground="#0AC8B9"
+                                       Foreground="#A78BFA"
                                        HorizontalAlignment="Right" />
 
                             <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
                                 <TextBlock Text="{Binding Summoner.Wins, StringFormat='{}{0}W'}"
                                            FontSize="13"
                                            FontWeight="Bold"
-                                           Foreground="#5383E8" />
+                                           Foreground="#818CF8" />
                                 <TextBlock Text="{Binding Summoner.Losses, StringFormat='{}{0}L'}"
                                            FontSize="13"
                                            FontWeight="Bold"
-                                           Foreground="#E84057" />
+                                           Foreground="#F43F5E" />
                                 <TextBlock Text="{Binding Summoner.TotalGames, StringFormat='({0} матчів)'}"
                                            FontSize="12"
-                                           Foreground="#8A93A5" />
+                                           Foreground="#94A3B8" />
                             </StackPanel>
 
                             <!-- Win/Loss Ratio Progress Bar -->
@@ -418,8 +426,9 @@
                                          Maximum="{Binding Summoner.TotalGames}"
                                          Height="6"
                                          Width="150"
-                                         Foreground="#5383E8"
-                                         Background="#E84057"
+                                         CornerRadius="3"
+                                         Foreground="#818CF8"
+                                         Background="#F43F5E"
                                          Margin="0,2,0,0" />
                         </StackPanel>
                     </Border>
@@ -663,10 +672,10 @@
             </Border>
 
             <!-- 2.7 GLOBAL COACHING & ROLE MASTERY DASHBOARD -->
-            <Border Background="#101726"
-                    CornerRadius="10"
-                    Padding="20,16"
-                    BorderBrush="#2A3750"
+            <Border Background="#131522"
+                    CornerRadius="12"
+                    Padding="20,18"
+                    BorderBrush="#22263C"
                     BorderThickness="1"
                     IsVisible="{Binding HasCoachingData}">
                 <StackPanel Spacing="14">
@@ -676,18 +685,18 @@
                             <TextBlock Text="👑 ТАКТИЧНИЙ КОУЧИНГ ТА АНАЛІТИКА РОЛІ"
                                        FontSize="13"
                                        FontWeight="Bold"
-                                       Foreground="#C8AA6E"
+                                       Foreground="#C4B5FD"
                                        LetterSpacing="1.2"
                                        VerticalAlignment="Center" />
-                            <Border Background="#091428" CornerRadius="4" Padding="8,3" BorderBrush="#0AC8B9" BorderThickness="1" VerticalAlignment="Center">
+                            <Border Background="#181B2B" CornerRadius="6" Padding="8,3" BorderBrush="#7C3AED" BorderThickness="1" VerticalAlignment="Center">
                                 <StackPanel Orientation="Horizontal" Spacing="4">
-                                    <TextBlock Text="АНАЛІТИКА ЛІНІЇ:" FontSize="10" Foreground="#8A93A5" FontWeight="SemiBold" />
-                                    <TextBlock Text="{Binding CoachingReport.RoleName}" FontSize="10" Foreground="#0AC8B9" FontWeight="Bold" />
+                                    <TextBlock Text="АНАЛІТИКА ЛІНІЇ:" FontSize="10" Foreground="#94A3B8" FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding CoachingReport.RoleName}" FontSize="10" Foreground="#A78BFA" FontWeight="Bold" />
                                     <TextBlock Text="{Binding CoachingReport.RoleIcon}" FontSize="10" />
                                 </StackPanel>
                             </Border>
-                            <Border Background="#091428" CornerRadius="4" Padding="6,2" BorderBrush="#252D3D" BorderThickness="1" VerticalAlignment="Center">
-                                <TextBlock Text="{Binding CoachingReport.TotalMatchesAnalyzed, StringFormat='Матчів: {0}'}" FontSize="10" Foreground="#8A93A5" FontWeight="SemiBold" />
+                            <Border Background="#181B2B" CornerRadius="6" Padding="8,3" BorderBrush="#252A42" BorderThickness="1" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding CoachingReport.TotalMatchesAnalyzed, StringFormat='Матчів: {0}'}" FontSize="10" Foreground="#94A3B8" FontWeight="SemiBold" />
                             </Border>
                         </StackPanel>
 
@@ -696,7 +705,7 @@
                             <TextBlock Text="ЗАГАЛЬНА ОЦІНКА МАЙСТЕРНОСТІ:"
                                        FontSize="11"
                                        FontWeight="Bold"
-                                       Foreground="#8A93A5"
+                                       Foreground="#94A3B8"
                                        VerticalAlignment="Center" />
                             <Border Background="{Binding CoachingReport.OverallGradeColor}"
                                     CornerRadius="6"
@@ -705,144 +714,136 @@
                                 <TextBlock Text="{Binding CoachingReport.OverallGrade}"
                                            FontSize="15"
                                            FontWeight="Bold"
-                                           Foreground="#010A13" />
+                                           Foreground="#0B0C12" />
                             </Border>
                             <TextBlock Text="{Binding CoachingReport.OverallScore, StringFormat='{}{0} / 100'}"
                                        FontSize="14"
                                        FontWeight="Bold"
-                                       Foreground="#F0E6D2"
+                                       Foreground="#F8FAFC"
                                        VerticalAlignment="Center" />
                         </StackPanel>
                     </Grid>
 
                     <!-- 4 Skill Pillar Cards (Combat, Economy, Objectives, Survival) -->
-                    <Grid ColumnDefinitions="*, *, *, *" Margin="0,2">
+                    <Grid ColumnDefinitions="*, *, *, *" Margin="0,4">
                         <!-- Pillar 1: Combat -->
                         <Border Grid.Column="0"
-                                Background="#0A101D"
-                                CornerRadius="8"
-                                Padding="12,10"
-                                Margin="0,0,6,0"
-                                BorderBrush="#1C283E"
+                                Background="#161928"
+                                CornerRadius="10"
+                                Padding="14,12"
+                                Margin="0,0,4,0"
+                                BorderBrush="#24283E"
                                 BorderThickness="1">
                             <StackPanel Spacing="6">
-                                <Grid ColumnDefinitions="*, Auto">
-                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="5">
-                                        <TextBlock Text="{Binding CoachingReport.Combat.Icon}" FontSize="14" />
-                                        <TextBlock Text="{Binding CoachingReport.Combat.PillarName}" FontSize="11" FontWeight="Bold" Foreground="#F0E6D2" VerticalAlignment="Center" />
-                                    </StackPanel>
-                                    <Border Grid.Column="1" Background="{Binding CoachingReport.Combat.GradeColor}" CornerRadius="3" Padding="5,1">
-                                        <TextBlock Text="{Binding CoachingReport.Combat.Grade}" FontSize="10" FontWeight="Bold" Foreground="#010A13" />
+                                <Grid ColumnDefinitions="Auto, *, Auto" Margin="0,0,0,4">
+                                    <TextBlock Grid.Column="0" Text="{Binding CoachingReport.Combat.Icon}" FontSize="15" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                    <TextBlock Grid.Column="1" Text="{Binding CoachingReport.Combat.PillarName}" FontSize="11" FontWeight="Bold" Foreground="#F8FAFC" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                    <Border Grid.Column="2" Background="{Binding CoachingReport.Combat.GradeColor}" CornerRadius="4" Padding="6,1" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding CoachingReport.Combat.Grade}" FontSize="10" FontWeight="Bold" Foreground="#0B0C12" />
                                     </Border>
                                 </Grid>
-                                <TextBlock Text="{Binding CoachingReport.Combat.PlayerValueText}" FontSize="14" FontWeight="Bold" Foreground="#FFFFFF" />
+                                <TextBlock Text="{Binding CoachingReport.Combat.PlayerValueText}" FontSize="15" FontWeight="Bold" Foreground="#FFFFFF" />
                                 <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <TextBlock Text="{Binding CoachingReport.Combat.BenchmarkText}" FontSize="10" Foreground="#8A93A5" VerticalAlignment="Center" />
-                                    <Border Background="#121A28" CornerRadius="3" Padding="4,1">
+                                    <TextBlock Text="{Binding CoachingReport.Combat.BenchmarkText}" FontSize="10" Foreground="#94A3B8" VerticalAlignment="Center" />
+                                    <Border Background="#1B1E32" CornerRadius="3" Padding="5,1">
                                         <TextBlock Text="{Binding CoachingReport.Combat.DiffText}" FontSize="9" FontWeight="Bold" Foreground="{Binding CoachingReport.Combat.DiffColor}" />
                                     </Border>
                                 </StackPanel>
-                                <ProgressBar Value="{Binding CoachingReport.Combat.Score}" Minimum="0" Maximum="100" Height="4" CornerRadius="2" Foreground="{Binding CoachingReport.Combat.GradeColor}" Background="#1F283A" />
-                                <TextBlock Text="{Binding CoachingReport.Combat.Description}" FontSize="10" Foreground="#8A93A5" TextWrapping="Wrap" />
+                                <ProgressBar Value="{Binding CoachingReport.Combat.Score}" Minimum="0" Maximum="100" Height="5" CornerRadius="2.5" Foreground="{Binding CoachingReport.Combat.GradeColor}" Background="#1E2235" />
+                                <TextBlock Text="{Binding CoachingReport.Combat.Description}" FontSize="10" Foreground="#94A3B8" TextWrapping="Wrap" LineHeight="14" />
                             </StackPanel>
                         </Border>
 
                         <!-- Pillar 2: Economy / Farm -->
                         <Border Grid.Column="1"
-                                Background="#0A101D"
-                                CornerRadius="8"
-                                Padding="12,10"
-                                Margin="3,0,3,0"
-                                BorderBrush="#1C283E"
+                                Background="#161928"
+                                CornerRadius="10"
+                                Padding="14,12"
+                                Margin="2,0,2,0"
+                                BorderBrush="#24283E"
                                 BorderThickness="1">
                             <StackPanel Spacing="6">
-                                <Grid ColumnDefinitions="*, Auto">
-                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="5">
-                                        <TextBlock Text="{Binding CoachingReport.Economy.Icon}" FontSize="14" />
-                                        <TextBlock Text="{Binding CoachingReport.Economy.PillarName}" FontSize="11" FontWeight="Bold" Foreground="#F0E6D2" VerticalAlignment="Center" />
-                                    </StackPanel>
-                                    <Border Grid.Column="1" Background="{Binding CoachingReport.Economy.GradeColor}" CornerRadius="3" Padding="5,1">
-                                        <TextBlock Text="{Binding CoachingReport.Economy.Grade}" FontSize="10" FontWeight="Bold" Foreground="#010A13" />
+                                <Grid ColumnDefinitions="Auto, *, Auto" Margin="0,0,0,4">
+                                    <TextBlock Grid.Column="0" Text="{Binding CoachingReport.Economy.Icon}" FontSize="15" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                    <TextBlock Grid.Column="1" Text="{Binding CoachingReport.Economy.PillarName}" FontSize="11" FontWeight="Bold" Foreground="#F8FAFC" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                    <Border Grid.Column="2" Background="{Binding CoachingReport.Economy.GradeColor}" CornerRadius="4" Padding="6,1" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding CoachingReport.Economy.Grade}" FontSize="10" FontWeight="Bold" Foreground="#0B0C12" />
                                     </Border>
                                 </Grid>
-                                <TextBlock Text="{Binding CoachingReport.Economy.PlayerValueText}" FontSize="14" FontWeight="Bold" Foreground="#FFFFFF" />
+                                <TextBlock Text="{Binding CoachingReport.Economy.PlayerValueText}" FontSize="15" FontWeight="Bold" Foreground="#FFFFFF" />
                                 <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <TextBlock Text="{Binding CoachingReport.Economy.BenchmarkText}" FontSize="10" Foreground="#8A93A5" VerticalAlignment="Center" />
-                                    <Border Background="#121A28" CornerRadius="3" Padding="4,1">
+                                    <TextBlock Text="{Binding CoachingReport.Economy.BenchmarkText}" FontSize="10" Foreground="#94A3B8" VerticalAlignment="Center" />
+                                    <Border Background="#1B1E32" CornerRadius="3" Padding="5,1">
                                         <TextBlock Text="{Binding CoachingReport.Economy.DiffText}" FontSize="9" FontWeight="Bold" Foreground="{Binding CoachingReport.Economy.DiffColor}" />
                                     </Border>
                                 </StackPanel>
-                                <ProgressBar Value="{Binding CoachingReport.Economy.Score}" Minimum="0" Maximum="100" Height="4" CornerRadius="2" Foreground="{Binding CoachingReport.Economy.GradeColor}" Background="#1F283A" />
-                                <TextBlock Text="{Binding CoachingReport.Economy.Description}" FontSize="10" Foreground="#8A93A5" TextWrapping="Wrap" />
+                                <ProgressBar Value="{Binding CoachingReport.Economy.Score}" Minimum="0" Maximum="100" Height="5" CornerRadius="2.5" Foreground="{Binding CoachingReport.Economy.GradeColor}" Background="#1E2235" />
+                                <TextBlock Text="{Binding CoachingReport.Economy.Description}" FontSize="10" Foreground="#94A3B8" TextWrapping="Wrap" LineHeight="14" />
                             </StackPanel>
                         </Border>
 
                         <!-- Pillar 3: Map & Objectives -->
                         <Border Grid.Column="2"
-                                Background="#0A101D"
-                                CornerRadius="8"
-                                Padding="12,10"
-                                Margin="3,0,3,0"
-                                BorderBrush="#1C283E"
+                                Background="#161928"
+                                CornerRadius="10"
+                                Padding="14,12"
+                                Margin="2,0,2,0"
+                                BorderBrush="#24283E"
                                 BorderThickness="1">
                             <StackPanel Spacing="6">
-                                <Grid ColumnDefinitions="*, Auto">
-                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="5">
-                                        <TextBlock Text="{Binding CoachingReport.Objectives.Icon}" FontSize="14" />
-                                        <TextBlock Text="{Binding CoachingReport.Objectives.PillarName}" FontSize="11" FontWeight="Bold" Foreground="#F0E6D2" VerticalAlignment="Center" />
-                                    </StackPanel>
-                                    <Border Grid.Column="1" Background="{Binding CoachingReport.Objectives.GradeColor}" CornerRadius="3" Padding="5,1">
-                                        <TextBlock Text="{Binding CoachingReport.Objectives.Grade}" FontSize="10" FontWeight="Bold" Foreground="#010A13" />
+                                <Grid ColumnDefinitions="Auto, *, Auto" Margin="0,0,0,4">
+                                    <TextBlock Grid.Column="0" Text="{Binding CoachingReport.Objectives.Icon}" FontSize="15" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                    <TextBlock Grid.Column="1" Text="{Binding CoachingReport.Objectives.PillarName}" FontSize="11" FontWeight="Bold" Foreground="#F8FAFC" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                    <Border Grid.Column="2" Background="{Binding CoachingReport.Objectives.GradeColor}" CornerRadius="4" Padding="6,1" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding CoachingReport.Objectives.Grade}" FontSize="10" FontWeight="Bold" Foreground="#0B0C12" />
                                     </Border>
                                 </Grid>
-                                <TextBlock Text="{Binding CoachingReport.Objectives.PlayerValueText}" FontSize="14" FontWeight="Bold" Foreground="#FFFFFF" />
+                                <TextBlock Text="{Binding CoachingReport.Objectives.PlayerValueText}" FontSize="15" FontWeight="Bold" Foreground="#FFFFFF" />
                                 <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <TextBlock Text="{Binding CoachingReport.Objectives.BenchmarkText}" FontSize="10" Foreground="#8A93A5" VerticalAlignment="Center" />
-                                    <Border Background="#121A28" CornerRadius="3" Padding="4,1">
+                                    <TextBlock Text="{Binding CoachingReport.Objectives.BenchmarkText}" FontSize="10" Foreground="#94A3B8" VerticalAlignment="Center" />
+                                    <Border Background="#1B1E32" CornerRadius="3" Padding="5,1">
                                         <TextBlock Text="{Binding CoachingReport.Objectives.DiffText}" FontSize="9" FontWeight="Bold" Foreground="{Binding CoachingReport.Objectives.DiffColor}" />
                                     </Border>
                                 </StackPanel>
-                                <ProgressBar Value="{Binding CoachingReport.Objectives.Score}" Minimum="0" Maximum="100" Height="4" CornerRadius="2" Foreground="{Binding CoachingReport.Objectives.GradeColor}" Background="#1F283A" />
-                                <TextBlock Text="{Binding CoachingReport.Objectives.Description}" FontSize="10" Foreground="#8A93A5" TextWrapping="Wrap" />
+                                <ProgressBar Value="{Binding CoachingReport.Objectives.Score}" Minimum="0" Maximum="100" Height="5" CornerRadius="2.5" Foreground="{Binding CoachingReport.Objectives.GradeColor}" Background="#1E2235" />
+                                <TextBlock Text="{Binding CoachingReport.Objectives.Description}" FontSize="10" Foreground="#94A3B8" TextWrapping="Wrap" LineHeight="14" />
                             </StackPanel>
                         </Border>
 
                         <!-- Pillar 4: Survival -->
                         <Border Grid.Column="3"
-                                Background="#0A101D"
-                                CornerRadius="8"
-                                Padding="12,10"
-                                Margin="6,0,0,0"
-                                BorderBrush="#1C283E"
+                                Background="#161928"
+                                CornerRadius="10"
+                                Padding="14,12"
+                                Margin="4,0,0,0"
+                                BorderBrush="#24283E"
                                 BorderThickness="1">
                             <StackPanel Spacing="6">
-                                <Grid ColumnDefinitions="*, Auto">
-                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="5">
-                                        <TextBlock Text="{Binding CoachingReport.Survival.Icon}" FontSize="14" />
-                                        <TextBlock Text="{Binding CoachingReport.Survival.PillarName}" FontSize="11" FontWeight="Bold" Foreground="#F0E6D2" VerticalAlignment="Center" />
-                                    </StackPanel>
-                                    <Border Grid.Column="1" Background="{Binding CoachingReport.Survival.GradeColor}" CornerRadius="3" Padding="5,1">
-                                        <TextBlock Text="{Binding CoachingReport.Survival.Grade}" FontSize="10" FontWeight="Bold" Foreground="#010A13" />
+                                <Grid ColumnDefinitions="Auto, *, Auto" Margin="0,0,0,4">
+                                    <TextBlock Grid.Column="0" Text="{Binding CoachingReport.Survival.Icon}" FontSize="15" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                    <TextBlock Grid.Column="1" Text="{Binding CoachingReport.Survival.PillarName}" FontSize="11" FontWeight="Bold" Foreground="#F8FAFC" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                    <Border Grid.Column="2" Background="{Binding CoachingReport.Survival.GradeColor}" CornerRadius="4" Padding="6,1" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding CoachingReport.Survival.Grade}" FontSize="10" FontWeight="Bold" Foreground="#0B0C12" />
                                     </Border>
                                 </Grid>
-                                <TextBlock Text="{Binding CoachingReport.Survival.PlayerValueText}" FontSize="14" FontWeight="Bold" Foreground="#FFFFFF" />
+                                <TextBlock Text="{Binding CoachingReport.Survival.PlayerValueText}" FontSize="15" FontWeight="Bold" Foreground="#FFFFFF" />
                                 <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <TextBlock Text="{Binding CoachingReport.Survival.BenchmarkText}" FontSize="10" Foreground="#8A93A5" VerticalAlignment="Center" />
-                                    <Border Background="#121A28" CornerRadius="3" Padding="4,1">
+                                    <TextBlock Text="{Binding CoachingReport.Survival.BenchmarkText}" FontSize="10" Foreground="#94A3B8" VerticalAlignment="Center" />
+                                    <Border Background="#1B1E32" CornerRadius="3" Padding="5,1">
                                         <TextBlock Text="{Binding CoachingReport.Survival.DiffText}" FontSize="9" FontWeight="Bold" Foreground="{Binding CoachingReport.Survival.DiffColor}" />
                                     </Border>
                                 </StackPanel>
-                                <ProgressBar Value="{Binding CoachingReport.Survival.Score}" Minimum="0" Maximum="100" Height="4" CornerRadius="2" Foreground="{Binding CoachingReport.Survival.GradeColor}" Background="#1F283A" />
-                                <TextBlock Text="{Binding CoachingReport.Survival.Description}" FontSize="10" Foreground="#8A93A5" TextWrapping="Wrap" />
+                                <ProgressBar Value="{Binding CoachingReport.Survival.Score}" Minimum="0" Maximum="100" Height="5" CornerRadius="2.5" Foreground="{Binding CoachingReport.Survival.GradeColor}" Background="#1E2235" />
+                                <TextBlock Text="{Binding CoachingReport.Survival.Description}" FontSize="10" Foreground="#94A3B8" TextWrapping="Wrap" LineHeight="14" />
                             </StackPanel>
                         </Border>
                     </Grid>
 
                     <!-- Coaching Advice Box -->
-                    <Border Background="#091428"
-                            CornerRadius="6"
-                            Padding="12,10"
-                            BorderBrush="#1E2B3E"
+                    <Border Background="#1B1634"
+                            CornerRadius="8"
+                            Padding="14,10"
+                            BorderBrush="#7C3AED"
                             BorderThickness="1">
                         <Grid ColumnDefinitions="Auto, *" VerticalAlignment="Center">
                             <TextBlock Grid.Column="0" Text="🎓" FontSize="24" VerticalAlignment="Top" Margin="0,2,12,0" />
@@ -850,11 +851,11 @@
                                 <TextBlock Text="РЕКОМЕНДАЦІЇ ТРЕНЕРА:"
                                            FontSize="11"
                                            FontWeight="Bold"
-                                           Foreground="#C8AA6E"
+                                           Foreground="#C4B5FD"
                                            LetterSpacing="1.0" />
                                 <TextBlock Text="{Binding CoachingReport.CoachAdvice}"
                                            FontSize="12"
-                                           Foreground="#F0E6D2"
+                                           Foreground="#E2E8F0"
                                            TextWrapping="Wrap"
                                            LineHeight="18" />
                             </StackPanel>
@@ -869,7 +870,7 @@
                            Text="ІСТОРІЯ ОСТАННІХ МАТЧІВ"
                            FontWeight="Bold"
                            FontSize="14"
-                           Foreground="#C8AA6E"
+                           Foreground="#C4B5FD"
                            LetterSpacing="1.2"
                            VerticalAlignment="Center" />
 
@@ -878,22 +879,23 @@
                           ItemsSource="{Binding AvailableQueueFilters}"
                           SelectedItem="{Binding SelectedQueueFilter}"
                           Height="32"
-                          Width="140"
+                          Width="150"
                           FontSize="11"
                           VerticalContentAlignment="Center"
                           Margin="0,0,12,0" />
 
                 <!-- Match Count Pill -->
                 <Border Grid.Column="2"
-                        Background="#121824"
-                        CornerRadius="4"
-                        Padding="10,4"
-                        BorderBrush="#252D3D"
+                        Background="#161928"
+                        CornerRadius="6"
+                        Padding="12,5"
+                        BorderBrush="#252A42"
                         BorderThickness="1"
                         VerticalAlignment="Center">
                     <TextBlock Text="{Binding FilteredRecentMatches.Count, StringFormat='Показано матчів: {0}'}"
                                FontSize="11"
-                               Foreground="#8A93A5" />
+                               FontWeight="SemiBold"
+                               Foreground="#C4B5FD" />
                 </Border>
             </Grid>
 
@@ -914,27 +916,27 @@
 
                                 <!-- Card Vertical Content (Compact Row + Accordion Details) -->
                                 <StackPanel Grid.Column="1">
-                                     <!-- Top Main Row -->
-                                     <Grid ColumnDefinitions="110, 160, 135, 120, 105, *, 75" Margin="14,10">
+                                     <!-- Top Main Row with Dedicated Non-Overlapping Columns -->
+                                     <Grid ColumnDefinitions="115, 205, 130, 125, 110, *, 80" Margin="14,10">
                                          <!-- Col 0: Match Outcome & Time & LP Delta -->
-                                         <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                                         <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center" ClipToBounds="True">
                                              <TextBlock Text="{Binding GameModeText}"
                                                         FontWeight="Bold"
                                                         FontSize="11"
-                                                        Foreground="#A09B8C"
+                                                        Foreground="#94A3B8"
                                                         TextTrimming="CharacterEllipsis" />
                                              <TextBlock Text="{Binding FormattedTimeAgo}"
                                                         FontSize="10"
-                                                        Foreground="#657182" />
+                                                        Foreground="#64748B" />
                                              <!-- LP Delta (Prominent bold indicator like reference) -->
                                              <Border Background="{Binding LpChangeBg}"
-                                                     CornerRadius="3"
-                                                     Padding="5,1"
+                                                     CornerRadius="4"
+                                                     Padding="6,2"
                                                      HorizontalAlignment="Left"
                                                      Margin="0,2,0,2"
                                                      IsVisible="{Binding HasLpChange}">
                                                  <TextBlock Text="{Binding LpChangeText}"
-                                                            FontSize="13"
+                                                            FontSize="12"
                                                             FontWeight="Bold"
                                                             Foreground="{Binding LpChangeFg}" />
                                              </Border>
@@ -945,30 +947,30 @@
                                                             Foreground="{Binding ResultColor}" />
                                                  <TextBlock Text="{Binding FormattedDuration}"
                                                             FontSize="11"
-                                                            Foreground="#8A93A5"
+                                                            Foreground="#94A3B8"
                                                             VerticalAlignment="Center" />
                                              </StackPanel>
                                          </StackPanel>
 
-                                        <!-- Col 1: Champion & Level & Spells & Runes & Role -->
-                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                        <!-- Col 1: Champion & Level & Spells & Runes & Role (Spacious 205px) -->
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" ClipToBounds="True">
                                             <!-- Champion Avatar with Level Badge (Square rounded like reference) -->
-                                            <Grid Width="50" Height="50">
-                                                <Border Width="50" Height="50"
+                                            <Grid Width="46" Height="46">
+                                                <Border Width="46" Height="46"
                                                         CornerRadius="8"
                                                         ClipToBounds="True"
-                                                        Background="#091428"
+                                                        Background="#161928"
                                                         BorderBrush="{Binding AccentBarColor}"
                                                         BorderThickness="1.5">
                                                     <Image Source="{Binding ChampionIcon}"
-                                                           Width="50" Height="50"
+                                                           Width="46" Height="46"
                                                            Stretch="UniformToFill"
                                                            RenderOptions.BitmapInterpolationMode="HighQuality" />
                                                 </Border>
 
                                                 <!-- Champ Level Badge -->
-                                                <Border Background="#091428"
-                                                        BorderBrush="#252D3D"
+                                                <Border Background="#161928"
+                                                        BorderBrush="#252A42"
                                                         BorderThickness="1"
                                                         CornerRadius="5"
                                                         Padding="4,0"
@@ -985,53 +987,53 @@
                                             </Grid>
 
                                             <!-- Summoner Spells & Runes 2x2 Mini Grid -->
-                                            <Grid ColumnDefinitions="22, 22" RowDefinitions="22, 22">
+                                            <Grid ColumnDefinitions="21, 21" RowDefinitions="21, 21" Width="44" Height="44">
                                                 <!-- Spell 1 (top-left) -->
-                                                <Border Grid.Row="0" Grid.Column="0" Width="22" Height="22" CornerRadius="4" Background="#091428" BorderBrush="#253044" BorderThickness="1" ClipToBounds="True"
+                                                <Border Grid.Row="0" Grid.Column="0" Width="21" Height="21" CornerRadius="4" Background="#121422" BorderBrush="#222538" BorderThickness="1" ClipToBounds="True"
                                                         ToolTip.Tip="{Binding Summoner1Tooltip}">
-                                                    <Image Source="{Binding Summoner1Icon}" Width="22" Height="22" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality" />
+                                                    <Image Source="{Binding Summoner1Icon}" Width="21" Height="21" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality" />
                                                 </Border>
                                                 <!-- Spell 2 (bottom-left) -->
-                                                <Border Grid.Row="1" Grid.Column="0" Width="22" Height="22" CornerRadius="4" Background="#091428" BorderBrush="#253044" BorderThickness="1" ClipToBounds="True" Margin="0,2,0,0"
+                                                <Border Grid.Row="1" Grid.Column="0" Width="21" Height="21" CornerRadius="4" Background="#121422" BorderBrush="#222538" BorderThickness="1" ClipToBounds="True" Margin="0,2,0,0"
                                                         ToolTip.Tip="{Binding Summoner2Tooltip}">
-                                                    <Image Source="{Binding Summoner2Icon}" Width="22" Height="22" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality" />
+                                                    <Image Source="{Binding Summoner2Icon}" Width="21" Height="21" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality" />
                                                 </Border>
                                                 <!-- Keystone Rune (top-right) -->
-                                                <Border Grid.Row="0" Grid.Column="1" Width="22" Height="22" CornerRadius="11" Background="#091428" BorderBrush="#253044" BorderThickness="1" ClipToBounds="True" Margin="3,0,0,0"
+                                                <Border Grid.Row="0" Grid.Column="1" Width="21" Height="21" CornerRadius="10.5" Background="#121422" BorderBrush="#222538" BorderThickness="1" ClipToBounds="True" Margin="2,0,0,0"
                                                         ToolTip.Tip="Головна руна (Кістоун)">
-                                                    <Image Source="{Binding PrimaryRuneIcon}" Width="18" Height="18" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality" />
+                                                    <Image Source="{Binding PrimaryRuneIcon}" Width="17" Height="17" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality" />
                                                 </Border>
                                                 <!-- Secondary Style Rune (bottom-right) -->
-                                                <Border Grid.Row="1" Grid.Column="1" Width="22" Height="22" CornerRadius="11" Background="#091428" BorderBrush="#253044" BorderThickness="1" ClipToBounds="True" Margin="3,2,0,0"
+                                                <Border Grid.Row="1" Grid.Column="1" Width="21" Height="21" CornerRadius="10.5" Background="#121422" BorderBrush="#222538" BorderThickness="1" ClipToBounds="True" Margin="2,2,0,0"
                                                         ToolTip.Tip="Вторинна гілка рун">
                                                     <Image Source="{Binding SecondaryRuneIcon}" Width="15" Height="15" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality" />
                                                 </Border>
                                             </Grid>
 
-                                            <!-- Champion Name & Position Pill -->
-                                            <StackPanel VerticalAlignment="Center" Spacing="2">
+                                            <!-- Champion Name & Position Pill (Never overlaps Col 2) -->
+                                            <StackPanel VerticalAlignment="Center" Spacing="2" ClipToBounds="True">
                                                 <TextBlock Text="{Binding ChampionName}"
                                                            FontWeight="Bold"
                                                            FontSize="13"
-                                                           Foreground="#F0E6D2"
+                                                           Foreground="#F8FAFC"
                                                            TextTrimming="CharacterEllipsis"
-                                                           MaxWidth="68" />
-                                                <Border Background="#091428"
-                                                        CornerRadius="3"
-                                                        Padding="4,1"
+                                                           MaxWidth="92" />
+                                                <Border Background="#181B2B"
+                                                        CornerRadius="4"
+                                                        Padding="5,1"
                                                         HorizontalAlignment="Left"
-                                                        BorderBrush="#252D3D"
+                                                        BorderBrush="#252A42"
                                                         BorderThickness="1">
                                                     <StackPanel Orientation="Horizontal" Spacing="3">
                                                         <TextBlock Text="{Binding PositionIcon}" FontSize="9" />
-                                                        <TextBlock Text="{Binding PositionName}" FontSize="8" Foreground="#8A93A5" FontWeight="Bold" />
+                                                        <TextBlock Text="{Binding PositionName}" FontSize="8" Foreground="#A5B4FC" FontWeight="Bold" />
                                                     </StackPanel>
                                                 </Border>
                                             </StackPanel>
                                         </StackPanel>
 
-                                        <!-- Col 2: KDA, Ratio & CS -->
-                                        <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="2">
+                                        <!-- Col 2: KDA, Ratio & CS (130px with safe margin) -->
+                                        <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="2" Margin="6,0,0,0" ClipToBounds="True">
                                             <TextBlock Text="{Binding KdaText}"
                                                        FontWeight="Bold"
                                                        FontSize="15"
@@ -1044,13 +1046,13 @@
                                                 <TextBlock Text="•" FontSize="10" Foreground="#4A5468" VerticalAlignment="Center" />
                                                 <TextBlock Text="{Binding CsText}"
                                                            FontSize="10"
-                                                           Foreground="#8A93A5" />
+                                                           Foreground="#CBD5E1" />
                                             </StackPanel>
                                             <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,1,0,0">
-                                                <Border Background="#091428"
-                                                        CornerRadius="3"
-                                                        Padding="4,1"
-                                                        BorderBrush="#252D3D"
+                                                <Border Background="#1B1634"
+                                                        CornerRadius="4"
+                                                        Padding="5,1"
+                                                        BorderBrush="#7C3AED"
                                                         BorderThickness="1">
                                                     <TextBlock Text="{Binding KillParticipationText}"
                                                                FontSize="9"
@@ -1059,8 +1061,8 @@
                                                 </Border>
                                                 <!-- MultiKill Badge -->
                                                 <Border Background="{Binding MultiKillBg}"
-                                                        CornerRadius="3"
-                                                        Padding="4,1"
+                                                        CornerRadius="4"
+                                                        Padding="5,1"
                                                         IsVisible="{Binding HasMultiKill}">
                                                     <TextBlock Text="{Binding MultiKillText}"
                                                                FontSize="8"
@@ -1070,62 +1072,62 @@
                                             </StackPanel>
                                         </StackPanel>
 
-                                        <!-- Col 3: Items Grid (2 rows x 3 items + Trinket) -->
+                                        <!-- Col 3: Items Grid (2 rows x 3 items + Trinket, 125px) -->
                                         <StackPanel Grid.Column="3" VerticalAlignment="Center" Spacing="2" HorizontalAlignment="Center">
                                             <!-- Top row: 3 items + trinket -->
                                             <StackPanel Orientation="Horizontal" Spacing="2">
-                                                <Border Classes="item-slot" Width="28" Height="28" CornerRadius="4" Background="#10141D" BorderBrush="#20293A" BorderThickness="1" ClipToBounds="True"
+                                                <Border Classes="item-slot" Width="27" Height="27" CornerRadius="4" Background="#0E101A" BorderBrush="#222538" BorderThickness="1" ClipToBounds="True"
                                                         ToolTip.Tip="{Binding ItemSlot0.ToolTipText}">
-                                                    <Image Source="{Binding ItemSlot0.ItemIcon}" Width="28" Height="28" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality" IsVisible="{Binding ItemSlot0.HasItem}" />
+                                                    <Image Source="{Binding ItemSlot0.ItemIcon}" Width="27" Height="27" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality" IsVisible="{Binding ItemSlot0.HasItem}" />
                                                 </Border>
-                                                <Border Classes="item-slot" Width="28" Height="28" CornerRadius="4" Background="#10141D" BorderBrush="#20293A" BorderThickness="1" ClipToBounds="True"
+                                                <Border Classes="item-slot" Width="27" Height="27" CornerRadius="4" Background="#0E101A" BorderBrush="#222538" BorderThickness="1" ClipToBounds="True"
                                                         ToolTip.Tip="{Binding ItemSlot1.ToolTipText}">
-                                                    <Image Source="{Binding ItemSlot1.ItemIcon}" Width="28" Height="28" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality" IsVisible="{Binding ItemSlot1.HasItem}" />
+                                                    <Image Source="{Binding ItemSlot1.ItemIcon}" Width="27" Height="27" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality" IsVisible="{Binding ItemSlot1.HasItem}" />
                                                 </Border>
-                                                <Border Classes="item-slot" Width="28" Height="28" CornerRadius="4" Background="#10141D" BorderBrush="#20293A" BorderThickness="1" ClipToBounds="True"
+                                                <Border Classes="item-slot" Width="27" Height="27" CornerRadius="4" Background="#0E101A" BorderBrush="#222538" BorderThickness="1" ClipToBounds="True"
                                                         ToolTip.Tip="{Binding ItemSlot2.ToolTipText}">
-                                                    <Image Source="{Binding ItemSlot2.ItemIcon}" Width="28" Height="28" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality" IsVisible="{Binding ItemSlot2.HasItem}" />
+                                                    <Image Source="{Binding ItemSlot2.ItemIcon}" Width="27" Height="27" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality" IsVisible="{Binding ItemSlot2.HasItem}" />
                                                 </Border>
                                                 <!-- Trinket -->
-                                                <Border Classes="item-slot" Width="28" Height="28" CornerRadius="4" Background="#10141D" BorderBrush="#C8AA6E" BorderThickness="1" ClipToBounds="True" Margin="2,0,0,0"
+                                                <Border Classes="item-slot" Width="27" Height="27" CornerRadius="4" Background="#0E101A" BorderBrush="#7C3AED" BorderThickness="1" ClipToBounds="True" Margin="2,0,0,0"
                                                         ToolTip.Tip="{Binding PlayerTrinket.ToolTipText}">
-                                                    <Image Source="{Binding PlayerTrinket.ItemIcon}" Width="28" Height="28" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality" IsVisible="{Binding PlayerTrinket.HasItem}" />
+                                                    <Image Source="{Binding PlayerTrinket.ItemIcon}" Width="27" Height="27" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality" IsVisible="{Binding PlayerTrinket.HasItem}" />
                                                 </Border>
                                             </StackPanel>
                                             <!-- Bottom row: 3 items -->
                                             <StackPanel Orientation="Horizontal" Spacing="2">
-                                                <Border Classes="item-slot" Width="28" Height="28" CornerRadius="4" Background="#10141D" BorderBrush="#20293A" BorderThickness="1" ClipToBounds="True"
+                                                <Border Classes="item-slot" Width="27" Height="27" CornerRadius="4" Background="#0E101A" BorderBrush="#222538" BorderThickness="1" ClipToBounds="True"
                                                         ToolTip.Tip="{Binding ItemSlot3.ToolTipText}">
-                                                    <Image Source="{Binding ItemSlot3.ItemIcon}" Width="28" Height="28" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality" IsVisible="{Binding ItemSlot3.HasItem}" />
+                                                    <Image Source="{Binding ItemSlot3.ItemIcon}" Width="27" Height="27" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality" IsVisible="{Binding ItemSlot3.HasItem}" />
                                                 </Border>
-                                                <Border Classes="item-slot" Width="28" Height="28" CornerRadius="4" Background="#10141D" BorderBrush="#20293A" BorderThickness="1" ClipToBounds="True"
+                                                <Border Classes="item-slot" Width="27" Height="27" CornerRadius="4" Background="#0E101A" BorderBrush="#222538" BorderThickness="1" ClipToBounds="True"
                                                         ToolTip.Tip="{Binding ItemSlot4.ToolTipText}">
-                                                    <Image Source="{Binding ItemSlot4.ItemIcon}" Width="28" Height="28" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality" IsVisible="{Binding ItemSlot4.HasItem}" />
+                                                    <Image Source="{Binding ItemSlot4.ItemIcon}" Width="27" Height="27" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality" IsVisible="{Binding ItemSlot4.HasItem}" />
                                                 </Border>
-                                                <Border Classes="item-slot" Width="28" Height="28" CornerRadius="4" Background="#10141D" BorderBrush="#20293A" BorderThickness="1" ClipToBounds="True"
+                                                <Border Classes="item-slot" Width="27" Height="27" CornerRadius="4" Background="#0E101A" BorderBrush="#222538" BorderThickness="1" ClipToBounds="True"
                                                         ToolTip.Tip="{Binding ItemSlot5.ToolTipText}">
-                                                    <Image Source="{Binding ItemSlot5.ItemIcon}" Width="28" Height="28" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality" IsVisible="{Binding ItemSlot5.HasItem}" />
+                                                    <Image Source="{Binding ItemSlot5.ItemIcon}" Width="27" Height="27" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality" IsVisible="{Binding ItemSlot5.HasItem}" />
                                                 </Border>
                                                 <!-- Align space for trinket -->
-                                                <Border Width="28" Height="28" Margin="2,0,0,0" Background="Transparent" />
+                                                <Border Width="27" Height="27" Margin="2,0,0,0" Background="Transparent" />
                                             </StackPanel>
                                         </StackPanel>
 
-                                        <!-- Col 4: Performance & Coach Tag -->
+                                        <!-- Col 4: Performance & Coach Tag (110px) -->
                                         <StackPanel Grid.Column="4" VerticalAlignment="Center" Spacing="2" HorizontalAlignment="Center">
                                             <StackPanel Orientation="Horizontal" Spacing="4">
                                                 <!-- Grade Badge -->
                                                 <Border Background="{Binding MatchGradeBg}"
-                                                        CornerRadius="3"
+                                                        CornerRadius="4"
                                                         Padding="5,1">
                                                     <TextBlock Text="{Binding MatchGrade}"
                                                                FontSize="10"
                                                                FontWeight="Bold"
-                                                               Foreground="#010A13" />
+                                                               Foreground="#0B0C12" />
                                                 </Border>
                                                 <!-- MVP / ACE Badge -->
                                                 <Border Background="{Binding PerformanceBadgeBg}"
-                                                        CornerRadius="3"
+                                                        CornerRadius="4"
                                                         Padding="5,1"
                                                         IsVisible="{Binding HasPerformanceBadge}">
                                                     <TextBlock Text="{Binding PerformanceBadgeText}"
@@ -1135,24 +1137,24 @@
                                                 </Border>
                                             </StackPanel>
                                             <!-- Coaching Badge (e.g. Hard Carry, CS Monster, etc.) -->
-                                            <Border Background="#1A2638"
-                                                    CornerRadius="3"
+                                            <Border Background="#1B1634"
+                                                    CornerRadius="4"
                                                     Padding="5,1"
-                                                    BorderBrush="#2C3B52"
+                                                    BorderBrush="#7C3AED"
                                                     BorderThickness="1"
                                                     IsVisible="{Binding HasCoachingBadge}">
                                                 <TextBlock Text="{Binding CoachingBadgeText}"
                                                            FontSize="8"
                                                            FontWeight="SemiBold"
-                                                           Foreground="#0AC8B9" />
+                                                           Foreground="#C4B5FD" />
                                             </Border>
                                             <TextBlock Text="{Binding DamageText}"
                                                        FontSize="10"
                                                        FontWeight="SemiBold"
-                                                       Foreground="#E84057" />
+                                                       Foreground="#FB7185" />
                                             <TextBlock Text="{Binding VisionScoreText}"
                                                        FontSize="9"
-                                                       Foreground="#8A93A5" />
+                                                       Foreground="#94A3B8" />
                                         </StackPanel>
 
                                         <!-- Col 5: 10-Player Team Rosters (Blue vs Red) -->
@@ -1162,7 +1164,7 @@
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate x:DataType="vm:MiniParticipantViewModel">
                                                         <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,1">
-                                                            <Border Width="16" Height="16" CornerRadius="3" ClipToBounds="True" Background="#091428">
+                                                            <Border Width="16" Height="16" CornerRadius="3" ClipToBounds="True" Background="#161928">
                                                                 <Image Source="{Binding ChampionIcon}" Width="16" Height="16" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality" />
                                                             </Border>
                                                             <TextBlock Text="{Binding DisplayName}"
@@ -1170,7 +1172,7 @@
                                                                        Foreground="{Binding NameColor}"
                                                                        FontWeight="{Binding NameWeight}"
                                                                        TextTrimming="CharacterEllipsis"
-                                                                       MaxWidth="80"
+                                                                       MaxWidth="88"
                                                                        IsVisible="{Binding IsCurrentPlayer}"
                                                                        ToolTip.Tip="{Binding ToolTipText}" />
                                                             <Button Classes="player-link"
@@ -1183,7 +1185,7 @@
                                                                            Foreground="{Binding NameColor}"
                                                                            FontWeight="{Binding NameWeight}"
                                                                            TextTrimming="CharacterEllipsis"
-                                                                           MaxWidth="80" />
+                                                                           MaxWidth="88" />
                                                             </Button>
                                                         </StackPanel>
                                                     </DataTemplate>
@@ -1195,7 +1197,7 @@
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate x:DataType="vm:MiniParticipantViewModel">
                                                         <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,1">
-                                                            <Border Width="16" Height="16" CornerRadius="3" ClipToBounds="True" Background="#091428">
+                                                            <Border Width="16" Height="16" CornerRadius="3" ClipToBounds="True" Background="#161928">
                                                                 <Image Source="{Binding ChampionIcon}" Width="16" Height="16" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality" />
                                                             </Border>
                                                             <TextBlock Text="{Binding DisplayName}"
@@ -1203,7 +1205,7 @@
                                                                        Foreground="{Binding NameColor}"
                                                                        FontWeight="{Binding NameWeight}"
                                                                        TextTrimming="CharacterEllipsis"
-                                                                       MaxWidth="80"
+                                                                       MaxWidth="88"
                                                                        IsVisible="{Binding IsCurrentPlayer}"
                                                                        ToolTip.Tip="{Binding ToolTipText}" />
                                                             <Button Classes="player-link"
@@ -1216,7 +1218,7 @@
                                                                            Foreground="{Binding NameColor}"
                                                                            FontWeight="{Binding NameWeight}"
                                                                            TextTrimming="CharacterEllipsis"
-                                                                           MaxWidth="80" />
+                                                                           MaxWidth="88" />
                                                             </Button>
                                                         </StackPanel>
                                                     </DataTemplate>
@@ -1230,10 +1232,10 @@
                                                 Content="{Binding ExpandButtonText}"
                                                 Command="{Binding ToggleExpandCommand}"
                                                 Foreground="{Binding ExpandButtonColor}"
-                                                Background="#091428"
-                                                BorderBrush="#252D3D"
+                                                Background="#181B2B"
+                                                BorderBrush="#252A42"
                                                 BorderThickness="1"
-                                                CornerRadius="4"
+                                                CornerRadius="6"
                                                 FontSize="11"
                                                 FontWeight="SemiBold"
                                                 Padding="8,5"
@@ -1244,7 +1246,7 @@
 
                                     <!-- Expanded 5v5 Match Details Accordion Panel -->
                                     <Border IsVisible="{Binding IsExpanded}"
-                                            Background="#0A0E17"
+                                            Background="#0E101B"
                                             BorderBrush="{Binding ResultBorderColor}"
                                             BorderThickness="0,1,0,0"
                                             Padding="14,10">
@@ -1254,10 +1256,10 @@
                                                 <Button Command="{Binding ShowScoreboardTabCommand}"
                                                         Background="{Binding ScoreboardTabBg}"
                                                         Foreground="{Binding ScoreboardTabFg}"
-                                                        BorderBrush="#252D3D"
+                                                        BorderBrush="#252A42"
                                                         BorderThickness="1"
                                                         CornerRadius="6"
-                                                        Padding="12,6"
+                                                        Padding="14,6"
                                                         FontSize="11"
                                                         FontWeight="Bold"
                                                         Cursor="Hand">
@@ -1266,10 +1268,10 @@
                                                 <Button Command="{Binding ShowTacticalTabCommand}"
                                                         Background="{Binding TacticalTabBg}"
                                                         Foreground="{Binding TacticalTabFg}"
-                                                        BorderBrush="#252D3D"
+                                                        BorderBrush="#252A42"
                                                         BorderThickness="1"
                                                         CornerRadius="6"
-                                                        Padding="12,6"
+                                                        Padding="14,6"
                                                         FontSize="11"
                                                         FontWeight="Bold"
                                                         Cursor="Hand">
@@ -1280,39 +1282,39 @@
                                             <!-- TAB 1: 5V5 TEAMS SCOREBOARD -->
                                             <StackPanel Spacing="10" IsVisible="{Binding IsScoreboardTabActive}">
                                                 <!-- BLUE TEAM TABLE -->
-                                                <Border Background="#0F1726" CornerRadius="6" BorderBrush="#1C2B42" BorderThickness="1" Padding="10">
+                                                <Border Background="#121524" CornerRadius="8" BorderBrush="#22263C" BorderThickness="1" Padding="10">
                                                     <StackPanel Spacing="4">
                                                         <!-- Team Header -->
-                                                        <Grid ColumnDefinitions="260, 95, 160, 120, *" Margin="4,2">
-                                                            <TextBlock Grid.Column="0" Text="🔷 СИНЯ КОМАНДА" FontWeight="Bold" FontSize="12" Foreground="#5383E8" />
-                                                            <TextBlock Grid.Column="1" Text="KDA" FontWeight="Bold" FontSize="11" Foreground="#8A93A5" />
-                                                            <TextBlock Grid.Column="2" Text="ШКОДА ЧЕМПІОНАМ" FontWeight="Bold" FontSize="11" Foreground="#8A93A5" />
-                                                            <TextBlock Grid.Column="3" Text="ФАРМ / ЗОЛОТО" FontWeight="Bold" FontSize="11" Foreground="#8A93A5" />
-                                                            <TextBlock Grid.Column="4" Text="ПРЕДМЕТИ (6 + ВАРД)" FontWeight="Bold" FontSize="11" Foreground="#8A93A5" />
+                                                        <Grid ColumnDefinitions="280, 95, 150, 115, *" Margin="4,2">
+                                                            <TextBlock Grid.Column="0" Text="🔷 СИНЯ КОМАНДА" FontWeight="Bold" FontSize="12" Foreground="#818CF8" />
+                                                            <TextBlock Grid.Column="1" Text="KDA" FontWeight="Bold" FontSize="11" Foreground="#94A3B8" />
+                                                            <TextBlock Grid.Column="2" Text="ШКОДА ЧЕМПІОНАМ" FontWeight="Bold" FontSize="11" Foreground="#94A3B8" />
+                                                            <TextBlock Grid.Column="3" Text="ФАРМ / ЗОЛОТО" FontWeight="Bold" FontSize="11" Foreground="#94A3B8" />
+                                                            <TextBlock Grid.Column="4" Text="ПРЕДМЕТИ (6 + ВАРД)" FontWeight="Bold" FontSize="11" Foreground="#94A3B8" />
                                                         </Grid>
 
                                                         <ItemsControl ItemsSource="{Binding BlueTeamDetailed}">
                                                             <ItemsControl.ItemTemplate>
                                                                 <DataTemplate x:DataType="vm:DetailedParticipantViewModel">
-                                                                    <Border Background="#0D131F" CornerRadius="4" Padding="6,4" Margin="0,1">
-                                                                        <Grid ColumnDefinitions="260, 95, 160, 120, *">
+                                                                    <Border Background="#16192A" CornerRadius="6" Padding="6,4" Margin="0,1" BorderBrush="#202438" BorderThickness="1">
+                                                                        <Grid ColumnDefinitions="280, 95, 150, 115, *">
                                                                              <!-- Player Info with Clickable Link -->
-                                                                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
-                                                                                <Border Width="28" Height="28" CornerRadius="14" ClipToBounds="True" Background="#091428" BorderBrush="#252D3D" BorderThickness="1">
-                                                                                    <Image Source="{Binding ChampionIcon}" Width="28" Height="28" Stretch="UniformToFill" />
+                                                                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center" ClipToBounds="True">
+                                                                                <Border Width="28" Height="28" CornerRadius="6" ClipToBounds="True" Background="#121422" BorderBrush="#252A42" BorderThickness="1">
+                                                                                    <Image Source="{Binding ChampionIcon}" Width="28" Height="28" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality" />
                                                                                 </Border>
                                                                                 <!-- Mini Spells & Rune -->
                                                                                 <StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
                                                                                     <StackPanel Spacing="1">
                                                                                         <Border Width="13" Height="13" CornerRadius="2" ClipToBounds="True" ToolTip.Tip="{Binding Summoner1Tooltip}">
-                                                                                            <Image Source="{Binding Summoner1Icon}" Width="13" Height="13" Stretch="UniformToFill" />
+                                                                                            <Image Source="{Binding Summoner1Icon}" Width="13" Height="13" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality" />
                                                                                         </Border>
                                                                                         <Border Width="13" Height="13" CornerRadius="2" ClipToBounds="True" ToolTip.Tip="{Binding Summoner2Tooltip}">
-                                                                                            <Image Source="{Binding Summoner2Icon}" Width="13" Height="13" Stretch="UniformToFill" />
+                                                                                            <Image Source="{Binding Summoner2Icon}" Width="13" Height="13" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality" />
                                                                                         </Border>
                                                                                     </StackPanel>
-                                                                                    <Border Width="15" Height="15" CornerRadius="7" Background="#091428" ClipToBounds="True" VerticalAlignment="Center">
-                                                                                        <Image Source="{Binding PrimaryRuneIcon}" Width="15" Height="15" Stretch="UniformToFill" />
+                                                                                    <Border Width="15" Height="15" CornerRadius="7.5" Background="#121422" ClipToBounds="True" VerticalAlignment="Center">
+                                                                                        <Image Source="{Binding PrimaryRuneIcon}" Width="15" Height="15" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality" />
                                                                                     </Border>
                                                                                 </StackPanel>
                                                                                 <!-- Match Grade Pill -->
@@ -1323,7 +1325,7 @@
                                                                                     <TextBlock Text="{Binding MatchGrade}"
                                                                                                FontSize="9"
                                                                                                FontWeight="Bold"
-                                                                                               Foreground="#010A13" />
+                                                                                               Foreground="#0B0C12" />
                                                                                 </Border>
                                                                                 <Border Background="{Binding BadgeBg}"
                                                                                         CornerRadius="3"
@@ -1333,7 +1335,7 @@
                                                                                     <TextBlock Text="{Binding BadgeText}"
                                                                                                FontSize="9"
                                                                                                FontWeight="Bold"
-                                                                                               Foreground="#010A13" />
+                                                                                               Foreground="#FFFFFF" />
                                                                                 </Border>
                                                                                 <TextBlock Text="{Binding PositionIcon}" FontSize="12" VerticalAlignment="Center" />
                                                                                 <TextBlock Text="{Binding DisplayName}"
@@ -1342,7 +1344,7 @@
                                                                                            Foreground="{Binding NameColor}"
                                                                                            VerticalAlignment="Center"
                                                                                            TextTrimming="CharacterEllipsis"
-                                                                                           MaxWidth="110"
+                                                                                           MaxWidth="115"
                                                                                            IsVisible="{Binding IsCurrentPlayer}"
                                                                                            ToolTip.Tip="{Binding ToolTipText}" />
                                                                                 <Button Classes="player-link"
@@ -1356,20 +1358,20 @@
                                                                                                Foreground="{Binding NameColor}"
                                                                                                VerticalAlignment="Center"
                                                                                                TextTrimming="CharacterEllipsis"
-                                                                                               MaxWidth="110" />
+                                                                                               MaxWidth="115" />
                                                                                 </Button>
-                                                                                <TextBlock Text="{Binding ChampLevelText, StringFormat='lvl {0}'}" FontSize="10" Foreground="#657182" VerticalAlignment="Center" />
+                                                                                <TextBlock Text="{Binding ChampLevelText, StringFormat='lvl {0}'}" FontSize="10" Foreground="#64748B" VerticalAlignment="Center" />
                                                                             </StackPanel>
 
                                                                             <!-- KDA -->
                                                                             <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
                                                                                 <TextBlock Text="{Binding KdaText}" FontSize="12" FontWeight="Bold" Foreground="#FFFFFF" />
-                                                                                <TextBlock Text="{Binding KdaRatioText}" FontSize="10" Foreground="#8A93A5" />
+                                                                                <TextBlock Text="{Binding KdaRatioText}" FontSize="10" Foreground="#94A3B8" />
                                                                             </StackPanel>
 
                                                                             <!-- Damage bar (strictly bounded) -->
                                                                             <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="2" ClipToBounds="True">
-                                                                                <TextBlock Text="{Binding DamageText}" FontSize="11" FontWeight="Bold" Foreground="#E84057" />
+                                                                                <TextBlock Text="{Binding DamageText}" FontSize="11" FontWeight="Bold" Foreground="#FB7185" />
                                                                                 <ProgressBar Value="{Binding DamagePercentOfMax}"
                                                                                              Minimum="0"
                                                                                              Maximum="100"
@@ -1379,16 +1381,16 @@
                                                                                              Height="6"
                                                                                              ClipToBounds="True"
                                                                                              CornerRadius="3"
-                                                                                             Foreground="#E84057"
-                                                                                             Background="#1F2633"
+                                                                                             Foreground="#FB7185"
+                                                                                             Background="#1E2235"
                                                                                              HorizontalAlignment="Left" />
                                                                             </StackPanel>
 
                                                                             <!-- Farm, Gold & Vision -->
                                                                             <StackPanel Grid.Column="3" VerticalAlignment="Center" Spacing="1">
-                                                                                <TextBlock Text="{Binding CsText, StringFormat='{}{0} CS'}" FontSize="11" Foreground="#F0E6D2" />
-                                                                                <TextBlock Text="{Binding GoldText}" FontSize="11" Foreground="#C8AA6E" />
-                                                                                <TextBlock Text="{Binding VisionText, StringFormat='W: {0}'}" FontSize="9" Foreground="#8A93A5" />
+                                                                                <TextBlock Text="{Binding CsText, StringFormat='{}{0} CS'}" FontSize="11" Foreground="#F8FAFC" />
+                                                                                <TextBlock Text="{Binding GoldText}" FontSize="11" Foreground="#C4B5FD" />
+                                                                                <TextBlock Text="{Binding VisionText, StringFormat='W: {0}'}" FontSize="9" Foreground="#94A3B8" />
                                                                             </StackPanel>
 
                                                                             <!-- Items with Tooltips -->
@@ -1401,18 +1403,18 @@
                                                                                     </ItemsControl.ItemsPanel>
                                                                                     <ItemsControl.ItemTemplate>
                                                                                         <DataTemplate x:DataType="vm:ItemSlotViewModel">
-                                                                                            <Border Width="24" Height="24" CornerRadius="3" Background="#141B28" BorderBrush="#253044" BorderThickness="1" ClipToBounds="True"
+                                                                                            <Border Width="24" Height="24" CornerRadius="3" Background="#0E101A" BorderBrush="#222538" BorderThickness="1" ClipToBounds="True"
                                                                                                     ToolTip.Tip="{Binding ToolTipText}">
-                                                                                                <Image Source="{Binding ItemIcon}" Width="24" Height="24" Stretch="UniformToFill" IsVisible="{Binding HasItem}" />
+                                                                                                <Image Source="{Binding ItemIcon}" Width="24" Height="24" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality" IsVisible="{Binding HasItem}" />
                                                                                             </Border>
                                                                                         </DataTemplate>
                                                                                     </ItemsControl.ItemTemplate>
                                                                                 </ItemsControl>
 
                                                                                 <!-- Trinket with Tooltip -->
-                                                                                <Border Width="24" Height="24" CornerRadius="12" Background="#141B28" BorderBrush="#C8AA6E" BorderThickness="1" ClipToBounds="True" Margin="3,0,0,0"
+                                                                                <Border Width="24" Height="24" CornerRadius="3" Background="#0E101A" BorderBrush="#7C3AED" BorderThickness="1" ClipToBounds="True" Margin="3,0,0,0"
                                                                                         ToolTip.Tip="{Binding Trinket.ToolTipText}">
-                                                                                    <Image Source="{Binding Trinket.ItemIcon}" Width="24" Height="24" Stretch="UniformToFill" IsVisible="{Binding Trinket.HasItem}" />
+                                                                                    <Image Source="{Binding Trinket.ItemIcon}" Width="24" Height="24" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality" IsVisible="{Binding Trinket.HasItem}" />
                                                                                 </Border>
                                                                             </StackPanel>
                                                                         </Grid>
@@ -1424,39 +1426,39 @@
                                                 </Border>
 
                                                 <!-- RED TEAM TABLE -->
-                                                <Border Background="#1A1116" CornerRadius="6" BorderBrush="#421C27" BorderThickness="1" Padding="10">
+                                                <Border Background="#1E121A" CornerRadius="8" BorderBrush="#3E1C2B" BorderThickness="1" Padding="10">
                                                     <StackPanel Spacing="4">
                                                         <!-- Team Header -->
-                                                        <Grid ColumnDefinitions="260, 95, 160, 120, *" Margin="4,2">
-                                                            <TextBlock Grid.Column="0" Text="🛑 ЧЕРВОНА КОМАНДА" FontWeight="Bold" FontSize="12" Foreground="#E84057" />
-                                                            <TextBlock Grid.Column="1" Text="KDA" FontWeight="Bold" FontSize="11" Foreground="#8A93A5" />
-                                                            <TextBlock Grid.Column="2" Text="ШКОДА ЧЕМПІОНАМ" FontWeight="Bold" FontSize="11" Foreground="#8A93A5" />
-                                                            <TextBlock Grid.Column="3" Text="ФАРМ / ЗОЛОТО" FontWeight="Bold" FontSize="11" Foreground="#8A93A5" />
-                                                            <TextBlock Grid.Column="4" Text="ПРЕДМЕТИ (6 + ВАРД)" FontWeight="Bold" FontSize="11" Foreground="#8A93A5" />
+                                                        <Grid ColumnDefinitions="280, 95, 150, 115, *" Margin="4,2">
+                                                            <TextBlock Grid.Column="0" Text="🔴 ЧЕРВОНА КОМАНДА" FontWeight="Bold" FontSize="12" Foreground="#FB7185" />
+                                                            <TextBlock Grid.Column="1" Text="KDA" FontWeight="Bold" FontSize="11" Foreground="#94A3B8" />
+                                                            <TextBlock Grid.Column="2" Text="ШКОДА ЧЕМПІОНАМ" FontWeight="Bold" FontSize="11" Foreground="#94A3B8" />
+                                                            <TextBlock Grid.Column="3" Text="ФАРМ / ЗОЛОТО" FontWeight="Bold" FontSize="11" Foreground="#94A3B8" />
+                                                            <TextBlock Grid.Column="4" Text="ПРЕДМЕТИ (6 + ВАРД)" FontWeight="Bold" FontSize="11" Foreground="#94A3B8" />
                                                         </Grid>
 
                                                         <ItemsControl ItemsSource="{Binding RedTeamDetailed}">
                                                             <ItemsControl.ItemTemplate>
                                                                 <DataTemplate x:DataType="vm:DetailedParticipantViewModel">
-                                                                    <Border Background="#160E13" CornerRadius="4" Padding="6,4" Margin="0,1">
-                                                                        <Grid ColumnDefinitions="260, 95, 160, 120, *">
+                                                                    <Border Background="#24141E" CornerRadius="6" Padding="6,4" Margin="0,1" BorderBrush="#3E1C2B" BorderThickness="1">
+                                                                        <Grid ColumnDefinitions="280, 95, 150, 115, *">
                                                                              <!-- Player Info with Clickable Link -->
-                                                                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
-                                                                                <Border Width="28" Height="28" CornerRadius="14" ClipToBounds="True" Background="#091428" BorderBrush="#252D3D" BorderThickness="1">
-                                                                                    <Image Source="{Binding ChampionIcon}" Width="28" Height="28" Stretch="UniformToFill" />
+                                                                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center" ClipToBounds="True">
+                                                                                <Border Width="28" Height="28" CornerRadius="6" ClipToBounds="True" Background="#160E13" BorderBrush="#3E1C2B" BorderThickness="1">
+                                                                                    <Image Source="{Binding ChampionIcon}" Width="28" Height="28" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality" />
                                                                                 </Border>
                                                                                 <!-- Mini Spells & Rune -->
                                                                                 <StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
                                                                                     <StackPanel Spacing="1">
                                                                                         <Border Width="13" Height="13" CornerRadius="2" ClipToBounds="True" ToolTip.Tip="{Binding Summoner1Tooltip}">
-                                                                                            <Image Source="{Binding Summoner1Icon}" Width="13" Height="13" Stretch="UniformToFill" />
+                                                                                            <Image Source="{Binding Summoner1Icon}" Width="13" Height="13" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality" />
                                                                                         </Border>
                                                                                         <Border Width="13" Height="13" CornerRadius="2" ClipToBounds="True" ToolTip.Tip="{Binding Summoner2Tooltip}">
-                                                                                            <Image Source="{Binding Summoner2Icon}" Width="13" Height="13" Stretch="UniformToFill" />
+                                                                                            <Image Source="{Binding Summoner2Icon}" Width="13" Height="13" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality" />
                                                                                         </Border>
                                                                                     </StackPanel>
-                                                                                    <Border Width="15" Height="15" CornerRadius="7" Background="#091428" ClipToBounds="True" VerticalAlignment="Center">
-                                                                                        <Image Source="{Binding PrimaryRuneIcon}" Width="15" Height="15" Stretch="UniformToFill" />
+                                                                                    <Border Width="15" Height="15" CornerRadius="7.5" Background="#160E13" ClipToBounds="True" VerticalAlignment="Center">
+                                                                                        <Image Source="{Binding PrimaryRuneIcon}" Width="15" Height="15" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality" />
                                                                                     </Border>
                                                                                 </StackPanel>
                                                                                 <!-- Match Grade Pill -->
@@ -1467,7 +1469,7 @@
                                                                                     <TextBlock Text="{Binding MatchGrade}"
                                                                                                FontSize="9"
                                                                                                FontWeight="Bold"
-                                                                                               Foreground="#010A13" />
+                                                                                               Foreground="#0B0C12" />
                                                                                 </Border>
                                                                                 <Border Background="{Binding BadgeBg}"
                                                                                         CornerRadius="3"
@@ -1477,7 +1479,7 @@
                                                                                     <TextBlock Text="{Binding BadgeText}"
                                                                                                FontSize="9"
                                                                                                FontWeight="Bold"
-                                                                                               Foreground="#010A13" />
+                                                                                               Foreground="#FFFFFF" />
                                                                                 </Border>
                                                                                 <TextBlock Text="{Binding PositionIcon}" FontSize="12" VerticalAlignment="Center" />
                                                                                 <TextBlock Text="{Binding DisplayName}"
@@ -1486,7 +1488,7 @@
                                                                                            Foreground="{Binding NameColor}"
                                                                                            VerticalAlignment="Center"
                                                                                            TextTrimming="CharacterEllipsis"
-                                                                                           MaxWidth="110"
+                                                                                           MaxWidth="115"
                                                                                            IsVisible="{Binding IsCurrentPlayer}"
                                                                                            ToolTip.Tip="{Binding ToolTipText}" />
                                                                                 <Button Classes="player-link"
@@ -1500,20 +1502,20 @@
                                                                                                Foreground="{Binding NameColor}"
                                                                                                VerticalAlignment="Center"
                                                                                                TextTrimming="CharacterEllipsis"
-                                                                                               MaxWidth="110" />
+                                                                                               MaxWidth="115" />
                                                                                 </Button>
-                                                                                <TextBlock Text="{Binding ChampLevelText, StringFormat='lvl {0}'}" FontSize="10" Foreground="#657182" VerticalAlignment="Center" />
+                                                                                <TextBlock Text="{Binding ChampLevelText, StringFormat='lvl {0}'}" FontSize="10" Foreground="#64748B" VerticalAlignment="Center" />
                                                                             </StackPanel>
 
                                                                             <!-- KDA -->
                                                                             <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
                                                                                 <TextBlock Text="{Binding KdaText}" FontSize="12" FontWeight="Bold" Foreground="#FFFFFF" />
-                                                                                <TextBlock Text="{Binding KdaRatioText}" FontSize="10" Foreground="#8A93A5" />
+                                                                                <TextBlock Text="{Binding KdaRatioText}" FontSize="10" Foreground="#94A3B8" />
                                                                             </StackPanel>
 
                                                                             <!-- Damage bar (strictly bounded) -->
                                                                             <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="2" ClipToBounds="True">
-                                                                                <TextBlock Text="{Binding DamageText}" FontSize="11" FontWeight="Bold" Foreground="#E84057" />
+                                                                                <TextBlock Text="{Binding DamageText}" FontSize="11" FontWeight="Bold" Foreground="#FB7185" />
                                                                                 <ProgressBar Value="{Binding DamagePercentOfMax}"
                                                                                              Minimum="0"
                                                                                              Maximum="100"
@@ -1523,16 +1525,16 @@
                                                                                              Height="6"
                                                                                              ClipToBounds="True"
                                                                                              CornerRadius="3"
-                                                                                             Foreground="#E84057"
-                                                                                             Background="#1F2633"
+                                                                                             Foreground="#FB7185"
+                                                                                             Background="#1E2235"
                                                                                              HorizontalAlignment="Left" />
                                                                             </StackPanel>
 
                                                                             <!-- Farm, Gold & Vision -->
                                                                             <StackPanel Grid.Column="3" VerticalAlignment="Center" Spacing="1">
-                                                                                <TextBlock Text="{Binding CsText, StringFormat='{}{0} CS'}" FontSize="11" Foreground="#F0E6D2" />
-                                                                                <TextBlock Text="{Binding GoldText}" FontSize="11" Foreground="#C8AA6E" />
-                                                                                <TextBlock Text="{Binding VisionText, StringFormat='W: {0}'}" FontSize="9" Foreground="#8A93A5" />
+                                                                                <TextBlock Text="{Binding CsText, StringFormat='{}{0} CS'}" FontSize="11" Foreground="#F8FAFC" />
+                                                                                <TextBlock Text="{Binding GoldText}" FontSize="11" Foreground="#C4B5FD" />
+                                                                                <TextBlock Text="{Binding VisionText, StringFormat='W: {0}'}" FontSize="9" Foreground="#94A3B8" />
                                                                             </StackPanel>
 
                                                                             <!-- Items with Tooltips -->
@@ -1545,18 +1547,18 @@
                                                                                     </ItemsControl.ItemsPanel>
                                                                                     <ItemsControl.ItemTemplate>
                                                                                         <DataTemplate x:DataType="vm:ItemSlotViewModel">
-                                                                                            <Border Width="24" Height="24" CornerRadius="3" Background="#141B28" BorderBrush="#253044" BorderThickness="1" ClipToBounds="True"
+                                                                                            <Border Width="24" Height="24" CornerRadius="3" Background="#0E101A" BorderBrush="#222538" BorderThickness="1" ClipToBounds="True"
                                                                                                     ToolTip.Tip="{Binding ToolTipText}">
-                                                                                                <Image Source="{Binding ItemIcon}" Width="24" Height="24" Stretch="UniformToFill" IsVisible="{Binding HasItem}" />
+                                                                                                <Image Source="{Binding ItemIcon}" Width="24" Height="24" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality" IsVisible="{Binding HasItem}" />
                                                                                             </Border>
                                                                                         </DataTemplate>
                                                                                     </ItemsControl.ItemTemplate>
                                                                                 </ItemsControl>
 
                                                                                 <!-- Trinket with Tooltip -->
-                                                                                <Border Width="24" Height="24" CornerRadius="12" Background="#141B28" BorderBrush="#C8AA6E" BorderThickness="1" ClipToBounds="True" Margin="3,0,0,0"
+                                                                                <Border Width="24" Height="24" CornerRadius="3" Background="#0E101A" BorderBrush="#7C3AED" BorderThickness="1" ClipToBounds="True" Margin="3,0,0,0"
                                                                                         ToolTip.Tip="{Binding Trinket.ToolTipText}">
-                                                                                    <Image Source="{Binding Trinket.ItemIcon}" Width="24" Height="24" Stretch="UniformToFill" IsVisible="{Binding Trinket.HasItem}" />
+                                                                                    <Image Source="{Binding Trinket.ItemIcon}" Width="24" Height="24" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality" IsVisible="{Binding Trinket.HasItem}" />
                                                                                 </Border>
                                                                             </StackPanel>
                                                                         </Grid>
@@ -1571,33 +1573,39 @@
                                             <!-- TAB 2: TACTICAL REPORT & GAP ANALYSIS -->
                                             <StackPanel Spacing="12" IsVisible="{Binding IsTacticalTabActive}">
                                                 <!-- Overall Tactical Verdict & Key Takeaway Banner -->
-                                                <Border Background="#101726" CornerRadius="8" BorderBrush="#2A3750" BorderThickness="1" Padding="14,12">
+                                                <Border Background="#141624" CornerRadius="10" BorderBrush="#22263C" BorderThickness="1" Padding="14,12">
                                                     <Grid ColumnDefinitions="Auto, *, Auto">
-                                                        <Border Grid.Column="0" Background="{Binding TacticalReport.MatchGradeColor}" CornerRadius="6" Width="44" Height="44" Margin="0,0,14,0">
-                                                            <TextBlock Text="{Binding TacticalReport.MatchGrade}" FontSize="20" FontWeight="Bold" Foreground="#010A13" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                        <Border Grid.Column="0" Background="{Binding TacticalReport.MatchGradeColor}" CornerRadius="8" Width="44" Height="44" Margin="0,0,14,0">
+                                                            <TextBlock Text="{Binding TacticalReport.MatchGrade}" FontSize="20" FontWeight="Bold" Foreground="#0B0C12" HorizontalAlignment="Center" VerticalAlignment="Center" />
                                                         </Border>
                                                         <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
-                                                            <TextBlock Text="{Binding TacticalReport.OverallMatchVerdict}" FontSize="13" FontWeight="Bold" Foreground="#F0E6D2" TextWrapping="Wrap" />
-                                                            <TextBlock Text="{Binding TacticalReport.KeyTakeaway}" FontSize="12" Foreground="#8A93A5" TextWrapping="Wrap" />
-                                                            <TextBlock Text="{Binding ExportStatusMessage}" FontSize="11" Foreground="#0AC8B9" FontWeight="SemiBold" IsVisible="{Binding ExportStatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                            <TextBlock Text="{Binding TacticalReport.OverallMatchVerdict}" FontSize="13" FontWeight="Bold" Foreground="#F8FAFC" TextWrapping="Wrap" />
+                                                            <TextBlock Text="{Binding TacticalReport.KeyTakeaway}" FontSize="12" Foreground="#94A3B8" TextWrapping="Wrap" />
+                                                            <TextBlock Text="{Binding ExportStatusMessage}" FontSize="11" Foreground="#A78BFA" FontWeight="SemiBold" IsVisible="{Binding ExportStatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                                                         </StackPanel>
                                                         <!-- Export Actions -->
                                                         <StackPanel Grid.Column="2" Spacing="6" VerticalAlignment="Center" Margin="10,0,0,0">
                                                             <Button Command="{Binding CopyCoachReportCommand}"
                                                                     Content="📋 Скопіювати звіт"
                                                                     FontSize="11"
-                                                                    Background="#1F2A3D"
-                                                                    Foreground="#0AC8B9"
+                                                                    Background="#181B2B"
+                                                                    BorderBrush="#252A42"
+                                                                    BorderThickness="1"
+                                                                    Foreground="#C4B5FD"
                                                                     FontWeight="SemiBold"
                                                                     Padding="10,5"
+                                                                    CornerRadius="6"
                                                                     Cursor="Hand" />
                                                             <Button Command="{Binding SaveCoachReportToFileCommand}"
                                                                     Content="💾 Зберегти у файл"
                                                                     FontSize="11"
-                                                                    Background="#1A2230"
-                                                                    Foreground="#C8AA6E"
+                                                                    Background="#181B2B"
+                                                                    BorderBrush="#252A42"
+                                                                    BorderThickness="1"
+                                                                    Foreground="#A78BFA"
                                                                     FontWeight="SemiBold"
                                                                     Padding="10,5"
+                                                                    CornerRadius="6"
                                                                     Cursor="Hand" />
                                                         </StackPanel>
                                                     </Grid>
@@ -1605,7 +1613,7 @@
 
                                                 <!-- Comparative Gap Analysis ("Що пішло не так проти стандарту рангу") -->
                                                 <StackPanel Spacing="8">
-                                                    <TextBlock Text="📊 ПОРІВНЯЛЬНИЙ АНАЛІЗ ЗІ СТАНДАРТОМ РАНГУ (GAP ANALYSIS)" FontSize="12" FontWeight="Bold" Foreground="#C8AA6E" LetterSpacing="1.1" />
+                                                    <TextBlock Text="📊 ПОРІВНЯЛЬНИЙ АНАЛІЗ ЗІ СТАНДАРТОМ РАНГУ (GAP ANALYSIS)" FontSize="12" FontWeight="Bold" Foreground="#C4B5FD" LetterSpacing="1.1" />
                                                     <ItemsControl ItemsSource="{Binding TacticalReport.GapAnalysis}">
                                                         <ItemsControl.ItemsPanel>
                                                             <ItemsPanelTemplate>
@@ -1614,17 +1622,17 @@
                                                         </ItemsControl.ItemsPanel>
                                                         <ItemsControl.ItemTemplate>
                                                             <DataTemplate>
-                                                                <Border Background="{Binding CardBg}" CornerRadius="6" BorderBrush="{Binding CardBorder}" BorderThickness="1" Padding="10" Margin="3,0">
+                                                                <Border Background="{Binding CardBg}" CornerRadius="8" BorderBrush="{Binding CardBorder}" BorderThickness="1" Padding="12,10" Margin="3,0">
                                                                     <StackPanel Spacing="4">
-                                                                        <TextBlock Text="{Binding MetricName}" FontSize="11" FontWeight="Bold" Foreground="#F0E6D2" />
+                                                                        <TextBlock Text="{Binding MetricName}" FontSize="11" FontWeight="Bold" Foreground="#F8FAFC" />
                                                                         <Grid ColumnDefinitions="*, Auto">
                                                                             <TextBlock Grid.Column="0" Text="{Binding ActualValueText}" FontSize="13" FontWeight="Bold" Foreground="#FFFFFF" />
-                                                                            <Border Grid.Column="1" Background="{Binding BadgeBg}" CornerRadius="3" Padding="4,1">
+                                                                            <Border Grid.Column="1" Background="{Binding BadgeBg}" CornerRadius="4" Padding="5,1">
                                                                                 <TextBlock Text="{Binding EvaluationText}" FontSize="10" FontWeight="Bold" Foreground="{Binding ImpactColor}" />
                                                                             </Border>
                                                                         </Grid>
-                                                                        <TextBlock Text="{Binding BenchmarkValueText}" FontSize="10" Foreground="#657182" />
-                                                                        <TextBlock Text="{Binding Advice}" FontSize="10" Foreground="#8A93A5" TextWrapping="Wrap" LineHeight="14" Margin="0,4,0,0" />
+                                                                        <TextBlock Text="{Binding BenchmarkValueText}" FontSize="10" Foreground="#64748B" />
+                                                                        <TextBlock Text="{Binding Advice}" FontSize="10" Foreground="#94A3B8" TextWrapping="Wrap" LineHeight="14" Margin="0,4,0,0" />
                                                                     </StackPanel>
                                                                 </Border>
                                                             </DataTemplate>
@@ -1635,15 +1643,15 @@
                                                 <!-- Play-by-play Minute-by-Minute Timeline -->
                                                 <StackPanel Spacing="8">
                                                     <Grid ColumnDefinitions="*, Auto">
-                                                        <TextBlock Grid.Column="0" Text="⏱️ ПОХВИЛИННИЙ РОЗБІР КЛЮЧОВИХ РІШЕНЬ (PLAY-BY-PLAY)" FontSize="12" FontWeight="Bold" Foreground="#C8AA6E" LetterSpacing="1.1" />
-                                                        <TextBlock Grid.Column="1" Text="⏳ Завантаження подій Riot Timeline..." FontSize="11" Foreground="#0AC8B9" IsVisible="{Binding IsLoadingTimeline}" />
+                                                        <TextBlock Grid.Column="0" Text="⏱️ ПОХВИЛИННИЙ РОЗБІР КЛЮЧОВИХ РІШЕНЬ (PLAY-BY-PLAY)" FontSize="12" FontWeight="Bold" Foreground="#C4B5FD" LetterSpacing="1.1" />
+                                                        <TextBlock Grid.Column="1" Text="⏳ Завантаження подій Riot Timeline..." FontSize="11" Foreground="#A78BFA" IsVisible="{Binding IsLoadingTimeline}" />
                                                     </Grid>
                                                     <ItemsControl ItemsSource="{Binding TacticalReport.TimelineEvents}">
                                                         <ItemsControl.ItemTemplate>
                                                             <DataTemplate>
                                                                 <Border Classes="tactical-node"
                                                                         Background="{Binding CardBackground}"
-                                                                        CornerRadius="6"
+                                                                        CornerRadius="8"
                                                                         BorderBrush="{Binding CardBorderColor}"
                                                                         BorderThickness="1"
                                                                         Padding="12,8"
@@ -1651,10 +1659,10 @@
                                                                     <Grid ColumnDefinitions="80, 42, *, Auto">
                                                                         <!-- Col 0: Timestamp & Phase -->
                                                                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
-                                                                            <Border Background="#162235" CornerRadius="4" Padding="6,2" HorizontalAlignment="Left">
-                                                                                <TextBlock Text="{Binding TimestampText}" FontSize="11" FontWeight="Bold" Foreground="#C8AA6E" />
+                                                                            <Border Background="#181B2B" CornerRadius="4" Padding="6,2" HorizontalAlignment="Left">
+                                                                                <TextBlock Text="{Binding TimestampText}" FontSize="11" FontWeight="Bold" Foreground="#C4B5FD" />
                                                                             </Border>
-                                                                            <Border Background="#101827" CornerRadius="3" Padding="4,1" HorizontalAlignment="Left">
+                                                                            <Border Background="#141726" CornerRadius="3" Padding="4,1" HorizontalAlignment="Left">
                                                                                 <TextBlock Text="{Binding PhaseName}" FontSize="8" FontWeight="SemiBold" Foreground="{Binding PhaseBadgeColor}" TextTrimming="CharacterEllipsis" MaxWidth="75" />
                                                                             </Border>
                                                                         </StackPanel>
@@ -1679,28 +1687,31 @@
                                                                         <StackPanel Grid.Column="2" Spacing="3" VerticalAlignment="Center" Margin="12,0,10,0">
                                                                             <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                                                                                 <!-- Category Tag Pill -->
-                                                                                <Border Background="#162030" BorderBrush="{Binding CategoryTagColor}" BorderThickness="1" CornerRadius="3" Padding="5,1">
+                                                                                <Border Background="#1B1634" BorderBrush="{Binding CategoryTagColor}" BorderThickness="1" CornerRadius="4" Padding="6,1">
                                                                                     <TextBlock Text="{Binding CategoryTag}" FontSize="9" FontWeight="Bold" Foreground="{Binding CategoryTagColor}" />
                                                                                 </Border>
                                                                                 <!-- Severity Tag Pill (Hidden if duplicate) -->
-                                                                                <Border Background="{Binding SeverityBg}" CornerRadius="3" Padding="5,1" IsVisible="{Binding HasSeverityTag}">
+                                                                                <Border Background="{Binding SeverityBg}" CornerRadius="4" Padding="6,1" IsVisible="{Binding HasSeverityTag}">
                                                                                     <TextBlock Text="{Binding SeverityTag}" FontSize="9" FontWeight="Bold" Foreground="{Binding SeverityFg}" />
                                                                                 </Border>
                                                                                 <!-- Event Title -->
-                                                                                <TextBlock Text="{Binding Title}" FontSize="12" FontWeight="Bold" Foreground="#F0E6D2" VerticalAlignment="Center" />
+                                                                                <TextBlock Text="{Binding Title}" FontSize="12" FontWeight="Bold" Foreground="#F8FAFC" VerticalAlignment="Center" />
                                                                             </StackPanel>
-                                                                            <TextBlock Text="{Binding Description}" FontSize="11" Foreground="#9AA4B2" TextWrapping="Wrap" LineHeight="15" />
+                                                                            <TextBlock Text="{Binding Description}" FontSize="11" Foreground="#CBD5E1" TextWrapping="Wrap" LineHeight="15" />
                                                                         </StackPanel>
 
                                                                         <!-- Col 3: Impact Callout Badge -->
                                                                         <Border Grid.Column="3"
-                                                                                Background="#101C2B"
+                                                                                Background="#181B2B"
+                                                                                CornerRadius="6"
                                                                                 BorderBrush="{Binding ImpactColor}"
                                                                                 BorderThickness="1"
-                                                                                CornerRadius="4"
-                                                                                Padding="8,4"
+                                                                                Padding="10,4"
                                                                                 VerticalAlignment="Center">
-                                                                            <TextBlock Text="{Binding ImpactText}" FontSize="11" FontWeight="Bold" Foreground="{Binding ImpactColor}" />
+                                                                            <TextBlock Text="{Binding ImpactText}"
+                                                                                       FontSize="11"
+                                                                                       FontWeight="Bold"
+                                                                                       Foreground="{Binding ImpactColor}" />
                                                                         </Border>
                                                                     </Grid>
                                                                 </Border>

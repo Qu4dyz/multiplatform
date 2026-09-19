@@ -383,10 +383,10 @@ public partial class PlayerMatchItemViewModel : ObservableObject
     public bool IsScoreboardTabActive => ActiveDetailTab == 0;
     public bool IsTacticalTabActive => ActiveDetailTab == 1;
 
-    public string ScoreboardTabBg => ActiveDetailTab == 0 ? "#1C2B42" : "#0D131F";
-    public string ScoreboardTabFg => ActiveDetailTab == 0 ? "#0AC8B9" : "#8A93A5";
-    public string TacticalTabBg => ActiveDetailTab == 1 ? "#1C2B42" : "#0D131F";
-    public string TacticalTabFg => ActiveDetailTab == 1 ? "#C8AA6E" : "#8A93A5";
+    public string ScoreboardTabBg => ActiveDetailTab == 0 ? "#7C3AED" : "#141726";
+    public string ScoreboardTabFg => ActiveDetailTab == 0 ? "#FFFFFF" : "#94A3B8";
+    public string TacticalTabBg => ActiveDetailTab == 1 ? "#7C3AED" : "#141726";
+    public string TacticalTabFg => ActiveDetailTab == 1 ? "#FFFFFF" : "#94A3B8";
 
     [RelayCommand]
     public void ShowScoreboardTab() => ActiveDetailTab = 0;
@@ -405,7 +405,7 @@ public partial class PlayerMatchItemViewModel : ObservableObject
     private bool _isExpanded;
 
     public string ExpandButtonText => IsExpanded ? "▲ Згорнути" : "▼ Деталі";
-    public string ExpandButtonColor => IsExpanded ? "#C8AA6E" : "#8A93A5";
+    public string ExpandButtonColor => IsExpanded ? "#A78BFA" : "#94A3B8";
 
     [RelayCommand]
     public async Task ToggleExpand()
