@@ -1,10 +1,15 @@
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using GameAnalytics.Core.Enums;
 using GameAnalytics.Core.Helpers;
 
 namespace GameAnalytics.Core.Entities;
 
-public class TacticalTimelineEvent
+public class TacticalTimelineEvent : INotifyPropertyChanged
 {
+    private bool _isMomentOpen;
+    private bool _wasMomentViewed;
+
     public string TimestampText { get; set; } = "00:00"; // e.g. "03:15"
     public int Minute { get; set; }
     public int TimestampMs { get; set; }
@@ -24,8 +29,8 @@ public class TacticalTimelineEvent
     public string IconBadgeBg => IsMistake ? "#2E121C" : "#1B1634";
     public string IconBadgeBorder => IsMistake ? "#F43F5E" : "#7C3AED";
     public string IconBadgeFg => IsMistake ? "#FB7185" : "#C4B5FD";
-    public string CardBorderColor => IsMistake ? "#4C1C2A" : "#24283E";
-    public string CardBackground => IsMistake ? "#1F1219" : "#161928";
+    public string CardBorderColor => IsMomentOpen ? "#F43F5E" : (IsMistake ? "#4C1C2A" : "#24283E");
+    public string CardBackground => IsMomentOpen ? "#241018" : (IsMistake ? "#1F1219" : "#161928");
 
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
@@ -36,7 +41,52 @@ public class TacticalTimelineEvent
     /// <summary>Optional interactive moment board (minimap + context) for this event.</summary>
     public TacticalMomentReplay? Moment { get; set; }
     public bool HasMomentReplay => Moment != null && Moment.Markers.Count > 0;
-    public string MomentHint => HasMomentReplay ? "▶ Відкрити момент" : string.Empty;
+
+    public bool IsMomentOpen
+    {
+        get => _isMomentOpen;
+        set
+        {
+            if (_isMomentOpen == value) return;
+            _isMomentOpen = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(MomentHint));
+            OnPropertyChanged(nameof(MomentHintColor));
+            OnPropertyChanged(nameof(CardBorderColor));
+            OnPropertyChanged(nameof(CardBackground));
+        }
+    }
+
+    public bool WasMomentViewed
+    {
+        get => _wasMomentViewed;
+        set
+        {
+            if (_wasMomentViewed == value) return;
+            _wasMomentViewed = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(MomentHint));
+            OnPropertyChanged(nameof(MomentHintColor));
+        }
+    }
+
+    public string MomentHint
+    {
+        get
+        {
+            if (!HasMomentReplay) return string.Empty;
+            if (IsMomentOpen) return "▼ Закрити момент";
+            if (WasMomentViewed) return "✓ Переглянуто · відкрити";
+            return "▶ Відкрити момент";
+        }
+    }
+
+    public string MomentHintColor => IsMomentOpen ? "#FBBF24" : (WasMomentViewed ? "#94A3B8" : "#F43F5E");
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    private void OnPropertyChanged([CallerMemberName] string? name = null)
+        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }
 
 public class TacticalMomentMarker
@@ -80,7 +130,7 @@ public class TacticalMomentReplay
     public int KillerId { get; set; }
     public int VictimId { get; set; }
     public int TimestampMs { get; set; }
-    public double MapSize { get; set; } = 300;
+    public double MapSize { get; set; } = 260;
     /// <summary>Summoner's Rift minimap (Data Dragon map11).</summary>
     public string MapImageUrl { get; set; } = string.Empty;
     /// <summary>Kill epicenter marker on the canvas (centered ring).</summary>

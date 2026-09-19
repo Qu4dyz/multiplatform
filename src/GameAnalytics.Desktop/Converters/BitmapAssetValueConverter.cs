@@ -9,8 +9,17 @@ namespace GameAnalytics.Desktop.Converters;
 
 public class BitmapAssetValueConverter : IValueConverter
 {
-    private static readonly HttpClient HttpClient = new();
+    private static readonly HttpClient HttpClient = CreateHttpClient();
     private static readonly ConcurrentDictionary<string, Bitmap?> Cache = new();
+
+    private static HttpClient CreateHttpClient()
+    {
+        var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+        client.DefaultRequestHeaders.TryAddWithoutValidation(
+            "User-Agent",
+            "Mozilla/5.0 (compatible; GameAnalytics/1.0)");
+        return client;
+    }
 
     static BitmapAssetValueConverter()
     {

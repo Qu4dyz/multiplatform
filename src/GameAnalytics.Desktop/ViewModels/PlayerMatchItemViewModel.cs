@@ -287,27 +287,42 @@ public partial class PlayerMatchItemViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(HasSelectedMoment))]
     private TacticalMomentReplay? _selectedMoment;
 
+    [ObservableProperty]
+    private TacticalTimelineEvent? _selectedTimelineEvent;
+
     public bool HasSelectedMoment => SelectedMoment != null;
 
     [RelayCommand]
     private void OpenMoment(TacticalTimelineEvent? timelineEvent)
     {
         if (timelineEvent?.Moment == null || !timelineEvent.HasMomentReplay) return;
-        // Toggle off if the same death/kill is clicked again.
-        if (SelectedMoment != null &&
-            SelectedMoment.TimestampMs == timelineEvent.Moment.TimestampMs &&
-            SelectedMoment.KillerId == timelineEvent.Moment.KillerId &&
-            SelectedMoment.VictimId == timelineEvent.Moment.VictimId)
+
+        // Toggle off if the same row is clicked again.
+        if (ReferenceEquals(SelectedTimelineEvent, timelineEvent) && timelineEvent.IsMomentOpen)
         {
+            timelineEvent.IsMomentOpen = false;
+            SelectedTimelineEvent = null;
             SelectedMoment = null;
             return;
         }
 
+        if (SelectedTimelineEvent != null)
+            SelectedTimelineEvent.IsMomentOpen = false;
+
+        timelineEvent.WasMomentViewed = true;
+        timelineEvent.IsMomentOpen = true;
+        SelectedTimelineEvent = timelineEvent;
         SelectedMoment = timelineEvent.Moment;
     }
 
     [RelayCommand]
-    private void CloseMoment() => SelectedMoment = null;
+    private void CloseMoment()
+    {
+        if (SelectedTimelineEvent != null)
+            SelectedTimelineEvent.IsMomentOpen = false;
+        SelectedTimelineEvent = null;
+        SelectedMoment = null;
+    }
 
     [RelayCommand]
     public async Task CopyCoachReportAsync()
@@ -383,6 +398,7 @@ public partial class PlayerMatchItemViewModel : ObservableObject
             if (tl != null && tl.RealEvents.Count > 0)
             {
                 TacticalReport = MatchTacticalAnalyzer.AnalyzeMatchTactics(_underlyingMatch, _underlyingPlayer, tl, _playerTier);
+                SelectedTimelineEvent = null;
                 SelectedMoment = null;
             }
         }

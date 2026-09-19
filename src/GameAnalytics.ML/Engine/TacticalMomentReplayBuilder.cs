@@ -13,15 +13,19 @@ public enum TacticalMomentRole
 
 public static class TacticalMomentReplayBuilder
 {
-    public const double DefaultMapSize = 300;
+    public const double DefaultMapSize = 260;
     private const double RiotMapMax = 14870.0;
-    private const int FightMarkerSize = 30;
-    private const int NearbyMarkerSize = 22;
+    private const int FightMarkerSize = 28;
+    private const int NearbyMarkerSize = 20;
     private const int NearbyRadius = 3800;
-    private const int KillRingSize = 18;
+    private const int KillRingSize = 14;
     private const int ContextWindowMs = 45_000;
 
     public static string SummonersRiftMapUrl =>
+        "https://raw.communitydragon.org/latest/game/assets/maps/info/map11/2dlevelminimap_base_baron1.png";
+
+    /// <summary>Fallback if Community Dragon is unreachable.</summary>
+    public static string SummonersRiftMapUrlFallback =>
         $"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/map/map11.png";
 
     public static TacticalMomentReplay? BuildCombatMoment(
