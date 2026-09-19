@@ -453,6 +453,7 @@ public static class MatchTacticalAnalyzer
                     list.Add(new TacticalTimelineEvent
                     {
                         Minute = min,
+                        TimestampMs = ev.TimestampMs,
                         TimestampText = tsText,
                         PhaseName = phaseName,
                         PhaseBadgeColor = phaseColor,
@@ -469,7 +470,8 @@ public static class MatchTacticalAnalyzer
                             : $"Успішний бій або ганк за сприяння {ev.AssistingParticipantIds.Count} союзників.",
                         ImpactText = $"+{Math.Max(300, ev.Bounty)}G темп",
                         ImpactColor = "#0AC8B9",
-                        IsMistake = false
+                        IsMistake = false,
+                        Moment = TacticalMomentReplayBuilder.BuildCombatMoment(match, timeline, ev, playerParticipantId, isDeath: false)
                     });
                 }
                 else if (ev.VictimId == playerParticipantId)
@@ -478,6 +480,7 @@ public static class MatchTacticalAnalyzer
                     list.Add(new TacticalTimelineEvent
                     {
                         Minute = min,
+                        TimestampMs = ev.TimestampMs,
                         TimestampText = tsText,
                         PhaseName = phaseName,
                         PhaseBadgeColor = phaseColor,
@@ -489,10 +492,11 @@ public static class MatchTacticalAnalyzer
                         SeverityBg = "#38121A",
                         SeverityFg = "#FF4D6D",
                         Title = $"Смерть від {killerChamp}",
-                        Description = "Невдале зіткнення або потрапляння під ворожий фокус. Час відродження створив вікно для ворога.",
+                        Description = "Невдале зіткнення або потрапляння під ворожий фокус. Час відродження створив вікно для ворога. Натисніть, щоб відкрити момент на міні-карті.",
                         ImpactText = "Втрата темпу",
                         ImpactColor = "#E84057",
-                        IsMistake = true
+                        IsMistake = true,
+                        Moment = TacticalMomentReplayBuilder.BuildCombatMoment(match, timeline, ev, playerParticipantId, isDeath: true)
                     });
                 }
                 else if (ev.AssistingParticipantIds.Contains(playerParticipantId))
@@ -501,6 +505,7 @@ public static class MatchTacticalAnalyzer
                     list.Add(new TacticalTimelineEvent
                     {
                         Minute = min,
+                        TimestampMs = ev.TimestampMs,
                         TimestampText = tsText,
                         PhaseName = phaseName,
                         PhaseBadgeColor = phaseColor,
@@ -515,7 +520,8 @@ public static class MatchTacticalAnalyzer
                         Description = "Своєчасне стягування та допомога команді в ліквідації ворожої цілі.",
                         ImpactText = "+150G асист",
                         ImpactColor = "#0AC8B9",
-                        IsMistake = false
+                        IsMistake = false,
+                        Moment = TacticalMomentReplayBuilder.BuildCombatMoment(match, timeline, ev, playerParticipantId, isDeath: false)
                     });
                 }
             }
@@ -543,6 +549,7 @@ public static class MatchTacticalAnalyzer
                 list.Add(new TacticalTimelineEvent
                 {
                     Minute = min,
+                    TimestampMs = ev.TimestampMs,
                     TimestampText = tsText,
                     PhaseName = phaseName,
                     PhaseBadgeColor = phaseColor,
@@ -570,6 +577,7 @@ public static class MatchTacticalAnalyzer
                 list.Add(new TacticalTimelineEvent
                 {
                     Minute = min,
+                    TimestampMs = ev.TimestampMs,
                     TimestampText = tsText,
                     PhaseName = phaseName,
                     PhaseBadgeColor = phaseColor,

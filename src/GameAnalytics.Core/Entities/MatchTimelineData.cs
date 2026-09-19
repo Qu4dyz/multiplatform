@@ -44,6 +44,9 @@ public class MatchTimelineData
     public List<TimelineEventRecord> RealEvents { get; set; } = new();
     public bool HasRealTimelineEvents => RealEvents.Count > 0;
 
+    /// <summary>Per-minute (approx) participant position/gold snapshots from match-v5 timeline frames.</summary>
+    public List<TimelineFrameSnapshot> Frames { get; set; } = new();
+
     public MatchInputFeatures ToInputFeatures(float blueAvgWinRate = 50.0f, float redAvgWinRate = 50.0f)
     {
         return new MatchInputFeatures
@@ -82,5 +85,23 @@ public class TimelineEventRecord
     public string LaneType { get; set; } = string.Empty;
     public int KillerTeamId { get; set; }
     public int Bounty { get; set; }
+    public int? PositionX { get; set; }
+    public int? PositionY { get; set; }
+    public bool HasPosition => PositionX.HasValue && PositionY.HasValue;
+}
+
+public class TimelineFrameSnapshot
+{
+    public int TimestampMs { get; set; }
+    public List<TimelineParticipantPos> Participants { get; set; } = new();
+}
+
+public class TimelineParticipantPos
+{
+    public int ParticipantId { get; set; }
+    public int X { get; set; }
+    public int Y { get; set; }
+    public int TotalGold { get; set; }
+    public int Level { get; set; }
 }
 

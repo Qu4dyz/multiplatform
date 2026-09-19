@@ -620,10 +620,44 @@ public class RiotApiClient : IRiotApiClient
 
                 const int fifteenMinMs = 15 * 60 * 1000;
 
-                // Process all frames to collect real events
+                // Process all frames to collect real events + participant positions for moment replay
                 for (int fIdx = 0; fIdx < frameCount; fIdx++)
                 {
                     var curFrame = framesElem[fIdx];
+                    var frameTs = curFrame.TryGetProperty("timestamp", out var frameTsProp)
+                        ? frameTsProp.GetInt32()
+                        : fIdx * 60_000;
+
+                    if (curFrame.TryGetProperty("participantFrames", out var frameParticipants))
+                    {
+                        var snapshot = new TimelineFrameSnapshot { TimestampMs = frameTs };
+                        for (int i = 1; i <= 10; i++)
+                        {
+                            if (!frameParticipants.TryGetProperty(i.ToString(), out var pf)) continue;
+                            var x = 0;
+                            var y = 0;
+                            if (pf.TryGetProperty("position", out var posElem))
+                            {
+                                x = posElem.TryGetProperty("x", out var xProp) ? xProp.GetInt32() : 0;
+                                y = posElem.TryGetProperty("y", out var yProp) ? yProp.GetInt32() : 0;
+                            }
+
+                            snapshot.Participants.Add(new TimelineParticipantPos
+                            {
+                                ParticipantId = i,
+                                X = x,
+                                Y = y,
+                                TotalGold = pf.TryGetProperty("totalGold", out var gProp) ? gProp.GetInt32() : 0,
+                                Level = pf.TryGetProperty("level", out var lvlProp) ? lvlProp.GetInt32() : 1
+                            });
+                        }
+
+                        if (snapshot.Participants.Count > 0)
+                        {
+                            result.Frames.Add(snapshot);
+                        }
+                    }
+
                     if (!curFrame.TryGetProperty("events", out var eventsElem)) continue;
 
                     foreach (var ev in eventsElem.EnumerateArray())
@@ -647,6 +681,14 @@ public class RiotApiClient : IRiotApiClient
                                 }
                             }
 
+                            int? posX = null;
+                            int? posY = null;
+                            if (ev.TryGetProperty("position", out var killPos))
+                            {
+                                posX = killPos.TryGetProperty("x", out var kx) ? kx.GetInt32() : null;
+                                posY = killPos.TryGetProperty("y", out var ky) ? ky.GetInt32() : null;
+                            }
+
                             result.RealEvents.Add(new TimelineEventRecord
                             {
                                 TimestampMs = ts,
@@ -654,7 +696,9 @@ public class RiotApiClient : IRiotApiClient
                                 KillerId = killerId,
                                 VictimId = victimId,
                                 AssistingParticipantIds = assists,
-                                Bounty = bounty
+                                Bounty = bounty,
+                                PositionX = posX,
+                                PositionY = posY
                             });
 
                             if (!firstBloodSet && killerId > 0)

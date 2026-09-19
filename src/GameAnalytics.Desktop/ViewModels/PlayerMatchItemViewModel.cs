@@ -283,6 +283,31 @@ public partial class PlayerMatchItemViewModel : ObservableObject
     [ObservableProperty]
     private bool _isExporting;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSelectedMoment))]
+    private TacticalMomentReplay? _selectedMoment;
+
+    public bool HasSelectedMoment => SelectedMoment != null;
+
+    [RelayCommand]
+    private void OpenMoment(TacticalTimelineEvent? timelineEvent)
+    {
+        if (timelineEvent?.Moment == null || !timelineEvent.HasMomentReplay) return;
+        // Toggle off if the same death/kill is clicked again.
+        if (SelectedMoment != null &&
+            SelectedMoment.TimestampText == timelineEvent.Moment.TimestampText &&
+            SelectedMoment.Title == timelineEvent.Moment.Title)
+        {
+            SelectedMoment = null;
+            return;
+        }
+
+        SelectedMoment = timelineEvent.Moment;
+    }
+
+    [RelayCommand]
+    private void CloseMoment() => SelectedMoment = null;
+
     [RelayCommand]
     public async Task CopyCoachReportAsync()
     {
@@ -357,6 +382,7 @@ public partial class PlayerMatchItemViewModel : ObservableObject
             if (tl != null && tl.RealEvents.Count > 0)
             {
                 TacticalReport = MatchTacticalAnalyzer.AnalyzeMatchTactics(_underlyingMatch, _underlyingPlayer, tl, _playerTier);
+                SelectedMoment = null;
             }
         }
         catch
