@@ -423,7 +423,12 @@ public partial class DraftPredictionViewModel : ViewModelBase
             TankDiff = tankDiff,
             AdApBalanceDiff = adApDiff,
             GoldDiff10 = GoldDiffAt15 * 0.65f,
-            GoldMomentum15 = GoldDiffAt15 * 0.35f
+            GoldMomentum15 = GoldDiffAt15 * 0.35f,
+            CarryGoldDiff15 = GoldDiffAt15 * 0.35f,
+            FirstBloodTempo = BlueFirstBlood ? 6f : 0f,
+            FirstTowerTempo = BlueFirstTower ? 5f : 0f,
+            FirstDragonTempo = BlueFirstDragon ? 4f : 0f,
+            FirstDragonValue = BlueFirstDragon ? 1.0f : 0f
         };
 
         Prediction = _analyticsService.PredictOutcome(features);

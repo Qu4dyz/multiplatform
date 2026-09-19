@@ -72,6 +72,12 @@ public class ModelTrainer
             var tank = (float)rand.Next(-3, 4);
             var adAp = (float)rand.Next(-3, 4);
             var snowball = (killDiff * 400f + goldDiff) / 1000f;
+            var carryGold = goldDiff * (0.25f + (float)rand.NextDouble() * 0.3f);
+            var fbTempo = firstBlood * (2f + (float)rand.NextDouble() * 8f) * (rand.Next(0, 2) == 0 ? 1f : -1f);
+            var ftTempo = firstTower * (1f + (float)rand.NextDouble() * 7f) * (rand.Next(0, 2) == 0 ? 1f : -1f);
+            var fdTempo = firstDragon * (1f + (float)rand.NextDouble() * 6f) * (rand.Next(0, 2) == 0 ? 1f : -1f);
+            var dragonVal = firstDragon * (0.9f + (float)rand.NextDouble() * 0.4f) * (rand.Next(0, 2) == 0 ? 1f : -1f);
+            var laneMu = (float)(rand.NextDouble() * 10 - 5);
 
             double z = 0.0;
             z += goldDiff * 0.00055;
@@ -100,6 +106,12 @@ public class ModelTrainer
             z += engage * 0.05;
             z += tank * 0.03;
             z += adAp * 0.02;
+            z += carryGold * 0.00035;
+            z += fbTempo * 0.03;
+            z += ftTempo * 0.04;
+            z += fdTempo * 0.035;
+            z += dragonVal * 0.12;
+            z += laneMu * 0.035;
             z += Math.Abs(goldDiff) * (rankScore - 5.5) * 0.00002;
 
             var probability = 1.0 / (1.0 + Math.Exp(-z));
@@ -139,6 +151,12 @@ public class ModelTrainer
                 TankDiff = tank,
                 AdApBalanceDiff = adAp,
                 SnowballScore = snowball,
+                CarryGoldDiff15 = carryGold,
+                FirstBloodTempo = fbTempo,
+                FirstTowerTempo = ftTempo,
+                FirstDragonTempo = fdTempo,
+                FirstDragonValue = dragonVal,
+                LaneMatchupDiff = laneMu,
                 Label = win
             });
         }

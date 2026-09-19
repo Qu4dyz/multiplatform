@@ -228,6 +228,14 @@ public class RealMatchDatasetCollector
         match.GoldDiff10 = timeline.GoldDiffAt10;
         match.KillDiff10 = timeline.KillDiffAt10;
 
+        match.FirstBloodTempo = DragonValueHelper.SignedTempo(timeline.BlueFirstBlood, timeline.FirstBloodTimeMs);
+        match.FirstTowerTempo = DragonValueHelper.SignedTempo(timeline.BlueFirstTower, timeline.FirstTowerTimeMs);
+        match.FirstDragonTempo = DragonValueHelper.SignedTempo(timeline.BlueFirstDragon, timeline.FirstDragonTimeMs);
+        match.FirstDragonValue = DragonValueHelper.SignedDragonValue(
+            timeline.BlueFirstDragon, timeline.FirstDragonSubType, timeline.FirstDragonTimeMs);
+        if (timeline.CarryGoldDiff15 != 0)
+            match.CarryGoldDiff15 = timeline.CarryGoldDiff15;
+
         ApplyLaneAndLevelDiffs(match, timeline);
         return true;
     }
@@ -282,6 +290,15 @@ public class RealMatchDatasetCollector
             (RoleGold(TeamSide.Blue, Position.Bottom) + RoleGold(TeamSide.Blue, Position.Utility))
             - (RoleGold(TeamSide.Red, Position.Bottom) + RoleGold(TeamSide.Red, Position.Utility));
         match.LevelDiff15 = SideLevels(TeamSide.Blue) - SideLevels(TeamSide.Red);
+
+        // Carry concentration: richest player each side (feeds snowball / shutdown risk).
+        float SideMaxGold(TeamSide side) =>
+            match.Participants.Where(p => p.TeamSide == side)
+                .Select(p => goldByPid.TryGetValue(ResolveParticipantId(match, p), out var g) ? g : 0)
+                .DefaultIfEmpty(0)
+                .Max();
+        if (match.CarryGoldDiff15 == 0)
+            match.CarryGoldDiff15 = SideMaxGold(TeamSide.Blue) - SideMaxGold(TeamSide.Red);
     }
 
     private static int ResolveParticipantId(Match match, Participant p)
@@ -318,6 +335,8 @@ public class RealMatchDatasetCollector
 
         var champWins = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var champGames = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var matchupWins = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var matchupGames = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var result = new List<MatchInputData>();
 
         foreach (var match in ordered)
@@ -354,6 +373,7 @@ public class RealMatchDatasetCollector
             var pastRates = SnapshotWinRates(champWins, champGames);
             var (blueWr, redWr) = ComputeTeamChampionWinRates(blueChamps, redChamps, pastRates);
             var (engageDiff, tankDiff, adApDiff) = ChampionCompositionHelper.ComputeDiffs(blueChamps, redChamps);
+            var laneMatchupDiff = ComputeLaneMatchupDiff(match, matchupWins, matchupGames);
 
             var rankScore = match.ApproxRankScore > 0 ? match.ApproxRankScore : RankScoreHelper.DefaultMixedLobby;
             var goldPace = (blue.GoldAt15 + red.GoldAt15) / 1000f;
@@ -378,6 +398,11 @@ public class RealMatchDatasetCollector
             var goldMomentum = goldDiff15 - goldDiff10;
             var winRateDiff = blueWr - redWr;
             var snowball = (killDiff15 * 400f + goldDiff15) / 1000f;
+
+            // Carry lead: prefer stored timeline value; fall back to fraction of team gold lead.
+            var carryGold = match.CarryGoldDiff15 != 0
+                ? match.CarryGoldDiff15
+                : goldDiff15 * 0.35f;
 
             result.Add(new MatchInputData
             {
@@ -413,6 +438,12 @@ public class RealMatchDatasetCollector
                 TankDiff = tankDiff,
                 AdApBalanceDiff = adApDiff,
                 SnowballScore = snowball,
+                CarryGoldDiff15 = carryGold,
+                FirstBloodTempo = match.FirstBloodTempo,
+                FirstTowerTempo = match.FirstTowerTempo,
+                FirstDragonTempo = match.FirstDragonTempo,
+                FirstDragonValue = match.FirstDragonValue,
+                LaneMatchupDiff = laneMatchupDiff,
                 Label = match.WinningTeam == TeamSide.Blue
             });
 
@@ -428,10 +459,71 @@ public class RealMatchDatasetCollector
                     champWins[p.ChampionName] = w + 1;
                 }
             }
+
+            UpdateLaneMatchups(match, matchupWins, matchupGames);
         }
 
         return result;
     }
+
+    private static float ComputeLaneMatchupDiff(
+        Match match,
+        IReadOnlyDictionary<string, int> matchupWins,
+        IReadOnlyDictionary<string, int> matchupGames)
+    {
+        float sum = 0;
+        var n = 0;
+        foreach (var role in new[] { Position.Top, Position.Jungle, Position.Middle, Position.Bottom, Position.Utility })
+        {
+            var blue = match.Participants.FirstOrDefault(p => p.TeamSide == TeamSide.Blue && p.Position == role);
+            var red = match.Participants.FirstOrDefault(p => p.TeamSide == TeamSide.Red && p.Position == role);
+            if (blue == null || red == null) continue;
+            if (string.IsNullOrWhiteSpace(blue.ChampionName) || string.IsNullOrWhiteSpace(red.ChampionName)) continue;
+
+            var key = MatchupKey(role, blue.ChampionName, red.ChampionName);
+            if (!matchupGames.TryGetValue(key, out var games) || games < 5)
+            {
+                // Sparse: neutral. Avoid overfitting tiny sample sizes.
+                continue;
+            }
+
+            var wins = matchupWins.TryGetValue(key, out var w) ? w : 0;
+            var raw = 100f * wins / games;
+            var weight = Math.Min(1f, games / 20f);
+            var shrunk = 50f + (raw - 50f) * weight;
+            sum += shrunk - 50f;
+            n++;
+        }
+
+        return n == 0 ? 0f : sum / n;
+    }
+
+    private static void UpdateLaneMatchups(
+        Match match,
+        Dictionary<string, int> matchupWins,
+        Dictionary<string, int> matchupGames)
+    {
+        var blueWon = match.WinningTeam == TeamSide.Blue;
+        foreach (var role in new[] { Position.Top, Position.Jungle, Position.Middle, Position.Bottom, Position.Utility })
+        {
+            var blue = match.Participants.FirstOrDefault(p => p.TeamSide == TeamSide.Blue && p.Position == role);
+            var red = match.Participants.FirstOrDefault(p => p.TeamSide == TeamSide.Red && p.Position == role);
+            if (blue == null || red == null) continue;
+            if (string.IsNullOrWhiteSpace(blue.ChampionName) || string.IsNullOrWhiteSpace(red.ChampionName)) continue;
+
+            var key = MatchupKey(role, blue.ChampionName, red.ChampionName);
+            matchupGames.TryGetValue(key, out var g);
+            matchupGames[key] = g + 1;
+            if (blueWon)
+            {
+                matchupWins.TryGetValue(key, out var w);
+                matchupWins[key] = w + 1;
+            }
+        }
+    }
+
+    private static string MatchupKey(Position role, string blueChamp, string redChamp) =>
+        $"{role}|{blueChamp.Trim()}|{redChamp.Trim()}";
 
     private static Dictionary<string, float> SnapshotWinRates(
         IReadOnlyDictionary<string, int> wins,

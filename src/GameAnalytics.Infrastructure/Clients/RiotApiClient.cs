@@ -676,6 +676,7 @@ public class RiotApiClient : IRiotApiClient
                             if (!firstBloodSet && killerId > 0)
                             {
                                 result.BlueFirstBlood = killerId <= 5;
+                                result.FirstBloodTimeMs = ts;
                                 firstBloodSet = true;
                             }
 
@@ -715,6 +716,8 @@ public class RiotApiClient : IRiotApiClient
                                 if (!firstDragonSet)
                                 {
                                     result.BlueFirstDragon = isBlueMonster;
+                                    result.FirstDragonTimeMs = ts;
+                                    result.FirstDragonSubType = monsterSubType;
                                     firstDragonSet = true;
                                 }
 
@@ -763,6 +766,7 @@ public class RiotApiClient : IRiotApiClient
                                 if (!firstTowerSet)
                                 {
                                     result.BlueFirstTower = blueDestroyed;
+                                    result.FirstTowerTimeMs = ts;
                                     firstTowerSet = true;
                                 }
 
@@ -776,6 +780,9 @@ public class RiotApiClient : IRiotApiClient
                     }
                 }
 
+                // Carry gold concentration at ~15' from the nearest frame
+                result.CarryGoldDiff15 = ExtractCarryGoldDiff(framesElem, frameCount, 15);
+
                 return result;
             }
         }
@@ -785,6 +792,40 @@ public class RiotApiClient : IRiotApiClient
         }
 
         return GenerateMockTimeline(matchId);
+    }
+
+    private static float ExtractCarryGoldDiff(JsonElement framesElem, int frameCount, int minute)
+    {
+        if (frameCount <= 0) return 0f;
+        var targetMs = minute * 60_000;
+        var bestIdx = Math.Min(minute, frameCount - 1);
+        var bestDelta = int.MaxValue;
+        for (var i = 0; i < frameCount; i++)
+        {
+            var f = framesElem[i];
+            var ts = f.TryGetProperty("timestamp", out var tProp) ? tProp.GetInt32() : i * 60_000;
+            var delta = Math.Abs(ts - targetMs);
+            if (delta < bestDelta && ts <= targetMs + 30_000)
+            {
+                bestDelta = delta;
+                bestIdx = i;
+            }
+        }
+
+        var frame = framesElem[bestIdx];
+        if (!frame.TryGetProperty("participantFrames", out var pFrames)) return 0f;
+
+        var blueMax = 0;
+        var redMax = 0;
+        for (var i = 1; i <= 10; i++)
+        {
+            if (!pFrames.TryGetProperty(i.ToString(), out var pf)) continue;
+            var gold = pf.TryGetProperty("totalGold", out var g) ? g.GetInt32() : 0;
+            if (i <= 5) blueMax = Math.Max(blueMax, gold);
+            else redMax = Math.Max(redMax, gold);
+        }
+
+        return blueMax - redMax;
     }
 
     private static void ExtractTeamGoldFrame(

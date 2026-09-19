@@ -109,7 +109,29 @@ public class MatchInputData
     [LoadColumn(31)]
     public float SnowballScore { get; set; }
 
-    [LoadColumn(32), ColumnName("Label")]
+    /// <summary>Richest blue − richest red gold at 15'.</summary>
+    [LoadColumn(32)]
+    public float CarryGoldDiff15 { get; set; }
+
+    /// <summary>Earlier first blood by blue ⇒ positive (minutes left to 15').</summary>
+    [LoadColumn(33)]
+    public float FirstBloodTempo { get; set; }
+
+    [LoadColumn(34)]
+    public float FirstTowerTempo { get; set; }
+
+    [LoadColumn(35)]
+    public float FirstDragonTempo { get; set; }
+
+    /// <summary>Signed first-dragon type value by 15'.</summary>
+    [LoadColumn(36)]
+    public float FirstDragonValue { get; set; }
+
+    /// <summary>Past-only same-role champ-vs-champ WR edge (avg over lanes).</summary>
+    [LoadColumn(37)]
+    public float LaneMatchupDiff { get; set; }
+
+    [LoadColumn(38), ColumnName("Label")]
     public bool Label { get; set; }
 }
 

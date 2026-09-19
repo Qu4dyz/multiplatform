@@ -37,6 +37,17 @@ public class Match
     /// <summary>Blue − Red kills by minute 10.</summary>
     public float KillDiff10 { get; set; }
 
+    /// <summary>Blue max gold − Red max gold at 15' (carry lead concentration).</summary>
+    public float CarryGoldDiff15 { get; set; }
+    /// <summary>Signed tempo: earlier first blood by blue ⇒ positive (minutes remaining to 15').</summary>
+    public float FirstBloodTempo { get; set; }
+    /// <summary>Signed tempo for first tower by minute 15.</summary>
+    public float FirstTowerTempo { get; set; }
+    /// <summary>Signed tempo for first dragon by minute 15.</summary>
+    public float FirstDragonTempo { get; set; }
+    /// <summary>Signed first-dragon type value (blue +, red −). 0 if none by 15'.</summary>
+    public float FirstDragonValue { get; set; }
+
     public List<Participant> Participants { get; set; } = new();
     public List<TeamStats> Teams { get; set; } = new();
 

@@ -49,6 +49,15 @@ public class MatchTimelineData
     public bool BlueFirstTower { get; set; }
     public bool BlueFirstDragon { get; set; }
 
+    /// <summary>Timestamp (ms) of first blood / tower / dragon; 0 if none before 15'.</summary>
+    public int FirstBloodTimeMs { get; set; }
+    public int FirstTowerTimeMs { get; set; }
+    public int FirstDragonTimeMs { get; set; }
+    public string FirstDragonSubType { get; set; } = string.Empty;
+
+    /// <summary>Richest blue player gold − richest red player gold at ~15'.</summary>
+    public float CarryGoldDiff15 { get; set; }
+
     public List<TimelineEventRecord> RealEvents { get; set; } = new();
     public bool HasRealTimelineEvents => RealEvents.Count > 0;
 
