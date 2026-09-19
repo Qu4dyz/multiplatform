@@ -51,6 +51,16 @@ public class Match
     /// <summary>Blue − Red turret plates destroyed by minute 15.</summary>
     public float PlatesDiff15 { get; set; }
 
+    /// <summary>Blue − Red deaths by minute 15 (fewer blue deaths ⇒ negative).</summary>
+    public float DeathDiff15 { get; set; }
+    /// <summary>Blue − Red vision wards placed by minute 15.</summary>
+    public float VisionWardDiff15 { get; set; }
+    /// <summary>Blue − Red control wards placed by minute 15.</summary>
+    public float ControlWardDiff15 { get; set; }
+
+    /// <summary>True once deaths/vision ward diffs were written from a timeline parse.</summary>
+    public bool HasVisionDeathFeatures { get; set; }
+
     public List<Participant> Participants { get; set; } = new();
     public List<TeamStats> Teams { get; set; } = new();
 

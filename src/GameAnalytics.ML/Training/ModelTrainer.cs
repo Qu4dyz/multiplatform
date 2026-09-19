@@ -81,6 +81,9 @@ public class ModelTrainer
             var plates = (float)rand.Next(-6, 7);
             var killMom = killDiff - kill10;
             var leadScale = (goldDiff / 2000f) * (lateDiff / 10f);
+            var deathDiff = -killDiff + (float)rand.Next(-2, 3); // deaths roughly inverse of kill lead + noise
+            var visionDiff = (float)rand.Next(-12, 13);
+            var controlDiff = (float)rand.Next(-6, 7);
 
             double z = 0.0;
             z += goldDiff * 0.00055;
@@ -118,6 +121,9 @@ public class ModelTrainer
             z += leadScale * 0.15;
             z += killMom * 0.04;
             z += plates * 0.06;
+            z += -deathDiff * 0.08; // fewer own deaths ⇒ better
+            z += visionDiff * 0.025;
+            z += controlDiff * 0.04;
             z += Math.Abs(goldDiff) * (rankScore - 5.5) * 0.00002;
 
             var probability = 1.0 / (1.0 + Math.Exp(-z));
@@ -166,6 +172,9 @@ public class ModelTrainer
                 PlatesDiff15 = plates,
                 KillMomentum15 = killMom,
                 LeadVsScaling = leadScale,
+                DeathDiff15 = deathDiff,
+                VisionWardDiff15 = visionDiff,
+                ControlWardDiff15 = controlDiff,
                 Label = win
             });
         }

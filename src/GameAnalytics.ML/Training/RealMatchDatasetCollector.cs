@@ -158,16 +158,16 @@ public class RealMatchDatasetCollector
                 var existing = await _matchRepo.GetMatchByMatchIdAsync(matchId, ct);
                 if (existing != null && existing.Teams.Count >= 2 && existing.Teams.Any(t => t.GoldAt15 > 0))
                 {
-                    // Backfill towers/dragons at 15' for older rows that only have gold/XP snapshots.
-                    // Cap per collect pass so we keep discovering fresh matches under the rate limit.
-                    if (NeedsAt15ObjectiveBackfill(existing) && objectiveBackfills < 20)
+                    // Backfill towers/dragons/vision/deaths at 15' for older rows missing those snapshots.
+                    if ((NeedsAt15ObjectiveBackfill(existing) || NeedsVisionDeathBackfill(existing))
+                        && objectiveBackfills < 20)
                     {
                         var timelineBackfill = await _apiClient.GetMatchTimelineAsync(matchId, ct);
                         if (timelineBackfill != null && ApplyTimelineSnapshot(existing, timelineBackfill))
                         {
                             await _matchRepo.UpsertMatchAsync(existing, ct);
                             objectiveBackfills++;
-                            logger?.Invoke($"[Collector] Backfill 15' objectives: {matchId} ({objectiveBackfills}/20)");
+                            logger?.Invoke($"[Collector] Backfill 15' timeline features: {matchId} ({objectiveBackfills}/20)");
                         }
                     }
 
@@ -258,6 +258,10 @@ public class RealMatchDatasetCollector
         if (timeline.CarryGoldDiff15 != 0)
             match.CarryGoldDiff15 = timeline.CarryGoldDiff15;
         match.PlatesDiff15 = timeline.PlatesDiffAt15;
+        match.DeathDiff15 = timeline.DeathDiffAt15;
+        match.VisionWardDiff15 = timeline.VisionWardDiffAt15;
+        match.ControlWardDiff15 = timeline.ControlWardDiffAt15;
+        match.HasVisionDeathFeatures = true;
 
         ApplyLaneAndLevelDiffs(match, timeline);
         return true;
@@ -343,6 +347,10 @@ public class RealMatchDatasetCollector
         if (blue == null || red == null) return false;
         return blue.GoldAt15 > 0 || red.GoldAt15 > 0;
     }
+
+    /// <summary>Older rows may have gold@15 but never parsed wards/deaths — refresh timeline once.</summary>
+    private static bool NeedsVisionDeathBackfill(Match match)
+        => match.HasMinute15Objectives && !match.HasVisionDeathFeatures;
 
     /// <summary>
     /// Converts stored historical matches into honest minute-15 ML features.
@@ -476,6 +484,9 @@ public class RealMatchDatasetCollector
                 PlatesDiff15 = match.PlatesDiff15,
                 KillMomentum15 = killMomentum,
                 LeadVsScaling = leadVsScaling,
+                DeathDiff15 = match.DeathDiff15,
+                VisionWardDiff15 = match.VisionWardDiff15,
+                ControlWardDiff15 = match.ControlWardDiff15,
                 Label = match.WinningTeam == TeamSide.Blue
             });
 

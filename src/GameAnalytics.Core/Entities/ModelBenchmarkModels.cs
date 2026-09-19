@@ -41,6 +41,12 @@ public class ModelMetrics
     /// <summary>True when a Diamond+ specialist model was blended into evaluation/prediction.</summary>
     public bool UsedHighEloSpecialist { get; set; }
 
+    /// <summary>
+    /// Leave-one-group-out ablation: accuracy drop when a feature group is zeroed and FastTree is retrained.
+    /// Key = group name, Value = baselineAcc − ablatedAcc (positive ⇒ group helps).
+    /// </summary>
+    public Dictionary<string, double> AblationAccuracyDrop { get; set; } = new();
+
     public string FormattedAccuracy => $"{Accuracy * 100:F1}%";
     public string FormattedAuc => $"{AreaUnderRocCurve:F3}";
     public string FormattedF1 => $"{F1Score:F3}";

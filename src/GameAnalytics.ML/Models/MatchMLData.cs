@@ -140,7 +140,19 @@ public class MatchInputData
     [LoadColumn(40)]
     public float LeadVsScaling { get; set; }
 
-    [LoadColumn(41), ColumnName("Label")]
+    /// <summary>Blue − Red deaths by 15'.</summary>
+    [LoadColumn(41)]
+    public float DeathDiff15 { get; set; }
+
+    /// <summary>Blue − Red vision wards placed by 15'.</summary>
+    [LoadColumn(42)]
+    public float VisionWardDiff15 { get; set; }
+
+    /// <summary>Blue − Red control wards placed by 15'.</summary>
+    [LoadColumn(43)]
+    public float ControlWardDiff15 { get; set; }
+
+    [LoadColumn(44), ColumnName("Label")]
     public bool Label { get; set; }
 }
 

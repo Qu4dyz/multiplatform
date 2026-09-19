@@ -234,7 +234,10 @@ public class MatchPredictionEngine : IPredictionEngine
                     : features.KillDiffAt15 - features.KillDiff10,
                 LeadVsScaling = features.LeadVsScaling != 0
                     ? features.LeadVsScaling
-                    : (features.GoldDiffAt15 / 2000f) * (features.LatePowerDiff / 10f)
+                    : (features.GoldDiffAt15 / 2000f) * (features.LatePowerDiff / 10f),
+                DeathDiff15 = features.DeathDiff15,
+                VisionWardDiff15 = features.VisionWardDiff15,
+                ControlWardDiff15 = features.ControlWardDiff15
             };
 
             var prediction = _predictionEngine!.Predict(input);
@@ -435,6 +438,14 @@ public class MatchPredictionEngine : IPredictionEngine
 
                         CurrentModelMetrics = ModelBenchmarkService.EvaluateSoftEnsemble(
                             _mlContext, treeEngine, forestEngine, testSet, highEloEngine);
+
+                        // Lab ablation: which feature groups actually move temporal accuracy.
+                        if (trainSet.Count >= 120 && testSet.Count >= 30)
+                        {
+                            CurrentModelMetrics.AblationAccuracyDrop =
+                                ModelBenchmarkService.RunFeatureGroupAblation(
+                                    _mlContext, trainSet, testSet, CurrentModelMetrics.Accuracy);
+                        }
 
                         // Retrain on the full chronological corpus for the shipped model weights.
                         _model = treePipeline.Fit(dataView);

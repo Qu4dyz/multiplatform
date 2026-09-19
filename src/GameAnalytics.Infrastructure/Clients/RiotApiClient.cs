@@ -684,12 +684,44 @@ public class RiotApiClient : IRiotApiClient
                             {
                                 if (killerId <= 5) result.KillsAt15Blue++;
                                 else result.KillsAt15Red++;
+
+                                // Deaths by victim side (executions still count as deaths).
+                                if (victimId > 0)
+                                {
+                                    if (victimId <= 5) result.DeathsAt15Blue++;
+                                    else result.DeathsAt15Red++;
+                                }
                             }
 
                             if (ts <= tenMinMs)
                             {
                                 if (killerId <= 5) result.KillsAt10Blue++;
                                 else result.KillsAt10Red++;
+                            }
+                        }
+                        else if (evType == "WARD_PLACED")
+                        {
+                            if (ts > fifteenMinMs) continue;
+                            var creatorId = ev.TryGetProperty("creatorId", out var cProp) ? cProp.GetInt32() : 0;
+                            if (creatorId <= 0) continue;
+                            var wardType = ev.TryGetProperty("wardType", out var wProp)
+                                ? wProp.GetString() ?? string.Empty
+                                : string.Empty;
+                            var isBlue = creatorId <= 5;
+                            var isControl = wardType.Contains("CONTROL", StringComparison.OrdinalIgnoreCase);
+                            if (isControl)
+                            {
+                                if (isBlue) result.ControlWardsAt15Blue++;
+                                else result.ControlWardsAt15Red++;
+                            }
+                            else
+                            {
+                                // Yellow/blue trinket, sight ward, etc. — skip undefined noise.
+                                if (string.IsNullOrWhiteSpace(wardType) ||
+                                    wardType.Equals("UNDEFINED", StringComparison.OrdinalIgnoreCase))
+                                    continue;
+                                if (isBlue) result.VisionWardsAt15Blue++;
+                                else result.VisionWardsAt15Red++;
                             }
                         }
                         else if (evType == "ELITE_MONSTER_KILL")

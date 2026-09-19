@@ -73,6 +73,11 @@ public class VpsTrainingWorker
                             var byRank = string.Join(" | ", m.AccuracyByRankBucket.Select(kv => $"{kv.Key}: {kv.Value:P0}"));
                             log($"[VPS ML Trainer] Accuracy по рангах (для лаб): {byRank}");
                         }
+                        if (m.AblationAccuracyDrop.Count > 0)
+                        {
+                            var abl = string.Join(" | ", m.AblationAccuracyDrop.Select(kv => $"{kv.Key}: Δ{kv.Value:+0.0%;-0.0%;0%}"));
+                            log($"[VPS ML Trainer] Ablation (drop якщо прибрати групу): {abl}");
+                        }
                         if (m.FeatureImportance.Count > 0)
                         {
                             var topFeatures = string.Join(", ", m.FeatureImportance.Take(4).Select(f => $"{f.Key}: {f.Value:P0}"));
