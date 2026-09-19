@@ -71,6 +71,28 @@ public class MlFeatureV2Tests
         Assert.True(float.IsFinite(features[0].LeadVsScaling));
     }
 
+    [Fact]
+    public void EvaluateSoftEnsemble_ReportsConfidenceGatedAccuracy()
+    {
+        var data = ModelTrainer.GenerateSyntheticRankedDataset(400);
+        var ml = new Microsoft.ML.MLContext(seed: 1);
+        var bench = new ModelBenchmarkService();
+        var pipe = bench.BuildPipeline(GameAnalytics.Core.Enums.MLAlgorithmType.FastTree);
+        var forest = bench.BuildPipeline(GameAnalytics.Core.Enums.MLAlgorithmType.FastForest);
+        var train = data.Take(320).ToList();
+        var test = data.Skip(320).ToList();
+        var treeModel = pipe.Fit(ml.Data.LoadFromEnumerable(train));
+        var forestModel = forest.Fit(ml.Data.LoadFromEnumerable(train));
+        var treeEng = ml.Model.CreatePredictionEngine<GameAnalytics.ML.Models.MatchInputData, GameAnalytics.ML.Models.MatchPrediction>(treeModel);
+        var forestEng = ml.Model.CreatePredictionEngine<GameAnalytics.ML.Models.MatchInputData, GameAnalytics.ML.Models.MatchPrediction>(forestModel);
+
+        var metrics = ModelBenchmarkService.EvaluateSoftEnsemble(ml, treeEng, forestEng, test);
+        Assert.InRange(metrics.Accuracy, 0.55, 1.0);
+        Assert.True(metrics.ConfidentCoverage > 0);
+        Assert.True(metrics.AccuracyWhenConfident >= metrics.Accuracy - 0.05);
+        Assert.InRange(metrics.BrierScore, 0, 0.5);
+    }
+
     private static Match MakeMatch(
         string id,
         TeamSide winner,
