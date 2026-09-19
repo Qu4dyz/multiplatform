@@ -295,8 +295,9 @@ public partial class PlayerMatchItemViewModel : ObservableObject
         if (timelineEvent?.Moment == null || !timelineEvent.HasMomentReplay) return;
         // Toggle off if the same death/kill is clicked again.
         if (SelectedMoment != null &&
-            SelectedMoment.TimestampText == timelineEvent.Moment.TimestampText &&
-            SelectedMoment.Title == timelineEvent.Moment.Title)
+            SelectedMoment.TimestampMs == timelineEvent.Moment.TimestampMs &&
+            SelectedMoment.KillerId == timelineEvent.Moment.KillerId &&
+            SelectedMoment.VictimId == timelineEvent.Moment.VictimId)
         {
             SelectedMoment = null;
             return;

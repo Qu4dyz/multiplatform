@@ -4,6 +4,13 @@ using GameAnalytics.Core.Helpers;
 
 namespace GameAnalytics.ML.Engine;
 
+public enum TacticalMomentRole
+{
+    Kill,
+    Death,
+    Assist
+}
+
 public static class TacticalMomentReplayBuilder
 {
     public const double DefaultMapSize = 280;
@@ -16,11 +23,11 @@ public static class TacticalMomentReplayBuilder
         MatchTimelineData timeline,
         TimelineEventRecord killEvent,
         int focusParticipantId,
-        bool isDeath)
+        TacticalMomentRole role)
     {
         if (killEvent.EventType != "CHAMPION_KILL") return null;
 
-        var frame = FindNearestFrame(timeline, killEvent.TimestampMs);
+        var frame = FindBestFrame(timeline, killEvent.TimestampMs);
         if (frame == null || frame.Participants.Count == 0) return null;
 
         string Champ(int id)
@@ -39,59 +46,73 @@ public static class TacticalMomentReplayBuilder
             return $"https://ddragon.leagueoflegends.com/cdn/{GameConstants.DDragonVersion}/img/champion/{key}.png";
         }
 
+        // People actually in this fight — pin them to the kill coordinate (with tiny offsets).
+        var fightIds = new List<int> { killEvent.KillerId, killEvent.VictimId };
+        fightIds.AddRange(killEvent.AssistingParticipantIds.Where(id => id > 0));
+        fightIds = fightIds.Distinct().Where(id => id > 0).ToList();
+
         var markers = new List<TacticalMomentMarker>();
-        foreach (var pos in frame.Participants)
+        var fightIndex = 0;
+        foreach (var pos in frame.Participants.OrderBy(p => p.ParticipantId))
         {
             var isBlue = pos.ParticipantId <= 5;
             var isFocus = pos.ParticipantId == focusParticipantId;
             var isKiller = pos.ParticipantId == killEvent.KillerId;
             var isVictim = pos.ParticipantId == killEvent.VictimId;
             var isAssist = killEvent.AssistingParticipantIds.Contains(pos.ParticipantId);
+            var inFight = fightIds.Contains(pos.ParticipantId);
 
             var x = pos.X;
             var y = pos.Y;
-            // Prefer exact kill-event coordinates for victim (death location).
-            if (isVictim && killEvent.HasPosition)
+
+            // Ignore (0,0) frame stubs — common for unloaded / fountain placeholders.
+            if (x == 0 && y == 0 && !inFight)
+            {
+                continue;
+            }
+
+            if (inFight && killEvent.HasPosition)
+            {
+                var (ox, oy) = FightOffset(fightIndex++, fightIds.Count);
+                x = killEvent.PositionX!.Value + ox;
+                y = killEvent.PositionY!.Value + oy;
+            }
+            else if (isVictim && killEvent.HasPosition)
             {
                 x = killEvent.PositionX!.Value;
                 y = killEvent.PositionY!.Value;
             }
 
-            string role;
+            string roleLabel;
             string border;
-            if (isFocus && isDeath)
+            if (isFocus)
             {
-                role = "ВИ";
-                border = "#F43F5E";
-            }
-            else if (isFocus && !isDeath)
-            {
-                role = "ВИ";
-                border = "#F59E0B";
+                roleLabel = "ВИ";
+                border = role == TacticalMomentRole.Death ? "#F43F5E" : "#F59E0B";
             }
             else if (isKiller)
             {
-                role = "KILLER";
+                roleLabel = "KILLER";
                 border = "#EF4444";
             }
             else if (isVictim)
             {
-                role = "VICTIM";
+                roleLabel = "VICTIM";
                 border = "#FB7185";
             }
             else if (isAssist)
             {
-                role = "ASSIST";
+                roleLabel = "ASSIST";
                 border = "#60A5FA";
             }
             else if (isBlue == (focusParticipantId <= 5))
             {
-                role = "ALLY";
+                roleLabel = "ALLY";
                 border = "#34D399";
             }
             else
             {
-                role = "ENEMY";
+                roleLabel = "ENEMY";
                 border = "#64748B";
             }
 
@@ -101,7 +122,7 @@ public static class TacticalMomentReplayBuilder
                 ParticipantId = pos.ParticipantId,
                 ChampionName = Champ(pos.ParticipantId),
                 ChampionIconUrl = IconUrl(pos.ParticipantId),
-                RoleLabel = role,
+                RoleLabel = roleLabel,
                 BorderColor = border,
                 IsBlueTeam = isBlue,
                 IsFocus = isFocus,
@@ -114,6 +135,11 @@ public static class TacticalMomentReplayBuilder
 
         if (markers.Count == 0) return null;
 
+        // Draw focus / fight participants above everyone else.
+        markers = markers
+            .OrderBy(m => m.IsFocus ? 2 : (fightIds.Contains(m.ParticipantId) ? 1 : 0))
+            .ToList();
+
         var assistNames = killEvent.AssistingParticipantIds
             .Where(id => id > 0)
             .Select(Champ)
@@ -122,22 +148,47 @@ public static class TacticalMomentReplayBuilder
         var ts = FormatTs(killEvent.TimestampMs);
         var killerName = Champ(killEvent.KillerId);
         var victimName = Champ(killEvent.VictimId);
-        var focusName = Champ(focusParticipantId);
+
+        // Same-second death of the focused player while viewing an assist/kill looks contradictory — surface it.
+        var simultaneousDeath = timeline.RealEvents.FirstOrDefault(e =>
+            e.EventType == "CHAMPION_KILL"
+            && e.VictimId == focusParticipantId
+            && e.VictimId != killEvent.VictimId
+            && Math.Abs(e.TimestampMs - killEvent.TimestampMs) <= 1000);
+
+        var (title, subtitle) = role switch
+        {
+            TacticalMomentRole.Death => (
+                $"Смерть на {ts}",
+                $"{killerName} усунув {victimName}"),
+            TacticalMomentRole.Assist => (
+                $"Асист на {ts}",
+                $"{killerName} усунув {victimName} (ваш асист)"),
+            _ => (
+                $"Кіл на {ts}",
+                $"{killerName} усунув {victimName}")
+        };
+
+        if (simultaneousDeath != null && role == TacticalMomentRole.Assist)
+        {
+            subtitle += $" · у ту ж секунду вас убив {Champ(simultaneousDeath.KillerId)}";
+        }
 
         return new TacticalMomentReplay
         {
-            Title = isDeath ? $"Смерть на {ts}" : $"Кіл на {ts}",
-            Subtitle = isDeath
-                ? $"{killerName} усунув {victimName}"
-                : $"{killerName} усунув {victimName}",
+            Title = title,
+            Subtitle = subtitle,
             TimestampText = ts,
-            FocusChampionName = focusName,
+            FocusChampionName = Champ(focusParticipantId),
             KillerChampionName = killerName,
             AssistsText = assistNames.Count == 0 ? "Без асистів" : $"Асисти: {string.Join(", ", assistNames)}",
-            IsDeath = isDeath,
+            IsDeath = role == TacticalMomentRole.Death,
+            KillerId = killEvent.KillerId,
+            VictimId = killEvent.VictimId,
+            TimestampMs = killEvent.TimestampMs,
             MapSize = DefaultMapSize,
-            Markers = markers.OrderBy(m => m.IsFocus ? 1 : 0).ToList(), // focus drawn last conceptually; UI stacks by order
-            ContextLines = BuildContextLines(match, timeline, killEvent.TimestampMs, focusParticipantId)
+            Markers = markers,
+            ContextLines = BuildContextLines(match, timeline, killEvent, focusParticipantId)
         };
     }
 
@@ -145,36 +196,54 @@ public static class TacticalMomentReplayBuilder
     {
         var nx = Math.Clamp(riotX / RiotMapMax, 0, 1);
         var ny = Math.Clamp(riotY / RiotMapMax, 0, 1);
-        // Riot Y grows north; canvas Y grows down — invert.
         var left = nx * mapSize - MarkerSize / 2.0;
         var top = (1.0 - ny) * mapSize - MarkerSize / 2.0;
         return (left, top);
     }
 
-    private static TimelineFrameSnapshot? FindNearestFrame(MatchTimelineData timeline, int timestampMs)
+    private static (int X, int Y) FightOffset(int index, int total)
+    {
+        if (total <= 1) return (0, 0);
+        // Small ring so killer/victim/assists don't fully overlap on the minimap.
+        var angle = (Math.PI * 2 * index) / total;
+        const int radius = 420;
+        return ((int)(Math.Cos(angle) * radius), (int)(Math.Sin(angle) * radius));
+    }
+
+    private static TimelineFrameSnapshot? FindBestFrame(MatchTimelineData timeline, int timestampMs)
     {
         if (timeline.Frames.Count == 0) return null;
-        return timeline.Frames
-            .OrderBy(f => Math.Abs(f.TimestampMs - timestampMs))
+
+        // Prefer the last frame at or before the event (positions right before the fight).
+        var before = timeline.Frames
+            .Where(f => f.TimestampMs <= timestampMs)
+            .OrderByDescending(f => f.TimestampMs)
             .FirstOrDefault();
+        if (before != null) return before;
+
+        return timeline.Frames.OrderBy(f => f.TimestampMs).FirstOrDefault();
     }
 
     private static List<TacticalMomentContextLine> BuildContextLines(
         Match match,
         MatchTimelineData timeline,
-        int centerTs,
+        TimelineEventRecord selectedKill,
         int focusParticipantId)
     {
         var lines = new List<TacticalMomentContextLine>();
         var window = timeline.RealEvents
-            .Where(e => Math.Abs(e.TimestampMs - centerTs) <= ContextWindowMs)
+            .Where(e => Math.Abs(e.TimestampMs - selectedKill.TimestampMs) <= ContextWindowMs)
             .OrderBy(e => e.TimestampMs)
-            .Take(12)
+            .Take(14)
             .ToList();
 
         foreach (var ev in window)
         {
-            var isCurrent = Math.Abs(ev.TimestampMs - centerTs) < 50;
+            var isCurrent = ev.EventType == "CHAMPION_KILL"
+                            && ev.KillerId == selectedKill.KillerId
+                            && ev.VictimId == selectedKill.VictimId
+                            && Math.Abs(ev.TimestampMs - selectedKill.TimestampMs) < 50;
+
             var text = DescribeEvent(match, ev, focusParticipantId);
             if (string.IsNullOrWhiteSpace(text)) continue;
 
@@ -202,7 +271,7 @@ public static class TacticalMomentReplayBuilder
 
         if (ev.EventType == "CHAMPION_KILL")
         {
-            var mark = ev.VictimId == focusId ? " ★" : (ev.KillerId == focusId ? " ◆" : string.Empty);
+            var mark = ev.VictimId == focusId ? " ★" : (ev.KillerId == focusId ? " ◆" : (ev.AssistingParticipantIds.Contains(focusId) ? " ✚" : string.Empty));
             return $"{Champ(ev.KillerId)} → {Champ(ev.VictimId)}{mark}";
         }
 

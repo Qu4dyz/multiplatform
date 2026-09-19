@@ -10,95 +10,120 @@ public class TacticalMomentReplayTests
     [Fact]
     public void ToMapPoint_InvertsYAndScalesToCanvas()
     {
-        // Blue base-ish corner (low x, low y) should land bottom-left on canvas.
         var (left, top) = TacticalMomentReplayBuilder.ToMapPoint(0, 0, 280);
         Assert.True(left < 20);
         Assert.True(top > 240);
 
-        // Red base-ish corner (high x, high y) should land top-right.
         var (left2, top2) = TacticalMomentReplayBuilder.ToMapPoint(14870, 14870, 280);
         Assert.True(left2 > 240);
         Assert.True(top2 < 20);
     }
 
     [Fact]
-    public void BuildCombatMoment_AttachesMinimapMarkersAndContextForDeath()
+    public void BuildCombatMoment_AssistTitle_NotLabeledAsKill()
     {
-        var match = new Match
-        {
-            MatchId = "EUW1_MOMENT",
-            Participants = Enumerable.Range(1, 10).Select(i => new Participant
-            {
-                ParticipantId = i,
-                ChampionName = i <= 5 ? "Ahri" : "Zed",
-                TeamSide = i <= 5 ? TeamSide.Blue : TeamSide.Red
-            }).ToList()
-        };
-        match.Participants[0].ChampionName = "Yasuo";
-        match.Participants[5].ChampionName = "Jinx";
-
+        var match = BuildTenManMatch(focusChampion: "Akali", focusId: 3);
         var kill = new TimelineEventRecord
         {
-            TimestampMs = 14 * 60_000 + 32_000,
+            TimestampMs = 265_000,
             EventType = "CHAMPION_KILL",
             KillerId = 6,
-            VictimId = 1,
-            AssistingParticipantIds = new List<int> { 7 },
+            VictimId = 2,
+            AssistingParticipantIds = new List<int> { 3 },
             PositionX = 7500,
-            PositionY = 7500,
-            Bounty = 300
+            PositionY = 7500
+        };
+        var simultaneousDeath = new TimelineEventRecord
+        {
+            TimestampMs = 265_000,
+            EventType = "CHAMPION_KILL",
+            KillerId = 7,
+            VictimId = 3,
+            PositionX = 7400,
+            PositionY = 7600
         };
 
         var timeline = new MatchTimelineData
         {
-            MatchId = match.MatchId,
-            RealEvents =
-            {
-                new TimelineEventRecord
-                {
-                    TimestampMs = kill.TimestampMs - 20_000,
-                    EventType = "ELITE_MONSTER_KILL",
-                    MonsterType = "DRAGON",
-                    KillerId = 6,
-                    KillerTeamId = 200
-                },
-                kill,
-                new TimelineEventRecord
-                {
-                    TimestampMs = kill.TimestampMs + 15_000,
-                    EventType = "BUILDING_KILL",
-                    BuildingType = "TOWER_BUILDING",
-                    LaneType = "MID_LANE",
-                    KillerId = 6
-                }
-            },
+            RealEvents = { simultaneousDeath, kill },
             Frames =
             {
                 new TimelineFrameSnapshot
                 {
-                    TimestampMs = 14 * 60_000,
+                    TimestampMs = 240_000,
                     Participants = Enumerable.Range(1, 10).Select(i => new TimelineParticipantPos
                     {
                         ParticipantId = i,
                         X = 2000 + i * 800,
                         Y = 3000 + i * 500,
-                        Level = 9,
-                        TotalGold = 5000 + i * 100
+                        Level = 6,
+                        TotalGold = 3000
                     }).ToList()
                 }
             }
         };
 
-        var moment = TacticalMomentReplayBuilder.BuildCombatMoment(match, timeline, kill, focusParticipantId: 1, isDeath: true);
+        var moment = TacticalMomentReplayBuilder.BuildCombatMoment(
+            match, timeline, kill, focusParticipantId: 3, TacticalMomentRole.Assist);
 
         Assert.NotNull(moment);
-        Assert.True(moment!.IsDeath);
-        Assert.Equal("14:32", moment.TimestampText);
-        Assert.Equal(10, moment.Markers.Count);
-        Assert.Contains(moment.Markers, m => m.IsFocus && m.RoleLabel == "ВИ");
-        Assert.Contains(moment.Markers, m => m.RoleLabel == "KILLER");
-        Assert.Contains(moment.ContextLines, l => l.IsCurrent);
-        Assert.True(moment.ContextLines.Count >= 2);
+        Assert.StartsWith("Асист на", moment!.Title);
+        Assert.Contains("ваш асист", moment.Subtitle);
+        Assert.Contains("у ту ж секунду вас убив", moment.Subtitle);
+        Assert.Single(moment.ContextLines, l => l.IsCurrent);
+        Assert.Contains(moment.ContextLines, l => l.IsCurrent && l.Text.Contains("→") && !l.Text.Contains("★"));
+    }
+
+    [Fact]
+    public void BuildCombatMoment_OnlyExactKillIsCurrent_WhenTwoKillsShareTimestamp()
+    {
+        var match = BuildTenManMatch("Yasuo", 1);
+        var selected = new TimelineEventRecord
+        {
+            TimestampMs = 265_000,
+            EventType = "CHAMPION_KILL",
+            KillerId = 6,
+            VictimId = 1,
+            PositionX = 7000,
+            PositionY = 7000
+        };
+        var other = new TimelineEventRecord
+        {
+            TimestampMs = 265_000,
+            EventType = "CHAMPION_KILL",
+            KillerId = 7,
+            VictimId = 3,
+            PositionX = 7100,
+            PositionY = 7100
+        };
+
+        var timeline = new MatchTimelineData
+        {
+            RealEvents = { other, selected },
+            Frames =
+            {
+                new TimelineFrameSnapshot
+                {
+                    TimestampMs = 240_000,
+                    Participants = Enumerable.Range(1, 10).Select(i => new TimelineParticipantPos
+                    {
+                        ParticipantId = i,
+                        X = 1000 * i,
+                        Y = 1000 * i,
+                        Level = 5,
+                        TotalGold = 2500
+                    }).ToList()
+                }
+            }
+        };
+
+        var moment = TacticalMomentReplayBuilder.BuildCombatMoment(
+            match, timeline, selected, focusParticipantId: 1, TacticalMomentRole.Death);
+
+        Assert.NotNull(moment);
+        Assert.StartsWith("Смерть на", moment!.Title);
+        Assert.Equal(1, moment.ContextLines.Count(l => l.IsCurrent));
+        Assert.Contains(moment.ContextLines, l => l.IsCurrent && l.Text.Contains("★"));
     }
 
     [Fact]
@@ -160,6 +185,20 @@ public class TacticalMomentReplayTests
         var death = Assert.Single(report.TimelineEvents, e => e.IsMistake && e.Title.StartsWith("Смерть"));
         Assert.True(death.HasMomentReplay);
         Assert.NotNull(death.Moment);
-        Assert.Equal(10, death.Moment!.Markers.Count);
+        Assert.StartsWith("Смерть на", death.Moment!.Title);
+    }
+
+    private static Match BuildTenManMatch(string focusChampion, int focusId)
+    {
+        return new Match
+        {
+            MatchId = "EUW1_MOMENT",
+            Participants = Enumerable.Range(1, 10).Select(i => new Participant
+            {
+                ParticipantId = i,
+                ChampionName = i == focusId ? focusChampion : (i <= 5 ? $"Blue{i}" : $"Red{i}"),
+                TeamSide = i <= 5 ? TeamSide.Blue : TeamSide.Red
+            }).ToList()
+        };
     }
 }
