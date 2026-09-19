@@ -72,6 +72,43 @@ public class MlFeatureV2Tests
     }
 
     [Fact]
+    public void ExtractFeatures_IncludesVisionAndDeathDiff()
+    {
+        var match = MakeMatch("VIS1", TeamSide.Blue, "Garen", "Darius", DateTime.UtcNow, goldDiff: 1000);
+        match.DeathDiff15 = -3f;       // blue died less
+        match.VisionWardDiff15 = 8f;
+        match.ControlWardDiff15 = 2f;
+
+        var features = RealMatchDatasetCollector.ExtractFeaturesFromMatches(new[] { match });
+        Assert.Single(features);
+        Assert.Equal(-3f, features[0].DeathDiff15);
+        Assert.Equal(8f, features[0].VisionWardDiff15);
+        Assert.Equal(2f, features[0].ControlWardDiff15);
+    }
+
+    [Fact]
+    public void RunFeatureGroupAblation_ReportsGroupDrops()
+    {
+        var data = ModelTrainer.GenerateSyntheticRankedDataset(500);
+        var ml = new Microsoft.ML.MLContext(seed: 7);
+        var train = data.Take(400).ToList();
+        var test = data.Skip(400).ToList();
+
+        var bench = new ModelBenchmarkService();
+        var pipe = bench.BuildPipeline(GameAnalytics.Core.Enums.MLAlgorithmType.FastTree);
+        var model = pipe.Fit(ml.Data.LoadFromEnumerable(train));
+        var eng = ml.Model.CreatePredictionEngine<GameAnalytics.ML.Models.MatchInputData, GameAnalytics.ML.Models.MatchPrediction>(model);
+        var baseline = test.Count(r => (eng.Predict(r).Probability >= 0.5f) == r.Label) / (double)test.Count;
+
+        var ablation = ModelBenchmarkService.RunFeatureGroupAblation(ml, train, test, baseline);
+        Assert.True(ablation.Count >= 4);
+        Assert.Contains("GoldLead", ablation.Keys);
+        Assert.Contains("Vision", ablation.Keys);
+        // Gold lead should matter on synthetic data with gold-driven labels.
+        Assert.True(ablation["GoldLead"] > 0.01);
+    }
+
+    [Fact]
     public void EvaluateSoftEnsemble_ReportsConfidenceGatedAccuracy()
     {
         var data = ModelTrainer.GenerateSyntheticRankedDataset(400);

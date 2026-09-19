@@ -62,6 +62,21 @@ public class MatchTimelineData
     public int PlatesAt15Red { get; set; }
     public int PlatesDiffAt15 => PlatesAt15Blue - PlatesAt15Red;
 
+    /// <summary>Team deaths by minute 15 (victim side).</summary>
+    public int DeathsAt15Blue { get; set; }
+    public int DeathsAt15Red { get; set; }
+    public int DeathDiffAt15 => DeathsAt15Blue - DeathsAt15Red;
+
+    /// <summary>Non-control wards placed by minute 15.</summary>
+    public int VisionWardsAt15Blue { get; set; }
+    public int VisionWardsAt15Red { get; set; }
+    public int VisionWardDiffAt15 => VisionWardsAt15Blue - VisionWardsAt15Red;
+
+    /// <summary>Control wards (pink) placed by minute 15.</summary>
+    public int ControlWardsAt15Blue { get; set; }
+    public int ControlWardsAt15Red { get; set; }
+    public int ControlWardDiffAt15 => ControlWardsAt15Blue - ControlWardsAt15Red;
+
     public List<TimelineEventRecord> RealEvents { get; set; } = new();
     public bool HasRealTimelineEvents => RealEvents.Count > 0;
 

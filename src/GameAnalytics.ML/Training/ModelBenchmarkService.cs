@@ -115,7 +115,10 @@ public class ModelBenchmarkService
                 nameof(MatchInputData.LaneMatchupDiff),
                 nameof(MatchInputData.PlatesDiff15),
                 nameof(MatchInputData.KillMomentum15),
-                nameof(MatchInputData.LeadVsScaling))
+                nameof(MatchInputData.LeadVsScaling),
+                nameof(MatchInputData.DeathDiff15),
+                nameof(MatchInputData.VisionWardDiff15),
+                nameof(MatchInputData.ControlWardDiff15))
             .Append(_mlContext.Transforms.NormalizeMinMax("Features"));
 
         return algorithmType switch
@@ -311,9 +314,145 @@ public class ModelBenchmarkService
             ["GoldPace15"] = 0.02,
             ["FirstDragon"] = 0.01,
             ["FirstBlood"] = 0.01,
-            ["DragonDiff"] = 0.02
+            ["DragonDiff"] = 0.02,
+            ["DeathDiff15"] = 0.05,
+            ["VisionWardDiff15"] = 0.04,
+            ["ControlWardDiff15"] = 0.04
         };
 
         return result.OrderByDescending(kv => kv.Value).ToDictionary(kv => kv.Key, kv => kv.Value);
     }
+
+    /// <summary>
+    /// Leave-one-group-out ablation for lab reports: zero a feature group, retrain FastTree, measure accuracy drop.
+    /// </summary>
+    public static Dictionary<string, double> RunFeatureGroupAblation(
+        MLContext mlContext,
+        IReadOnlyList<MatchInputData> trainSet,
+        IReadOnlyList<MatchInputData> testSet,
+        double baselineAccuracy)
+    {
+        var result = new Dictionary<string, double>();
+        if (trainSet.Count < 80 || testSet.Count < 20) return result;
+
+        var groups = new (string Name, Action<MatchInputData> Zero)[]
+        {
+            ("GoldLead", r =>
+            {
+                r.GoldDiff15 = 0; r.GoldDiff10 = 0; r.GoldMomentum15 = 0;
+                r.RankAdjustedGoldDiff = 0; r.CarryGoldDiff15 = 0;
+                r.SnowballScore = 0; r.LeadVsScaling = 0; r.GoldPace15 = 0;
+            }),
+            ("Combat", r =>
+            {
+                r.KillDiff15 = 0; r.KillDiff10 = 0; r.KillMomentum15 = 0;
+                r.FirstBlood = 0; r.FirstBloodTempo = 0; r.DeathDiff15 = 0;
+            }),
+            ("Objectives", r =>
+            {
+                r.TowerDiff = 0; r.DragonDiff = 0; r.VoidgrubDiff = 0; r.HeraldDiff = 0;
+                r.ObjectiveScoreDiff = 0; r.FirstTower = 0; r.FirstDragon = 0;
+                r.FirstTowerTempo = 0; r.FirstDragonTempo = 0; r.FirstDragonValue = 0;
+                r.PlatesDiff15 = 0;
+            }),
+            ("Vision", r =>
+            {
+                r.VisionWardDiff15 = 0; r.ControlWardDiff15 = 0;
+            }),
+            ("Draft", r =>
+            {
+                r.EarlyPowerDiff = 0; r.LatePowerDiff = 0; r.EngageDiff = 0;
+                r.TankDiff = 0; r.AdApBalanceDiff = 0; r.WinRateDiff = 0;
+                r.LaneMatchupDiff = 0; r.BlueAvgWinRate = 50; r.RedAvgWinRate = 50;
+            }),
+            ("Lanes", r =>
+            {
+                r.TopGoldDiff15 = 0; r.JungleGoldDiff15 = 0; r.MidGoldDiff15 = 0;
+                r.BotDuoGoldDiff15 = 0; r.LevelDiff15 = 0; r.CsDiff15 = 0; r.XpDiff15 = 0;
+            })
+        };
+
+        var bench = new ModelBenchmarkService();
+        var pipeline = bench.BuildPipeline(MLAlgorithmType.FastTree);
+
+        foreach (var (name, zero) in groups)
+        {
+            try
+            {
+                var trainZ = trainSet.Select(CloneRow).ToList();
+                var testZ = testSet.Select(CloneRow).ToList();
+                foreach (var r in trainZ) zero(r);
+                foreach (var r in testZ) zero(r);
+
+                var model = pipeline.Fit(mlContext.Data.LoadFromEnumerable(trainZ));
+                var eng = mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(model);
+                var correct = 0;
+                foreach (var row in testZ)
+                {
+                    var p = eng.Predict(row).Probability;
+                    if ((p >= 0.5f) == row.Label) correct++;
+                }
+
+                var acc = testZ.Count == 0 ? 0 : correct / (double)testZ.Count;
+                result[name] = baselineAccuracy - acc;
+            }
+            catch
+            {
+                // Skip group on pipeline failure — ablation is best-effort for labs.
+            }
+        }
+
+        return result
+            .OrderByDescending(kv => kv.Value)
+            .ToDictionary(kv => kv.Key, kv => kv.Value);
+    }
+
+    private static MatchInputData CloneRow(MatchInputData r) => new()
+    {
+        FirstBlood = r.FirstBlood,
+        FirstTower = r.FirstTower,
+        FirstDragon = r.FirstDragon,
+        GoldDiff15 = r.GoldDiff15,
+        KillDiff15 = r.KillDiff15,
+        BlueAvgWinRate = r.BlueAvgWinRate,
+        RedAvgWinRate = r.RedAvgWinRate,
+        TowerDiff = r.TowerDiff,
+        DragonDiff = r.DragonDiff,
+        CsDiff15 = r.CsDiff15,
+        XpDiff15 = r.XpDiff15,
+        VoidgrubDiff = r.VoidgrubDiff,
+        HeraldDiff = r.HeraldDiff,
+        EarlyPowerDiff = r.EarlyPowerDiff,
+        LatePowerDiff = r.LatePowerDiff,
+        AvgRankScore = r.AvgRankScore,
+        GoldPace15 = r.GoldPace15,
+        TopGoldDiff15 = r.TopGoldDiff15,
+        JungleGoldDiff15 = r.JungleGoldDiff15,
+        MidGoldDiff15 = r.MidGoldDiff15,
+        BotDuoGoldDiff15 = r.BotDuoGoldDiff15,
+        LevelDiff15 = r.LevelDiff15,
+        ObjectiveScoreDiff = r.ObjectiveScoreDiff,
+        RankAdjustedGoldDiff = r.RankAdjustedGoldDiff,
+        GoldDiff10 = r.GoldDiff10,
+        KillDiff10 = r.KillDiff10,
+        GoldMomentum15 = r.GoldMomentum15,
+        WinRateDiff = r.WinRateDiff,
+        EngageDiff = r.EngageDiff,
+        TankDiff = r.TankDiff,
+        AdApBalanceDiff = r.AdApBalanceDiff,
+        SnowballScore = r.SnowballScore,
+        CarryGoldDiff15 = r.CarryGoldDiff15,
+        FirstBloodTempo = r.FirstBloodTempo,
+        FirstTowerTempo = r.FirstTowerTempo,
+        FirstDragonTempo = r.FirstDragonTempo,
+        FirstDragonValue = r.FirstDragonValue,
+        LaneMatchupDiff = r.LaneMatchupDiff,
+        PlatesDiff15 = r.PlatesDiff15,
+        KillMomentum15 = r.KillMomentum15,
+        LeadVsScaling = r.LeadVsScaling,
+        DeathDiff15 = r.DeathDiff15,
+        VisionWardDiff15 = r.VisionWardDiff15,
+        ControlWardDiff15 = r.ControlWardDiff15,
+        Label = r.Label
+    };
 }

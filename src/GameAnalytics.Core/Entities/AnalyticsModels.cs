@@ -195,5 +195,12 @@ public class MatchInputFeatures
     public float KillMomentum15 { get; set; }
     /// <summary>(GoldDiff/2k) × (LatePower/10): ahead-but-enemy-scales vs snowball-and-close.</summary>
     public float LeadVsScaling { get; set; }
+
+    /// <summary>Blue − Red deaths by 15'.</summary>
+    public float DeathDiff15 { get; set; }
+    /// <summary>Blue − Red vision wards placed by 15'.</summary>
+    public float VisionWardDiff15 { get; set; }
+    /// <summary>Blue − Red control wards placed by 15'.</summary>
+    public float ControlWardDiff15 { get; set; }
 }
 

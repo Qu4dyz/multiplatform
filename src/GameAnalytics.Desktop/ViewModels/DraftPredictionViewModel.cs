@@ -428,7 +428,10 @@ public partial class DraftPredictionViewModel : ViewModelBase
             FirstBloodTempo = BlueFirstBlood ? 6f : 0f,
             FirstTowerTempo = BlueFirstTower ? 5f : 0f,
             FirstDragonTempo = BlueFirstDragon ? 4f : 0f,
-            FirstDragonValue = BlueFirstDragon ? 1.0f : 0f
+            FirstDragonValue = BlueFirstDragon ? 1.0f : 0f,
+            DeathDiff15 = -KillDiffAt15 * 0.9f,
+            VisionWardDiff15 = 0f,
+            ControlWardDiff15 = 0f
         };
 
         Prediction = _analyticsService.PredictOutcome(features);
