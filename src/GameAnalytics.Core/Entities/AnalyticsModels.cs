@@ -183,5 +183,12 @@ public class MatchInputFeatures
     public float EngageDiff { get; set; }
     public float TankDiff { get; set; }
     public float AdApBalanceDiff { get; set; }
+
+    public float CarryGoldDiff15 { get; set; }
+    public float FirstBloodTempo { get; set; }
+    public float FirstTowerTempo { get; set; }
+    public float FirstDragonTempo { get; set; }
+    public float FirstDragonValue { get; set; }
+    public float LaneMatchupDiff { get; set; }
 }
 

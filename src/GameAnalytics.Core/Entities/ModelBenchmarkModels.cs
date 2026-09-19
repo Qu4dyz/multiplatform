@@ -23,6 +23,9 @@ public class ModelMetrics
 
     public Dictionary<string, double> FeatureImportance { get; set; } = new();
 
+    /// <summary>Temporal-holdout accuracy broken down by lobby rank bucket (lab reporting).</summary>
+    public Dictionary<string, double> AccuracyByRankBucket { get; set; } = new();
+
     public string FormattedAccuracy => $"{Accuracy * 100:F1}%";
     public string FormattedAuc => $"{AreaUnderRocCurve:F3}";
     public string FormattedF1 => $"{F1Score:F3}";

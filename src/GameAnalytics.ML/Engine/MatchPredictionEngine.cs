@@ -210,7 +210,15 @@ public class MatchPredictionEngine : IPredictionEngine
                 EngageDiff = features.EngageDiff,
                 TankDiff = features.TankDiff,
                 AdApBalanceDiff = features.AdApBalanceDiff,
-                SnowballScore = (features.KillDiffAt15 * 400f + features.GoldDiffAt15) / 1000f
+                SnowballScore = (features.KillDiffAt15 * 400f + features.GoldDiffAt15) / 1000f,
+                CarryGoldDiff15 = features.CarryGoldDiff15 != 0
+                    ? features.CarryGoldDiff15
+                    : features.GoldDiffAt15 * 0.35f,
+                FirstBloodTempo = features.FirstBloodTempo,
+                FirstTowerTempo = features.FirstTowerTempo,
+                FirstDragonTempo = features.FirstDragonTempo,
+                FirstDragonValue = features.FirstDragonValue,
+                LaneMatchupDiff = features.LaneMatchupDiff
             };
 
             var prediction = _predictionEngine!.Predict(input);

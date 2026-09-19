@@ -106,7 +106,13 @@ public class ModelBenchmarkService
                 nameof(MatchInputData.EngageDiff),
                 nameof(MatchInputData.TankDiff),
                 nameof(MatchInputData.AdApBalanceDiff),
-                nameof(MatchInputData.SnowballScore))
+                nameof(MatchInputData.SnowballScore),
+                nameof(MatchInputData.CarryGoldDiff15),
+                nameof(MatchInputData.FirstBloodTempo),
+                nameof(MatchInputData.FirstTowerTempo),
+                nameof(MatchInputData.FirstDragonTempo),
+                nameof(MatchInputData.FirstDragonValue),
+                nameof(MatchInputData.LaneMatchupDiff))
             .Append(_mlContext.Transforms.NormalizeMinMax("Features"));
 
         return algorithmType switch
@@ -148,12 +154,12 @@ public class ModelBenchmarkService
         PredictionEngine<MatchInputData, MatchPrediction> forestEngine,
         IReadOnlyList<MatchInputData> testSet)
     {
-        var rows = new List<(bool Label, float Prob)>(testSet.Count);
+        var rows = new List<(bool Label, float Prob, float Rank)>(testSet.Count);
         foreach (var row in testSet)
         {
             var p1 = Math.Clamp(treeEngine.Predict(row).Probability, 0.01f, 0.99f);
             var p2 = Math.Clamp(forestEngine.Predict(row).Probability, 0.01f, 0.99f);
-            rows.Add((row.Label, (p1 + p2) * 0.5f));
+            rows.Add((row.Label, (p1 + p2) * 0.5f, row.AvgRankScore));
         }
 
         var accuracy = rows.Count == 0 ? 0 : rows.Count(r => (r.Prob >= 0.5f) == r.Label) / (double)rows.Count;
@@ -163,7 +169,7 @@ public class ModelBenchmarkService
         var precision = tp + fp == 0 ? 0 : tp / (double)(tp + fp);
         var recall = tp + fn == 0 ? 0 : tp / (double)(tp + fn);
         var f1 = precision + recall == 0 ? 0 : 2 * precision * recall / (precision + recall);
-        var auc = ComputeAuc(rows);
+        var auc = ComputeAuc(rows.Select(r => (r.Label, r.Prob)).ToList());
         var logLoss = rows.Count == 0
             ? 0.5
             : rows.Average(r =>
@@ -181,8 +187,30 @@ public class ModelBenchmarkService
             PositivePrecision = precision,
             PositiveRecall = recall,
             LogLoss = logLoss,
-            FeatureImportance = ComputeFeatureImportance(null!, null!)
+            FeatureImportance = ComputeFeatureImportance(null!, null!),
+            AccuracyByRankBucket = ComputeRankBucketAccuracy(rows)
         };
+    }
+
+    public static Dictionary<string, double> ComputeRankBucketAccuracy(
+        IReadOnlyList<(bool Label, float Prob, float Rank)> rows)
+    {
+        static string Bucket(float rank) => rank switch
+        {
+            <= 3.5f => "Low (Iron–Silver)",
+            <= 6.5f => "Mid (Gold–Emerald)",
+            _ => "High (Diamond+)"
+        };
+
+        var result = new Dictionary<string, double>();
+        foreach (var group in rows.GroupBy(r => Bucket(r.Rank)))
+        {
+            var list = group.ToList();
+            if (list.Count < 8) continue; // skip tiny buckets — noisy for labs
+            result[group.Key] = list.Count(r => (r.Prob >= 0.5f) == r.Label) / (double)list.Count;
+        }
+
+        return result;
     }
 
     public static double ComputeAuc(IReadOnlyList<(bool Label, float Prob)> rows)
@@ -210,10 +238,16 @@ public class ModelBenchmarkService
             ["GoldDiff15"] = 0.12,
             ["RankAdjustedGoldDiff"] = 0.10,
             ["SnowballScore"] = 0.08,
-            ["GoldMomentum15"] = 0.07,
-            ["GoldDiff10"] = 0.06,
-            ["KillDiff15"] = 0.06,
-            ["WinRateDiff"] = 0.05,
+            ["CarryGoldDiff15"] = 0.06,
+            ["GoldMomentum15"] = 0.06,
+            ["GoldDiff10"] = 0.05,
+            ["KillDiff15"] = 0.05,
+            ["LaneMatchupDiff"] = 0.05,
+            ["WinRateDiff"] = 0.04,
+            ["FirstTowerTempo"] = 0.04,
+            ["FirstDragonValue"] = 0.03,
+            ["FirstDragonTempo"] = 0.03,
+            ["FirstBloodTempo"] = 0.02,
             ["TowerDiff"] = 0.05,
             ["CsDiff15"] = 0.04,
             ["XpDiff15"] = 0.04,
