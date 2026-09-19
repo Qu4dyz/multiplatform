@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using GameAnalytics.Core.Entities;
 using GameAnalytics.Core.Enums;
+using GameAnalytics.Core.Helpers;
 using GameAnalytics.Core.Interfaces;
 using GameAnalytics.Infrastructure.Configuration;
 using GameAnalytics.Infrastructure.Services;
@@ -482,8 +483,12 @@ public class RiotApiClient : IRiotApiClient
                     Item6 = p.Item6,
                     Summoner1Id = p.Summoner1Id > 0 ? p.Summoner1Id : 4,
                     Summoner2Id = p.Summoner2Id > 0 ? p.Summoner2Id : 14,
-                    PrimaryRuneId = p.Perks?.Styles?.FirstOrDefault()?.Selections?.FirstOrDefault()?.Perk ?? 8010,
-                    SecondaryRuneStyleId = p.Perks?.Styles?.ElementAtOrDefault(1)?.Style ?? 8100,
+                    PrimaryRuneId = (p.Perks?.Styles?.FirstOrDefault(s => string.Equals(s.Description, "primaryStyle", StringComparison.OrdinalIgnoreCase)) ?? p.Perks?.Styles?.FirstOrDefault())?.Selections?.FirstOrDefault()?.Perk is int rId && rId > 0
+                        ? rId
+                        : SpellRuneHelper.GetRecommendedRunesAndSpells(p.ChampionName, ParsePosition(p.TeamPosition)).PrimaryRune,
+                    SecondaryRuneStyleId = (p.Perks?.Styles?.FirstOrDefault(s => string.Equals(s.Description, "subStyle", StringComparison.OrdinalIgnoreCase)) ?? p.Perks?.Styles?.ElementAtOrDefault(1))?.Style is int sId && sId > 0
+                        ? sId
+                        : SpellRuneHelper.GetRecommendedRunesAndSpells(p.ChampionName, ParsePosition(p.TeamPosition)).SecondaryStyle,
                     VisionScore = p.VisionScore,
                     WardsPlaced = p.WardsPlaced,
                     WardsKilled = p.WardsKilled,
@@ -875,10 +880,10 @@ public class RiotApiClient : IRiotApiClient
                 Item4 = 3026,
                 Item5 = 3153,
                 Item6 = 3340,
-                Summoner1Id = 4,
-                Summoner2Id = isBlue ? 14 : 12,
-                PrimaryRuneId = 8010,
-                SecondaryRuneStyleId = 8100,
+                Summoner1Id = SpellRuneHelper.GetRecommendedRunesAndSpells(champ.Item1, champ.Item2).Spell1,
+                Summoner2Id = SpellRuneHelper.GetRecommendedRunesAndSpells(champ.Item1, champ.Item2).Spell2,
+                PrimaryRuneId = SpellRuneHelper.GetRecommendedRunesAndSpells(champ.Item1, champ.Item2).PrimaryRune,
+                SecondaryRuneStyleId = SpellRuneHelper.GetRecommendedRunesAndSpells(champ.Item1, champ.Item2).SecondaryStyle,
                 VisionScore = random.Next(15, 65),
                 WardsPlaced = random.Next(8, 25),
                 WardsKilled = random.Next(2, 10),

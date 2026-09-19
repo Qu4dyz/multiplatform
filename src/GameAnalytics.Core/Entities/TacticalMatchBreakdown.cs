@@ -19,6 +19,7 @@ public class TacticalTimelineEvent
     public string SeverityTag { get; set; } = "TACTICAL";
     public string SeverityBg { get; set; } = "#141F32";
     public string SeverityFg { get; set; } = "#0AC8B9";
+    public bool HasSeverityTag => !string.IsNullOrWhiteSpace(SeverityTag) && !string.Equals(SeverityTag, CategoryTag, StringComparison.OrdinalIgnoreCase);
     public string IconBadgeBg => IsMistake ? "#2A0E14" : "#0E2421";
     public string IconBadgeBorder => IsMistake ? "#E84057" : "#0AC8B9";
     public string IconBadgeFg => IsMistake ? "#FF4D6D" : "#0AC8B9";

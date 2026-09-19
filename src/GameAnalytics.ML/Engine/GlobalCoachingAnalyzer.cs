@@ -348,9 +348,9 @@ public static class GlobalCoachingAnalyzer
             delta = -20;
         }
 
-        var text = delta > 0 ? $"+{delta} LP" : $"{delta} LP";
-        var bg = delta > 0 ? "#0F2823" : (delta < 0 ? "#2A141A" : "#1C222B");
-        var fg = delta > 0 ? "#0AC8B9" : (delta < 0 ? "#E84057" : "#A0A8B6");
+        var text = delta > 0 ? $"▲ {delta} LP" : (delta < 0 ? $"▼ {Math.Abs(delta)} LP" : "0 LP");
+        var bg = delta > 0 ? "#112638" : (delta < 0 ? "#2D151E" : "#1C222B");
+        var fg = delta > 0 ? "#5383E8" : (delta < 0 ? "#E84057" : "#A0A8B6");
 
         return (delta, text, bg, fg);
     }
