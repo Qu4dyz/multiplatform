@@ -273,27 +273,73 @@ public class RiotApiClient : IRiotApiClient
             return Array.Empty<string>();
         }
 
+        var result = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // Prefer Challenger, then Grandmaster, then Master — high-elo games give denser ranked history
+        var ladderPaths = new[]
+        {
+            $"challengerleagues/by-queue/{queue}",
+            $"grandmasterleagues/by-queue/{queue}",
+            $"masterleagues/by-queue/{queue}"
+        };
+
         try
         {
-            var url = $"https://{_options.PlatformRegion}.api.riotgames.com/lol/league/v4/challengerleagues/by-queue/{queue}";
-            using var response = await SendWithRetryAsync(url, ct);
-            if (response == null || !response.IsSuccessStatusCode) return Array.Empty<string>();
+            foreach (var ladderPath in ladderPaths)
+            {
+                if (result.Count >= maxCount) break;
 
-            var league = await response.Content.ReadFromJsonAsync<RiotLeagueListDto>(cancellationToken: ct);
-            if (league?.Entries == null) return Array.Empty<string>();
+                var url = $"https://{_options.PlatformRegion}.api.riotgames.com/lol/league/v4/{ladderPath}";
+                using var response = await SendWithRetryAsync(url, ct);
+                if (response == null || !response.IsSuccessStatusCode) continue;
 
-            var puuids = league.Entries
-                .Where(e => !string.IsNullOrWhiteSpace(e.Puuid))
-                .OrderByDescending(e => e.LeaguePoints)
-                .Take(maxCount)
-                .Select(e => e.Puuid!)
-                .ToList();
+                var league = await response.Content.ReadFromJsonAsync<RiotLeagueListDto>(cancellationToken: ct);
+                if (league?.Entries == null || league.Entries.Count == 0) continue;
 
-            return puuids;
+                foreach (var entry in league.Entries.OrderByDescending(e => e.LeaguePoints))
+                {
+                    if (result.Count >= maxCount) break;
+
+                    string? puuid = null;
+                    if (!string.IsNullOrWhiteSpace(entry.Puuid))
+                    {
+                        puuid = entry.Puuid;
+                    }
+                    else if (!string.IsNullOrWhiteSpace(entry.SummonerId))
+                    {
+                        // Older Riot payloads expose summonerId only — resolve to PUUID for match-v5
+                        puuid = await ResolvePuuidFromSummonerIdAsync(entry.SummonerId, ct);
+                    }
+
+                    if (string.IsNullOrWhiteSpace(puuid)) continue;
+                    if (!seen.Add(puuid)) continue;
+                    result.Add(puuid);
+                }
+            }
+
+            return result;
         }
         catch
         {
-            return Array.Empty<string>();
+            return result;
+        }
+    }
+
+    private async Task<string?> ResolvePuuidFromSummonerIdAsync(string summonerId, CancellationToken ct)
+    {
+        try
+        {
+            var url = $"https://{_options.PlatformRegion}.api.riotgames.com/lol/summoner/v4/summoners/{summonerId}";
+            using var response = await SendWithRetryAsync(url, ct);
+            if (response == null || !response.IsSuccessStatusCode) return null;
+
+            var summoner = await response.Content.ReadFromJsonAsync<RiotSummonerDto>(cancellationToken: ct);
+            return string.IsNullOrWhiteSpace(summoner?.Puuid) ? null : summoner.Puuid;
+        }
+        catch
+        {
+            return null;
         }
     }
 
