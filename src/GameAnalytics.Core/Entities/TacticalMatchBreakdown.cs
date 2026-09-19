@@ -15,21 +15,21 @@ public class TacticalTimelineEvent
     
     // Modern Tactical HUD Telemetry
     public string CategoryTag { get; set; } = "MACRO";
-    public string CategoryTagColor { get; set; } = "#3B82F6";
+    public string CategoryTagColor { get; set; } = "#818CF8";
     public string SeverityTag { get; set; } = "TACTICAL";
-    public string SeverityBg { get; set; } = "#141F32";
-    public string SeverityFg { get; set; } = "#0AC8B9";
+    public string SeverityBg { get; set; } = "#1B1634";
+    public string SeverityFg { get; set; } = "#C4B5FD";
     public bool HasSeverityTag => !string.IsNullOrWhiteSpace(SeverityTag) && !string.Equals(SeverityTag, CategoryTag, StringComparison.OrdinalIgnoreCase);
-    public string IconBadgeBg => IsMistake ? "#2A0E14" : "#0E2421";
-    public string IconBadgeBorder => IsMistake ? "#E84057" : "#0AC8B9";
-    public string IconBadgeFg => IsMistake ? "#FF4D6D" : "#0AC8B9";
-    public string CardBorderColor => IsMistake ? "#4A1822" : "#1B3038";
-    public string CardBackground => IsMistake ? "#140B10" : "#09121A";
+    public string IconBadgeBg => IsMistake ? "#2E121C" : "#1B1634";
+    public string IconBadgeBorder => IsMistake ? "#F43F5E" : "#7C3AED";
+    public string IconBadgeFg => IsMistake ? "#FB7185" : "#C4B5FD";
+    public string CardBorderColor => IsMistake ? "#4C1C2A" : "#24283E";
+    public string CardBackground => IsMistake ? "#1F1219" : "#161928";
 
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public string ImpactText { get; set; } = string.Empty;
-    public string ImpactColor { get; set; } = "#0AC8B9";
+    public string ImpactColor { get; set; } = "#818CF8";
     public bool IsMistake { get; set; }
 }
 
@@ -40,13 +40,13 @@ public class MatchGapItem
     public string ActualValueText { get; set; } = "6.5 CS/хв";
     public string BenchmarkValueText { get; set; } = "8.2 CS/хв (Ранг еталон)";
     public string EvaluationText { get; set; } = "-1.7 CS/хв дефіцит";
-    public string ImpactColor { get; set; } = "#E84057";
+    public string ImpactColor { get; set; } = "#F43F5E";
     public string Advice { get; set; } = "Втрата пачок міньйонів через неефективні таймінги повернення на базу.";
     public bool IsPositive { get; set; }
 
-    public string CardBorder => IsPositive ? "#1B362F" : "#4A1822";
-    public string CardBg => IsPositive ? "#0A171D" : "#140A0F";
-    public string BadgeBg => IsPositive ? "#0F2E28" : "#2E1217";
+    public string CardBorder => IsPositive ? "#24283E" : "#4C1C2A";
+    public string CardBg => IsPositive ? "#161928" : "#1F1219";
+    public string BadgeBg => IsPositive ? "#1B1634" : "#2E121C";
 }
 
 public class MatchTacticalReport

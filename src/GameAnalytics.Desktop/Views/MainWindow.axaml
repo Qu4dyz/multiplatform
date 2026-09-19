@@ -8,7 +8,7 @@
         Width="1150" Height="800"
         MinWidth="900" MinHeight="600"
         WindowStartupLocation="CenterScreen"
-        Background="#010A13"
+        Background="#0B0C12"
         x:Class="GameAnalytics.Desktop.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Icon="/Assets/avalonia-logo.ico"
@@ -18,7 +18,7 @@
         <Style Selector="TabItem">
             <Setter Property="FontSize" Value="13" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="#A09B8C" />
+            <Setter Property="Foreground" Value="#94A3B8" />
             <Setter Property="Padding" Value="20,12" />
             <Setter Property="Transitions">
                 <Transitions>
@@ -27,10 +27,10 @@
             </Setter>
         </Style>
         <Style Selector="TabItem:pointerover">
-            <Setter Property="Foreground" Value="#F0E6D2" />
+            <Setter Property="Foreground" Value="#EDE9FE" />
         </Style>
         <Style Selector="TabItem:selected">
-            <Setter Property="Foreground" Value="#C8AA6E" />
+            <Setter Property="Foreground" Value="#A78BFA" />
             <Setter Property="FontWeight" Value="Bold" />
         </Style>
         <Style Selector="Button.scale-btn">
@@ -43,14 +43,14 @@
     <Grid RowDefinitions="Auto, *, Auto">
         <!-- Application Top App Bar -->
         <Border Grid.Row="0"
-                Background="#091428"
-                BorderBrush="#1E282D"
+                Background="#11131E"
+                BorderBrush="#1E2235"
                 BorderThickness="0,0,0,1"
                 Padding="24,14">
             <Grid ColumnDefinitions="Auto, *, Auto">
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                    <Border Background="#C8AA6E"
-                            CornerRadius="6"
+                    <Border Background="#7C3AED"
+                            CornerRadius="8"
                             Width="36" Height="36">
                         <TextBlock Text="⚔️"
                                    FontSize="20"
@@ -61,53 +61,55 @@
                         <TextBlock Text="GameAnalytics"
                                    FontWeight="Bold"
                                    FontSize="16"
-                                   Foreground="#F0E6D2" />
+                                   Foreground="#F8FAFC" />
                         <TextBlock Text="LoL Solo/Duo Ranked Analysis &amp; ML Prediction"
                                    FontSize="11"
-                                   Foreground="#A09B8C" />
+                                   Foreground="#94A3B8" />
                     </StackPanel>
                 </StackPanel>
 
                 <!-- Center Badge -->
                 <Border Grid.Column="1"
                         HorizontalAlignment="Center"
-                        Background="#1E2328"
-                        BorderBrush="#C8AA6E"
+                        Background="#1B1634"
+                        BorderBrush="#7C3AED"
                         BorderThickness="1"
                         CornerRadius="14"
                         Padding="14,4">
                     <TextBlock Text="Курсовий проєкт: «Мультиплатформне програмування»"
                                FontSize="11"
                                FontWeight="SemiBold"
-                               Foreground="#C8AA6E" />
+                               Foreground="#C4B5FD" />
                 </Border>
 
                 <!-- Scale Selector & Author Tag -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                     <!-- Zoom Scale Selector -->
-                    <Border Background="#101726" CornerRadius="6" Padding="4,2" BorderBrush="#252D3D" BorderThickness="1">
+                    <Border Background="#151726" CornerRadius="6" Padding="4,2" BorderBrush="#252A3E" BorderThickness="1">
                         <StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
-                            <TextBlock Text="🔍 Масштаб:" FontSize="11" Foreground="#8A93A5" VerticalAlignment="Center" Margin="4,0,4,0" />
+                            <TextBlock Text="🔍 Масштаб:" FontSize="11" Foreground="#94A3B8" VerticalAlignment="Center" Margin="4,0,4,0" />
                             <Button Content="100%" Command="{Binding SetScale100Command}" Classes="scale-btn" FontSize="10" FontWeight="Bold" Padding="6,3" CornerRadius="4" Background="{Binding Scale100Bg}" Foreground="{Binding Scale100Fg}" />
                             <Button Content="115%" Command="{Binding SetScale115Command}" Classes="scale-btn" FontSize="10" FontWeight="Bold" Padding="6,3" CornerRadius="4" Background="{Binding Scale115Bg}" Foreground="{Binding Scale115Fg}" />
                             <Button Content="125%" Command="{Binding SetScale125Command}" Classes="scale-btn" FontSize="10" FontWeight="Bold" Padding="6,3" CornerRadius="4" Background="{Binding Scale125Bg}" Foreground="{Binding Scale125Fg}" />
                         </StackPanel>
                     </Border>
 
-                    <Border Background="#0AC8B9"
-                            CornerRadius="4"
-                            Padding="8,4">
+                    <Border Background="#7C3AED"
+                            CornerRadius="6"
+                            Padding="10,4">
                         <TextBlock Text="Qu4dyz"
                                    FontWeight="Bold"
                                    FontSize="12"
-                                   Foreground="#010A13" />
+                                   Foreground="#FFFFFF" />
                     </Border>
-                    <Border Background="#1E2328"
-                            CornerRadius="4"
+                    <Border Background="#1C1F32"
+                            BorderBrush="#2A2F4A"
+                            BorderThickness="1"
+                            CornerRadius="6"
                             Padding="8,4">
                         <TextBlock Text=".NET 9 / Avalonia 11"
                                    FontSize="11"
-                                   Foreground="#F0E6D2" />
+                                   Foreground="#C4B5FD" />
                     </Border>
                 </StackPanel>
             </Grid>
@@ -145,27 +147,27 @@
 
         <!-- Bottom Status Bar -->
         <Border Grid.Row="2"
-                Background="#091428"
-                BorderBrush="#1E282D"
+                Background="#11131E"
+                BorderBrush="#1E2235"
                 BorderThickness="0,1,0,0"
                 Padding="16,6">
             <Grid ColumnDefinitions="Auto, *, Auto">
                 <TextBlock Grid.Column="0"
                            Text="{Binding OsInfo}"
                            FontSize="11"
-                           Foreground="#A09B8C" />
+                           Foreground="#94A3B8" />
 
                 <TextBlock Grid.Column="1"
                            Text="ML Двигун: ML.NET FastTree (Active) | ORM: Entity Framework Core 9 (SQLite)"
                            FontSize="11"
-                           Foreground="#785A28"
+                           Foreground="#818CF8"
                            HorizontalAlignment="Center" />
 
                 <TextBlock Grid.Column="2"
                            Text="● Стан системи: Онлайн (Mock/API Ready)"
                            FontSize="11"
                            FontWeight="SemiBold"
-                           Foreground="#0AC8B9" />
+                           Foreground="#10B981" />
             </Grid>
         </Border>
     </Grid>

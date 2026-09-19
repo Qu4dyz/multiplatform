@@ -10,35 +10,38 @@
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="24" Spacing="18">
             <!-- Header -->
-            <Border Background="#121820" CornerRadius="8" Padding="20" BorderBrush="#3C3C41" BorderThickness="1">
+            <Border Background="#131522" CornerRadius="12" Padding="20" BorderBrush="#22263C" BorderThickness="1">
                 <StackPanel Spacing="6">
                     <TextBlock Text="⚙️ НАЛАШТУВАННЯ СИСТЕМИ ТА МУЛЬТИПЛАТФОРМНОГО СЕРВЕРА"
                                FontWeight="Bold"
                                FontSize="14"
-                               Foreground="#C8AA6E"
+                               Foreground="#C4B5FD"
                                LetterSpacing="1.2" />
                     <TextBlock Text="Керування конфігурацією Riot Games API, вибором ігрового сервера, збереженням у appsettings.json та базою даних SQLite"
                                FontSize="12"
-                               Foreground="#A09B8C" />
+                               Foreground="#94A3B8" />
                 </StackPanel>
             </Border>
 
             <!-- API Configuration Card -->
-            <Border Background="#121820" CornerRadius="8" Padding="20" BorderBrush="#3C3C41" BorderThickness="1">
+            <Border Background="#131522" CornerRadius="12" Padding="20" BorderBrush="#22263C" BorderThickness="1">
                 <StackPanel Spacing="16">
                     <Grid ColumnDefinitions="*, Auto">
                         <TextBlock Text="RIOT GAMES API КОНФІГУРАЦІЯ"
                                    FontWeight="Bold"
                                    FontSize="13"
-                                   Foreground="#F0E6D2" />
+                                   Foreground="#F8FAFC" />
 
                         <Button Grid.Column="1"
                                 Command="{Binding OpenRiotPortalCommand}"
                                 Content="🌐 Отримати ключ на developer.riotgames.com"
                                 FontSize="11"
-                                Background="#2F3640"
-                                Foreground="#0AC8B9"
+                                Background="#181B2B"
+                                BorderBrush="#252A42"
+                                BorderThickness="1"
+                                Foreground="#A78BFA"
                                 Padding="10,4"
+                                CornerRadius="6"
                                 Cursor="Hand" />
                     </Grid>
 
