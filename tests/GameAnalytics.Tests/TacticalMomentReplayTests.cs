@@ -238,6 +238,138 @@ public class TacticalMomentReplayTests
         Assert.StartsWith("Смерть на", death.Moment!.Title);
     }
 
+    [Fact]
+    public void GoldCurveBuilder_Build_ProducesMonotonicMinutes()
+    {
+        var timeline = new MatchTimelineData
+        {
+            Frames = new List<TimelineFrameSnapshot>
+            {
+                new()
+                {
+                    TimestampMs = 0,
+                    Participants = Enumerable.Range(1, 10).Select(i => new TimelineParticipantPos
+                    {
+                        ParticipantId = i,
+                        TotalGold = i <= 5 ? 500 : 480
+                    }).ToList()
+                },
+                new()
+                {
+                    TimestampMs = 600_000,
+                    Participants = Enumerable.Range(1, 10).Select(i => new TimelineParticipantPos
+                    {
+                        ParticipantId = i,
+                        TotalGold = i <= 5 ? 4000 : 3500
+                    }).ToList()
+                },
+                new()
+                {
+                    TimestampMs = 900_000,
+                    Participants = Enumerable.Range(1, 10).Select(i => new TimelineParticipantPos
+                    {
+                        ParticipantId = i,
+                        TotalGold = i <= 5 ? 6500 : 5200
+                    }).ToList()
+                }
+            }
+        };
+
+        var curve = GameAnalytics.Core.Helpers.GoldCurveBuilder.Build(timeline, playerParticipantId: 1, TeamSide.Blue);
+        Assert.Equal(3, curve.Count);
+        Assert.Equal(0, curve[0].Minute);
+        Assert.Equal(10, curve[1].Minute);
+        Assert.Equal(15, curve[2].Minute);
+        Assert.True(curve[2].GoldDiff > curve[1].GoldDiff);
+        Assert.True(curve[2].PlayerGold > curve[0].PlayerGold);
+    }
+
+    [Fact]
+    public void MatchTimelineApplier_ApplySnapshot_SetsMinute15Flags()
+    {
+        var match = new Match
+        {
+            MatchId = "EUW1_APPLY",
+            Teams =
+            {
+                new TeamStats { TeamSide = TeamSide.Blue },
+                new TeamStats { TeamSide = TeamSide.Red }
+            },
+            Participants = Enumerable.Range(1, 10).Select(i => new Participant
+            {
+                ParticipantId = i,
+                TeamSide = i <= 5 ? TeamSide.Blue : TeamSide.Red,
+                Position = Position.Middle
+            }).ToList()
+        };
+
+        var timeline = new MatchTimelineData
+        {
+            GoldAt15Blue = 26000,
+            GoldAt15Red = 24000,
+            KillsAt15Blue = 10,
+            KillsAt15Red = 7,
+            GoldAt10Blue = 16000,
+            GoldAt10Red = 15000,
+            CsAt10Blue = 300,
+            CsAt10Red = 280,
+            XpAt10Blue = 8000,
+            XpAt10Red = 7500,
+            BlueFirstBlood = true,
+            FirstBloodTimeMs = 120_000
+        };
+
+        Assert.True(GameAnalytics.Core.Helpers.MatchTimelineApplier.ApplyTimelineSnapshot(match, timeline));
+        Assert.True(match.HasMinute15Objectives);
+        Assert.True(match.HasCsXp10Features);
+        Assert.True(match.HasVisionDeathFeatures);
+        Assert.Equal(2000, match.Teams.First(t => t.TeamSide == TeamSide.Blue).GoldAt15 - match.Teams.First(t => t.TeamSide == TeamSide.Red).GoldAt15);
+        Assert.Equal(1000, match.GoldDiff10);
+    }
+
+    [Fact]
+    public void AnalyzeMatchTactics_IncludesVisionGapAndGoldCurve()
+    {
+        var match = BuildTenManMatch("Akali", 3);
+        match.GameDurationSeconds = 1800;
+        var player = match.Participants[2];
+        player.VisionScore = 55;
+        player.ControlWardsBought = 5;
+        player.Kills = 4;
+        player.Deaths = 2;
+        player.Assists = 6;
+        player.TotalMinionsKilled = 180;
+        player.TotalDamageDealtToChampions = 18000;
+        player.Win = true;
+
+        var timeline = new MatchTimelineData
+        {
+            Frames = Enumerable.Range(0, 16).Select(m => new TimelineFrameSnapshot
+            {
+                TimestampMs = m * 60_000,
+                Participants = Enumerable.Range(1, 10).Select(i => new TimelineParticipantPos
+                {
+                    ParticipantId = i,
+                    TotalGold = 500 + m * (i <= 5 ? 420 : 380)
+                }).ToList()
+            }).ToList(),
+            RealEvents =
+            {
+                new TimelineEventRecord
+                {
+                    TimestampMs = 300_000,
+                    EventType = "CHAMPION_KILL",
+                    KillerId = 3,
+                    VictimId = 8
+                }
+            }
+        };
+
+        var report = MatchTacticalAnalyzer.AnalyzeMatchTactics(match, player, timeline);
+        Assert.Contains(report.GapAnalysis, g => g.Category.Contains("Віжн"));
+        Assert.True(report.GoldCurve.Count >= 10);
+    }
+
     private static Match BuildTenManMatch(string focusChampion, int focusId)
     {
         return new Match

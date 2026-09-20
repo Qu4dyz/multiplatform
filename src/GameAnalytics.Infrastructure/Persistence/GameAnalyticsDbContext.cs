@@ -10,6 +10,7 @@ public class GameAnalyticsDbContext : DbContext
     public DbSet<TeamStats> TeamStats => Set<TeamStats>();
     public DbSet<PlayerLpSnapshot> PlayerLpSnapshots => Set<PlayerLpSnapshot>();
     public DbSet<PlayerMatchLpRecord> PlayerMatchLpRecords => Set<PlayerMatchLpRecord>();
+    public DbSet<MatchTimelineCache> MatchTimelineCaches => Set<MatchTimelineCache>();
 
     private readonly string _dbPath;
 
@@ -97,6 +98,13 @@ public class GameAnalyticsDbContext : DbContext
             entity.HasIndex(r => new { r.Puuid, r.MatchId });
             entity.Property(r => r.Puuid).IsRequired().HasMaxLength(128);
             entity.Property(r => r.MatchId).IsRequired().HasMaxLength(64);
+        });
+
+        modelBuilder.Entity<MatchTimelineCache>(entity =>
+        {
+            entity.HasKey(c => c.Id);
+            entity.HasIndex(c => c.MatchId).IsUnique();
+            entity.Property(c => c.MatchId).IsRequired().HasMaxLength(64);
         });
     }
 }

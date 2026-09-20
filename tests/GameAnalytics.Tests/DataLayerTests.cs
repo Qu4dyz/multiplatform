@@ -755,7 +755,10 @@ public class DataLayerTests
                         Deaths = 2,
                         Assists = 8,
                         TotalMinionsKilled = 220,
-                        TotalDamageDealtToChampions = 22000
+                        TotalDamageDealtToChampions = 22000,
+                        VisionScore = 48,
+                        ControlWardsBought = 4,
+                        ControlWardsPlaced = 4
                     },
                     new()
                     {
@@ -793,6 +796,9 @@ public class DataLayerTests
         Assert.NotNull(report.Objectives);
         Assert.NotNull(report.Survival);
         Assert.True(report.Survival.Score >= 70, "2 deaths is very safe");
+        Assert.NotNull(report.Vision);
+        Assert.True(report.Vision.Score > 0, "Vision pillar should be scored");
+        Assert.Contains("VS/хв", report.Vision.PlayerValueText);
     }
 
     [Fact]

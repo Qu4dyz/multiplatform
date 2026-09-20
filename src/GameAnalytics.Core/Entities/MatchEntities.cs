@@ -146,6 +146,16 @@ public class Participant
     public int SoloKills { get; set; }
     public int TurretPlatesTaken { get; set; }
 
+    // Match-v5 challenges (coach / UI; 0 when absent on older rows)
+    public float KillParticipation { get; set; }
+    public float VisionScorePerMinute { get; set; }
+    public float GoldPerMinute { get; set; }
+    public float DamagePerMinute { get; set; }
+    public float TeamDamagePercentage { get; set; }
+    public int ControlWardsPlaced { get; set; }
+    public int EffectiveHealAndShielding { get; set; }
+    public int DamageDealtToObjectivesChallenge { get; set; }
+
     public double KdaRatio => Deaths == 0 ? (Kills + Assists) : Math.Round((double)(Kills + Assists) / Deaths, 2);
 }
 

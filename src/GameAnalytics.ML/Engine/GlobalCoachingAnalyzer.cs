@@ -75,6 +75,8 @@ public static class GlobalCoachingAnalyzer
         double totalDpm = 0;
         double totalDamageShare = 0;
         double totalKp = 0;
+        double totalVision = 0;
+        double totalControlWards = 0;
         int dragonKills = 0;
         int baronKills = 0;
         int towerKills = 0;
@@ -88,18 +90,26 @@ public static class GlobalCoachingAnalyzer
             totalD += p.Deaths;
             totalA += p.Assists;
             totalCs += p.TotalMinionsKilled;
+            totalVision += p.VisionScore;
+            totalControlWards += Math.Max(p.ControlWardsPlaced, p.ControlWardsBought);
 
-            var dpm = p.TotalDamageDealtToChampions / durMin;
+            var dpm = p.DamagePerMinute > 0
+                ? p.DamagePerMinute
+                : p.TotalDamageDealtToChampions / durMin;
             totalDpm += dpm;
 
             var teamParticipants = m.Participants.Where(x => x.TeamSide == p.TeamSide).ToList();
             var teamTotalDmg = teamParticipants.Sum(x => x.TotalDamageDealtToChampions);
             var teamTotalKills = teamParticipants.Sum(x => x.Kills);
 
-            var dmgShare = teamTotalDmg > 0 ? (double)p.TotalDamageDealtToChampions / teamTotalDmg * 100 : 20.0;
+            var dmgShare = p.TeamDamagePercentage > 0
+                ? p.TeamDamagePercentage * 100.0
+                : (teamTotalDmg > 0 ? (double)p.TotalDamageDealtToChampions / teamTotalDmg * 100 : 20.0);
             totalDamageShare += dmgShare;
 
-            var kp = teamTotalKills > 0 ? (double)(p.Kills + p.Assists) / teamTotalKills * 100 : 0;
+            var kp = p.KillParticipation > 0
+                ? p.KillParticipation * 100.0
+                : (teamTotalKills > 0 ? (double)(p.Kills + p.Assists) / teamTotalKills * 100 : 0);
             totalKp += kp;
 
             var teamStats = m.Teams.FirstOrDefault(t => t.TeamSide == p.TeamSide);
@@ -120,6 +130,8 @@ public static class GlobalCoachingAnalyzer
         var avgDpm = Math.Round(totalDpm / gameCount);
         var avgDamageShare = Math.Round(totalDamageShare / gameCount, 1);
         var avgKp = (int)Math.Round(totalKp / gameCount);
+        var avgVisionPerMin = Math.Round(totalVision / Math.Max(1.0, totalDurationMinutes), 2);
+        var avgControlWards = Math.Round(totalControlWards / gameCount, 1);
 
         // 1. COMBAT PILLAR
         double combatBase = 68.0;
@@ -226,15 +238,42 @@ public static class GlobalCoachingAnalyzer
             Description = $"Показник KDA: {avgKdaRatio:F2}:1. Безпека позиціонування."
         };
 
+        // 5. VISION PILLAR
+        double visionBase = 68.0;
+        var visionDiff = avgVisionPerMin - benchmark.TargetVisionScorePerMin;
+        visionBase += visionDiff * 28.0;
+        visionBase += (avgControlWards - benchmark.TargetControlWardsPerGame) * 3.0;
+        if (primaryPos == Position.Utility)
+            visionBase += 4.0;
+        var visionScore = (int)Math.Clamp(Math.Round(visionBase), 20, 99);
+        var (visionGrade, visionColor) = ScoreToGrade(visionScore);
+
+        report.Vision = new SkillPillarScore
+        {
+            PillarName = "Віжн (Vision)",
+            Icon = "👁️",
+            Score = visionScore,
+            Grade = visionGrade,
+            GradeColor = visionColor,
+            PlayerValueText = $"{avgVisionPerMin:F2} VS/хв",
+            BenchmarkText = $"Еталон: {benchmark.TargetVisionScorePerMin:F2} VS/хв",
+            DiffText = visionDiff >= 0
+                ? $"+{visionDiff:F2} VS/хв (Контроль карти)"
+                : $"{visionDiff:F2} VS/хв (Сліпа зона)",
+            DiffColor = visionDiff >= 0 ? "#0AC8B9" : "#E84057",
+            Description = $"Середньо {avgControlWards:F1} контрольних вардів/гру. Сумарний vision score: {totalVision:F0}."
+        };
+
         // Overall Weighted Score
-        var overall = (int)Math.Round(combatScore * 0.35 + economyScore * 0.25 + objScore * 0.20 + survivalScore * 0.20);
+        var overall = (int)Math.Round(
+            combatScore * 0.30 + economyScore * 0.20 + objScore * 0.15 + survivalScore * 0.15 + visionScore * 0.20);
         report.OverallScore = overall;
         var (ovGrade, ovColor) = ScoreToGrade(overall);
         report.OverallGrade = ovGrade;
         report.OverallGradeColor = ovColor;
 
         // Coaching Advice based on weakest and strongest pillar
-        var pillars = new[] { report.Combat, report.Economy, report.Objectives, report.Survival };
+        var pillars = new[] { report.Combat, report.Economy, report.Objectives, report.Survival, report.Vision };
         var weakest = pillars.OrderBy(p => p.Score).First();
         var strongest = pillars.OrderByDescending(p => p.Score).First();
 
@@ -246,6 +285,8 @@ public static class GlobalCoachingAnalyzer
                 $"🌾 Необхідно підтягнути фарм ({avgCsPerMin:F1} CS/хв проти цільових {benchmark.TargetCsPerMin:F1}): не втрачайте пачки міньйонів при роумінгах і забирайте кемпи між сутичками.",
             var p when p.Contains("Combat") =>
                 $"⚔️ Збільште участь у командних бійках (поточний KP: {avgKp}%). Вашому піку не вистачає присутності під час сутичок 5v5.",
+            var p when p.Contains("Vision") =>
+                $"👁️ Підніміть vision score ({avgVisionPerMin:F2}/хв проти {benchmark.TargetVisionScorePerMin:F2}): ставте контрольні варди перед об'єктами та чистіть ворожий туман перед роумінгом.",
             _ =>
                 $"🗺️ Акцентуйте увагу на ранньому контролі драконів та личинок Безодні для посилення снігового кому команди."
         };
@@ -292,6 +333,14 @@ public static class GlobalCoachingAnalyzer
             else if (csPerMin < 5.0) score -= 8;
         }
 
+        // Vision impact (Support weighted higher)
+        var visionPerMin = player.VisionScore / durMin;
+        var visionTarget = RoleBenchmark.GetBenchmark(player.Position).TargetVisionScorePerMin;
+        var visionWeight = player.Position == Position.Utility ? 10.0 : 5.0;
+        if (visionPerMin >= visionTarget * 1.15) score += visionWeight;
+        else if (visionPerMin >= visionTarget) score += visionWeight * 0.4;
+        else if (visionPerMin < visionTarget * 0.65) score -= visionWeight * 0.7;
+
         var (grade, color) = ScoreToGrade((int)Math.Clamp(Math.Round(score), 20, 99));
 
         // Tag
@@ -299,6 +348,7 @@ public static class GlobalCoachingAnalyzer
         if (dmgShare >= 30.0 && isVictory) tag = "💎 Hard Carry";
         else if (dmgShare >= 26.0) tag = "⚔️ Топ-дамаг";
         else if (csPerMin >= 8.0 && player.Position != Position.Utility) tag = "🌾 CS Монстр";
+        else if (visionPerMin >= visionTarget * 1.25) tag = "👁️ Vision King";
         else if (player.Deaths <= 1 && kda >= 6.0) tag = "🛡️ Безсмертний";
         else if (player.Deaths >= 8) tag = "⚠️ Багато смертей";
         else if (isVictory) tag = "⚡ Надійна гра";

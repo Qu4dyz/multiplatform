@@ -119,6 +119,17 @@ public class MatchCollectorTests
 
         public Task SaveLpSnapshotAsync(PlayerLpSnapshot snapshot, CancellationToken ct = default)
             => Task.CompletedTask;
+
+        private readonly Dictionary<string, MatchTimelineData> _timelines = new(StringComparer.OrdinalIgnoreCase);
+
+        public Task<MatchTimelineData?> GetCachedTimelineAsync(string matchId, CancellationToken ct = default)
+            => Task.FromResult(_timelines.TryGetValue(matchId, out var t) ? t : null);
+
+        public Task SaveTimelineCacheAsync(string matchId, MatchTimelineData data, CancellationToken ct = default)
+        {
+            _timelines[matchId] = data;
+            return Task.CompletedTask;
+        }
     }
 
     private static Match MakeStoredMatch(string matchId, params string[] puuids)

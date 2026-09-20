@@ -22,8 +22,19 @@ public static class CoachReportExporter
         sb.AppendLine($"* **Фарм:** {player.TotalMinionsKilled} CS ({player.TotalMinionsKilled / Math.Max(1.0, durMin):F1} CS/хв)");
         sb.AppendLine($"* **Шкода чемпіонам:** {player.TotalDamageDealtToChampions:N0}");
         sb.AppendLine($"* **Зароблене золото:** {player.GoldEarned:N0}");
+        sb.AppendLine($"* **Vision Score:** {player.VisionScore} ({player.VisionScore / Math.Max(1.0, durMin):F2}/хв), варди: {player.WardsPlaced} / CW: {Math.Max(player.ControlWardsPlaced, player.ControlWardsBought)}");
+        if (player.SoloKills > 0 || player.TurretPlatesTaken > 0)
+            sb.AppendLine($"* **Challenges:** solo kills {player.SoloKills}, plates {player.TurretPlatesTaken}");
         sb.AppendLine();
 
+        if (tacticalReport.GoldCurve.Count > 0)
+        {
+            var at10 = tacticalReport.GoldCurve.LastOrDefault(p => p.Minute <= 10);
+            var at15 = tacticalReport.GoldCurve.LastOrDefault(p => p.Minute <= 15);
+            var last = tacticalReport.GoldCurve[^1];
+            sb.AppendLine($"* **Gold curve:** @10 Δ{at10?.GoldDiff ?? 0:+#;-#;0} · @15 Δ{at15?.GoldDiff ?? 0:+#;-#;0} · фініш Δ{last.GoldDiff:+#;-#;0}");
+            sb.AppendLine();
+        }
         sb.AppendLine("---");
         sb.AppendLine("## 🎯 Головний вердикт тренера");
         sb.AppendLine();

@@ -24,6 +24,9 @@ public class RoleBenchmark
     public double TargetDpm { get; set; }
     public double MaxTargetDeaths { get; set; }
     public double TargetDamageSharePercent { get; set; }
+    /// <summary>Vision score per minute (Support highest, ADC lowest).</summary>
+    public double TargetVisionScorePerMin { get; set; }
+    public double TargetControlWardsPerGame { get; set; }
 
     public static RoleBenchmark GetBenchmark(Position position, GameTier tier)
     {
@@ -48,7 +51,9 @@ public class RoleBenchmark
             TargetKillParticipation = (int)Math.Round(baseBenchmark.TargetKillParticipation * Math.Min(1.1, tierMultiplier)),
             TargetDpm = Math.Round(baseBenchmark.TargetDpm * tierMultiplier, 0),
             MaxTargetDeaths = Math.Round(baseBenchmark.MaxTargetDeaths / tierMultiplier, 1),
-            TargetDamageSharePercent = baseBenchmark.TargetDamageSharePercent
+            TargetDamageSharePercent = baseBenchmark.TargetDamageSharePercent,
+            TargetVisionScorePerMin = Math.Round(baseBenchmark.TargetVisionScorePerMin * tierMultiplier, 2),
+            TargetControlWardsPerGame = Math.Round(baseBenchmark.TargetControlWardsPerGame * tierMultiplier, 1)
         };
     }
 
@@ -61,7 +66,9 @@ public class RoleBenchmark
             TargetKillParticipation = 55,
             TargetDpm = 520,
             MaxTargetDeaths = 4.2,
-            TargetDamageSharePercent = 20.0
+            TargetDamageSharePercent = 20.0,
+            TargetVisionScorePerMin = 0.95,
+            TargetControlWardsPerGame = 3.5
         },
         Position.Middle => new RoleBenchmark
         {
@@ -70,7 +77,9 @@ public class RoleBenchmark
             TargetKillParticipation = 52,
             TargetDpm = 680,
             MaxTargetDeaths = 4.0,
-            TargetDamageSharePercent = 24.5
+            TargetDamageSharePercent = 24.5,
+            TargetVisionScorePerMin = 0.55,
+            TargetControlWardsPerGame = 2.0
         },
         Position.Bottom => new RoleBenchmark
         {
@@ -79,7 +88,9 @@ public class RoleBenchmark
             TargetKillParticipation = 50,
             TargetDpm = 750,
             MaxTargetDeaths = 3.8,
-            TargetDamageSharePercent = 27.0
+            TargetDamageSharePercent = 27.0,
+            TargetVisionScorePerMin = 0.45,
+            TargetControlWardsPerGame = 1.5
         },
         Position.Top => new RoleBenchmark
         {
@@ -88,7 +99,9 @@ public class RoleBenchmark
             TargetKillParticipation = 45,
             TargetDpm = 580,
             MaxTargetDeaths = 4.5,
-            TargetDamageSharePercent = 21.0
+            TargetDamageSharePercent = 21.0,
+            TargetVisionScorePerMin = 0.50,
+            TargetControlWardsPerGame = 2.0
         },
         Position.Utility => new RoleBenchmark
         {
@@ -97,7 +110,9 @@ public class RoleBenchmark
             TargetKillParticipation = 62,
             TargetDpm = 320,
             MaxTargetDeaths = 4.8,
-            TargetDamageSharePercent = 9.5
+            TargetDamageSharePercent = 9.5,
+            TargetVisionScorePerMin = 1.45,
+            TargetControlWardsPerGame = 6.0
         },
         _ => new RoleBenchmark
         {
@@ -106,7 +121,9 @@ public class RoleBenchmark
             TargetKillParticipation = 50,
             TargetDpm = 600,
             MaxTargetDeaths = 4.0,
-            TargetDamageSharePercent = 20.0
+            TargetDamageSharePercent = 20.0,
+            TargetVisionScorePerMin = 0.60,
+            TargetControlWardsPerGame = 2.0
         }
     };
 }
@@ -124,6 +141,7 @@ public class GlobalCoachingReport
     public SkillPillarScore Economy { get; set; } = new();
     public SkillPillarScore Objectives { get; set; } = new();
     public SkillPillarScore Survival { get; set; } = new();
+    public SkillPillarScore Vision { get; set; } = new();
 
     public int TotalMatchesAnalyzed { get; set; }
     public string CoachAdvice { get; set; } = string.Empty;
