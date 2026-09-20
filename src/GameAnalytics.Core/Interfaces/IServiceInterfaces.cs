@@ -25,6 +25,8 @@ public interface IMatchRepository
     Task<int> GetTotalMatchesCountAsync(CancellationToken ct = default);
     Task ClearAllMatchesAsync(CancellationToken ct = default);
     Task<IReadOnlyList<string>> GetDistinctParticipantPuuidsAsync(int limit = 50, CancellationToken ct = default);
+    /// <summary>Match IDs that have minute-15 objectives but still miss vision/death or CS/XP@10 features.</summary>
+    Task<IReadOnlyList<string>> GetMatchIdsNeedingTimelineBackfillAsync(int limit = 50, CancellationToken ct = default);
     Task<IReadOnlyDictionary<string, int>> GetPlayerMatchLpMapAsync(string puuid, CancellationToken ct = default);
     Task SaveMatchLpRecordAsync(PlayerMatchLpRecord record, CancellationToken ct = default);
     Task<PlayerLpSnapshot?> GetLpSnapshotAsync(string puuid, int queueId = 420, CancellationToken ct = default);

@@ -277,6 +277,30 @@ public class MatchRepository : IMatchRepository
             .ToList();
     }
 
+    public async Task<IReadOnlyList<string>> GetMatchIdsNeedingTimelineBackfillAsync(int limit = 50, CancellationToken ct = default)
+    {
+        // Prefer CS/XP@10 gaps first (lowest coverage), then vision/death, randomized within each tier.
+        var missingCsXp = await _context.Matches
+            .AsNoTracking()
+            .Where(m => m.HasMinute15Objectives && !m.HasCsXp10Features)
+            .Select(m => m.MatchId)
+            .ToListAsync(ct);
+
+        var missingVision = await _context.Matches
+            .AsNoTracking()
+            .Where(m => m.HasMinute15Objectives && m.HasCsXp10Features && !m.HasVisionDeathFeatures)
+            .Select(m => m.MatchId)
+            .ToListAsync(ct);
+
+        var ordered = missingCsXp
+            .OrderBy(_ => Random.Shared.Next())
+            .Concat(missingVision.OrderBy(_ => Random.Shared.Next()))
+            .Take(limit)
+            .ToList();
+
+        return ordered;
+    }
+
     public async Task<IReadOnlyDictionary<string, int>> GetPlayerMatchLpMapAsync(string puuid, CancellationToken ct = default)
     {
         return await _context.PlayerMatchLpRecords

@@ -73,7 +73,7 @@ public class VpsTrainingWorker
                         }
                         if (m.SoftPrunedGroups.Count > 0)
                         {
-                            log($"[VPS ML Trainer] Soft-prune (шумні групи ×0.35): {string.Join(", ", m.SoftPrunedGroups)}");
+                            log($"[VPS ML Trainer] Soft-prune EMA (шумні групи ×0.35): {string.Join(", ", m.SoftPrunedGroups)}");
                         }
                         if (m.AccuracyByRankBucket.Count > 0)
                         {

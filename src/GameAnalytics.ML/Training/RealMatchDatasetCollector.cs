@@ -36,6 +36,9 @@ public class RealMatchDatasetCollector
         var refillAttempts = 0;
         const int maxRefillAttempts = 6;
         var objectiveBackfills = 0;
+        var csXpBackfills = 0;
+        const int backfillCap = 90;
+        const int csXpReserve = 50;
         var ladderSeeded = false;
 
         void RememberRankHint(string? puuid, float rankScore)
@@ -84,6 +87,9 @@ public class RealMatchDatasetCollector
 
         EnqueueCandidate(seedPuuid);
         await SeedLadderAsync();
+
+        // Dedicated pass: close CS/XP@10 + vision gaps on older rows (not only those hit by crawl).
+        await BackfillStaleTimelineFeaturesAsync(logger, ct);
 
         int newlySavedMatches = 0;
 
@@ -158,16 +164,28 @@ public class RealMatchDatasetCollector
                 var existing = await _matchRepo.GetMatchByMatchIdAsync(matchId, ct);
                 if (existing != null && existing.Teams.Count >= 2 && existing.Teams.Any(t => t.GoldAt15 > 0))
                 {
-                    // Backfill towers/dragons/vision/deaths at 15' for older rows missing those snapshots.
-                    if ((NeedsAt15ObjectiveBackfill(existing) || NeedsVisionDeathBackfill(existing) || NeedsCsXp10Backfill(existing))
-                        && objectiveBackfills < 60)
+                    // Backfill towers/dragons/vision/deaths/CS·XP@10 for older rows missing snapshots.
+                    // Reserve part of the budget for CS/XP@10 (lowest coverage).
+                    var needsCsXp = NeedsCsXp10Backfill(existing);
+                    var needsOther = NeedsAt15ObjectiveBackfill(existing) || NeedsVisionDeathBackfill(existing);
+                    if ((needsCsXp || needsOther) && objectiveBackfills < backfillCap)
                     {
-                        var timelineBackfill = await _apiClient.GetMatchTimelineAsync(matchId, ct);
-                        if (timelineBackfill != null && ApplyTimelineSnapshot(existing, timelineBackfill))
+                        var otherUsed = objectiveBackfills - csXpBackfills;
+                        var otherCap = backfillCap - csXpReserve;
+                        var allow = needsCsXp
+                            ? (csXpBackfills < csXpReserve || objectiveBackfills < backfillCap)
+                            : otherUsed < otherCap || (csXpBackfills >= csXpReserve && objectiveBackfills < backfillCap);
+
+                        if (allow)
                         {
-                            await _matchRepo.UpsertMatchAsync(existing, ct);
-                            objectiveBackfills++;
-                            logger?.Invoke($"[Collector] Backfill 15' timeline features: {matchId} ({objectiveBackfills}/60)");
+                            var timelineBackfill = await _apiClient.GetMatchTimelineAsync(matchId, ct);
+                            if (timelineBackfill != null && ApplyTimelineSnapshot(existing, timelineBackfill))
+                            {
+                                await _matchRepo.UpsertMatchAsync(existing, ct);
+                                objectiveBackfills++;
+                                if (needsCsXp) csXpBackfills++;
+                                logger?.Invoke($"[Collector] Backfill 15' timeline features: {matchId} ({objectiveBackfills}/{backfillCap}, cs10={csXpBackfills})");
+                            }
                         }
                     }
 
@@ -357,6 +375,57 @@ public class RealMatchDatasetCollector
 
     private static bool NeedsCsXp10Backfill(Match match)
         => match.HasMinute15Objectives && !match.HasCsXp10Features;
+
+    /// <summary>
+    /// Epoch-start DB pass: backfill CS/XP@10 (and remaining vision) on stored matches
+    /// without waiting for the crawl frontier to rediscover them.
+    /// </summary>
+    private async Task BackfillStaleTimelineFeaturesAsync(Action<string>? logger, CancellationToken ct)
+    {
+        const int dedicatedCap = 55;
+        IReadOnlyList<string> ids;
+        try
+        {
+            ids = await _matchRepo.GetMatchIdsNeedingTimelineBackfillAsync(dedicatedCap, ct);
+        }
+        catch (Exception ex)
+        {
+            logger?.Invoke($"[Collector] Dedicated backfill skip: {ex.Message}");
+            return;
+        }
+
+        if (ids.Count == 0) return;
+
+        var done = 0;
+        foreach (var matchId in ids)
+        {
+            if (ct.IsCancellationRequested || done >= dedicatedCap) break;
+            try
+            {
+                var existing = await _matchRepo.GetMatchByMatchIdAsync(matchId, ct);
+                if (existing == null) continue;
+                if (!NeedsCsXp10Backfill(existing) && !NeedsVisionDeathBackfill(existing)
+                    && !NeedsAt15ObjectiveBackfill(existing))
+                    continue;
+
+                var timeline = await _apiClient.GetMatchTimelineAsync(matchId, ct);
+                if (timeline == null) continue;
+                if (!ApplyTimelineSnapshot(existing, timeline)) continue;
+
+                await _matchRepo.UpsertMatchAsync(existing, ct);
+                done++;
+                if (done == 1 || done % 10 == 0 || done == ids.Count)
+                    logger?.Invoke($"[Collector] Dedicated timeline backfill: {done}/{ids.Count} (cs/vision gaps)");
+            }
+            catch
+            {
+                // Rate limits / transient API errors — continue remaining IDs next epoch.
+            }
+        }
+
+        if (done > 0)
+            logger?.Invoke($"[Collector] Dedicated backfill завершено: {done} матчів оновлено.");
+    }
 
     /// <summary>
     /// Converts stored historical matches into honest minute-15 ML features.
