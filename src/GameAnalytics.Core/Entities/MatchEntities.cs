@@ -36,6 +36,12 @@ public class Match
     public float GoldDiff10 { get; set; }
     /// <summary>Blue − Red kills by minute 10.</summary>
     public float KillDiff10 { get; set; }
+    /// <summary>Blue − Red CS at minute 10.</summary>
+    public float CsDiff10 { get; set; }
+    /// <summary>Blue − Red XP at minute 10.</summary>
+    public float XpDiff10 { get; set; }
+    /// <summary>True once CS/XP@10 were written from a timeline parse.</summary>
+    public bool HasCsXp10Features { get; set; }
 
     /// <summary>Blue max gold − Red max gold at 15' (carry lead concentration).</summary>
     public float CarryGoldDiff15 { get; set; }

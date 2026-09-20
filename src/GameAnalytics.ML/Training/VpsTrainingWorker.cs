@@ -65,8 +65,15 @@ public class VpsTrainingWorker
                         log($"[VPS ML Trainer] Результати навчання: Точність (Accuracy) = {m.Accuracy:P1} | AUC = {m.AreaUnderRocCurve:F3} | F1-Score = {m.F1Score:F3}");
                         if (m.AccuracyWhenConfident > 0 && m.ConfidentCoverage > 0)
                         {
-                            log($"[VPS ML Trainer] Впевнені предикти (|p-0.5|≥0.15): Accuracy = {m.AccuracyWhenConfident:P1} на {m.ConfidentCoverage:P0} тест-вибірки | Brier = {m.BrierScore:F3}" +
-                                (m.UsedHighEloSpecialist ? " | HighElo specialist: ON" : ""));
+                            var specialists = new List<string>();
+                            if (m.UsedHighEloSpecialist) specialists.Add("HighElo");
+                            if (m.UsedMidEloSpecialist) specialists.Add("MidElo");
+                            var specTxt = specialists.Count > 0 ? $" | Specialists: {string.Join("+", specialists)}" : "";
+                            log($"[VPS ML Trainer] Впевнені предикти (|p-0.5|≥0.15): Accuracy = {m.AccuracyWhenConfident:P1} на {m.ConfidentCoverage:P0} тест-вибірки | Brier = {m.BrierScore:F3} | TreeW={m.EnsembleTreeWeight:F2}{specTxt}");
+                        }
+                        if (m.SoftPrunedGroups.Count > 0)
+                        {
+                            log($"[VPS ML Trainer] Soft-prune (шумні групи ×0.35): {string.Join(", ", m.SoftPrunedGroups)}");
                         }
                         if (m.AccuracyByRankBucket.Count > 0)
                         {

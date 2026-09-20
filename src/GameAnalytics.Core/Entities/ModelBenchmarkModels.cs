@@ -41,11 +41,20 @@ public class ModelMetrics
     /// <summary>True when a Diamond+ specialist model was blended into evaluation/prediction.</summary>
     public bool UsedHighEloSpecialist { get; set; }
 
+    /// <summary>True when a Gold–Emerald mid-elo specialist was blended.</summary>
+    public bool UsedMidEloSpecialist { get; set; }
+
+    /// <summary>FastTree weight in the soft ensemble (FastForest = 1 − TreeWeight).</summary>
+    public float EnsembleTreeWeight { get; set; } = 0.5f;
+
     /// <summary>
     /// Leave-one-group-out ablation: accuracy drop when a feature group is zeroed and FastTree is retrained.
     /// Key = group name, Value = baselineAcc − ablatedAcc (positive ⇒ group helps).
     /// </summary>
     public Dictionary<string, double> AblationAccuracyDrop { get; set; } = new();
+
+    /// <summary>Feature groups soft-pruned (scaled down) after negative ablation.</summary>
+    public List<string> SoftPrunedGroups { get; set; } = new();
 
     public string FormattedAccuracy => $"{Accuracy * 100:F1}%";
     public string FormattedAuc => $"{AreaUnderRocCurve:F3}";

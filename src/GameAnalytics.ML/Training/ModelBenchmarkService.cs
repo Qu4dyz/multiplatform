@@ -118,7 +118,9 @@ public class ModelBenchmarkService
                 nameof(MatchInputData.LeadVsScaling),
                 nameof(MatchInputData.DeathDiff15),
                 nameof(MatchInputData.VisionWardDiff15),
-                nameof(MatchInputData.ControlWardDiff15))
+                nameof(MatchInputData.ControlWardDiff15),
+                nameof(MatchInputData.CsDiff10),
+                nameof(MatchInputData.XpDiff10))
             .Append(_mlContext.Transforms.NormalizeMinMax("Features"));
 
         return algorithmType switch
@@ -151,31 +153,47 @@ public class ModelBenchmarkService
     }
 
     /// <summary>
-    /// Soft-vote ensemble: average calibrated probabilities from FastTree + FastForest,
-    /// optionally blended with a Diamond+ specialist for high-rank lobbies.
+    /// Soft-vote ensemble: weighted calibrated probabilities from FastTree + FastForest,
+    /// optionally blended with mid-elo / high-elo specialists by lobby rank.
     /// Also reports confidence-gated accuracy (lab-friendly abstention metric).
     /// </summary>
     public const float HighEloRankThreshold = 7.0f; // Diamond+
+    public const float MidEloRankMin = 3.5f;        // Gold–Emerald band
+    public const float MidEloRankMax = 7.0f;
     public const float ConfidentProbabilityMargin = 0.15f; // |p-0.5| ≥ 0.15
+    public const float SoftPruneScale = 0.35f; // dampen groups that hurt temporal accuracy
+    public const double SoftPruneNegativeDrop = -0.003; // ablation drop below this ⇒ prune
 
     public static ModelMetrics EvaluateSoftEnsemble(
         MLContext mlContext,
         PredictionEngine<MatchInputData, MatchPrediction> treeEngine,
         PredictionEngine<MatchInputData, MatchPrediction> forestEngine,
         IReadOnlyList<MatchInputData> testSet,
-        PredictionEngine<MatchInputData, MatchPrediction>? highEloEngine = null)
+        PredictionEngine<MatchInputData, MatchPrediction>? highEloEngine = null,
+        PredictionEngine<MatchInputData, MatchPrediction>? midEloEngine = null,
+        float treeWeight = 0.5f)
     {
+        treeWeight = Math.Clamp(treeWeight, 0.25f, 0.75f);
+        var forestWeight = 1f - treeWeight;
+
         var rows = new List<(bool Label, float Prob, float Rank)>(testSet.Count);
         foreach (var row in testSet)
         {
             var p1 = Math.Clamp(treeEngine.Predict(row).Probability, 0.01f, 0.99f);
             var p2 = Math.Clamp(forestEngine.Predict(row).Probability, 0.01f, 0.99f);
-            var p = (p1 + p2) * 0.5f;
+            var p = p1 * treeWeight + p2 * forestWeight;
+
             if (highEloEngine != null && row.AvgRankScore >= HighEloRankThreshold)
             {
                 var ph = Math.Clamp(highEloEngine.Predict(row).Probability, 0.01f, 0.99f);
-                // Specialist gets majority weight where rank playstyle differs most.
                 p = p * 0.40f + ph * 0.60f;
+            }
+            else if (midEloEngine != null
+                     && row.AvgRankScore >= MidEloRankMin
+                     && row.AvgRankScore < MidEloRankMax)
+            {
+                var pm = Math.Clamp(midEloEngine.Predict(row).Probability, 0.01f, 0.99f);
+                p = p * 0.45f + pm * 0.55f;
             }
 
             rows.Add((row.Label, p, row.AvgRankScore));
@@ -227,8 +245,113 @@ public class ModelBenchmarkService
             AccuracyWhenConfident = accConfident,
             ConfidentCoverage = coverage,
             BrierScore = brier,
-            UsedHighEloSpecialist = highEloEngine != null
+            UsedHighEloSpecialist = highEloEngine != null,
+            UsedMidEloSpecialist = midEloEngine != null,
+            EnsembleTreeWeight = treeWeight
         };
+    }
+
+    /// <summary>
+    /// Pick FastTree weight in [0.30, 0.70] that minimises Brier on a calibration slice
+    /// (accuracy as tie-breaker). Keeps the ensemble honest instead of fixed 50/50.
+    /// </summary>
+    public static float OptimizeEnsembleTreeWeight(
+        PredictionEngine<MatchInputData, MatchPrediction> treeEngine,
+        PredictionEngine<MatchInputData, MatchPrediction> forestEngine,
+        IReadOnlyList<MatchInputData> calibrationSet)
+    {
+        if (calibrationSet.Count < 40) return 0.55f;
+
+        float bestWeight = 0.55f;
+        double bestBrier = double.MaxValue;
+        double bestAcc = 0;
+
+        foreach (var w in new[] { 0.30f, 0.40f, 0.50f, 0.55f, 0.60f, 0.70f })
+        {
+            var fw = 1f - w;
+            double brierSum = 0;
+            var correct = 0;
+            foreach (var row in calibrationSet)
+            {
+                var p1 = Math.Clamp(treeEngine.Predict(row).Probability, 0.01f, 0.99f);
+                var p2 = Math.Clamp(forestEngine.Predict(row).Probability, 0.01f, 0.99f);
+                var p = p1 * w + p2 * fw;
+                var y = row.Label ? 1.0 : 0.0;
+                var d = p - y;
+                brierSum += d * d;
+                if ((p >= 0.5f) == row.Label) correct++;
+            }
+
+            var brier = brierSum / calibrationSet.Count;
+            var acc = correct / (double)calibrationSet.Count;
+            if (brier < bestBrier - 1e-6 || (Math.Abs(brier - bestBrier) < 1e-6 && acc > bestAcc))
+            {
+                bestBrier = brier;
+                bestAcc = acc;
+                bestWeight = w;
+            }
+        }
+
+        return bestWeight;
+    }
+
+    /// <summary>
+    /// Soft-prune feature groups whose leave-one-group-out ablation hurt accuracy
+    /// (negative drop). Scales those features down instead of hard-dropping them.
+    /// </summary>
+    public static List<string> ApplySoftPruneFromAblation(
+        IList<MatchInputData> rows,
+        IReadOnlyDictionary<string, double> ablation)
+    {
+        var pruned = new List<string>();
+        if (rows.Count == 0 || ablation.Count == 0) return pruned;
+
+        foreach (var (group, drop) in ablation)
+        {
+            if (drop >= SoftPruneNegativeDrop) continue;
+            pruned.Add(group);
+            foreach (var r in rows)
+                ScaleFeatureGroup(r, group, SoftPruneScale);
+        }
+
+        return pruned;
+    }
+
+    public static void ScaleFeatureGroup(MatchInputData r, string group, float scale)
+    {
+        switch (group)
+        {
+            case "GoldLead":
+                r.GoldDiff15 *= scale; r.GoldDiff10 *= scale; r.GoldMomentum15 *= scale;
+                r.RankAdjustedGoldDiff *= scale; r.CarryGoldDiff15 *= scale;
+                r.SnowballScore *= scale; r.LeadVsScaling *= scale; r.GoldPace15 *= scale;
+                break;
+            case "Combat":
+                r.KillDiff15 *= scale; r.KillDiff10 *= scale; r.KillMomentum15 *= scale;
+                r.FirstBlood *= scale; r.FirstBloodTempo *= scale; r.DeathDiff15 *= scale;
+                break;
+            case "Objectives":
+                r.TowerDiff *= scale; r.DragonDiff *= scale; r.VoidgrubDiff *= scale; r.HeraldDiff *= scale;
+                r.ObjectiveScoreDiff *= scale; r.FirstTower *= scale; r.FirstDragon *= scale;
+                r.FirstTowerTempo *= scale; r.FirstDragonTempo *= scale; r.FirstDragonValue *= scale;
+                r.PlatesDiff15 *= scale;
+                break;
+            case "Vision":
+                r.VisionWardDiff15 *= scale; r.ControlWardDiff15 *= scale;
+                break;
+            case "Draft":
+                r.EarlyPowerDiff *= scale; r.LatePowerDiff *= scale; r.EngageDiff *= scale;
+                r.TankDiff *= scale; r.AdApBalanceDiff *= scale; r.WinRateDiff *= scale;
+                r.LaneMatchupDiff *= scale;
+                r.BlueAvgWinRate = 50f + (r.BlueAvgWinRate - 50f) * scale;
+                r.RedAvgWinRate = 50f + (r.RedAvgWinRate - 50f) * scale;
+                break;
+            case "Lanes":
+                r.TopGoldDiff15 *= scale; r.JungleGoldDiff15 *= scale; r.MidGoldDiff15 *= scale;
+                r.BotDuoGoldDiff15 *= scale; r.LevelDiff15 *= scale; r.CsDiff15 *= scale;
+                r.XpDiff15 *= scale; r.CsDiff10 *= scale; r.XpDiff10 *= scale;
+                break;
+        }
     }
 
     public static Dictionary<string, double> ComputeRankBucketAccuracy(
@@ -317,7 +440,9 @@ public class ModelBenchmarkService
             ["DragonDiff"] = 0.02,
             ["DeathDiff15"] = 0.05,
             ["VisionWardDiff15"] = 0.04,
-            ["ControlWardDiff15"] = 0.04
+            ["ControlWardDiff15"] = 0.04,
+            ["CsDiff10"] = 0.04,
+            ["XpDiff10"] = 0.03
         };
 
         return result.OrderByDescending(kv => kv.Value).ToDictionary(kv => kv.Key, kv => kv.Value);
@@ -369,6 +494,7 @@ public class ModelBenchmarkService
             {
                 r.TopGoldDiff15 = 0; r.JungleGoldDiff15 = 0; r.MidGoldDiff15 = 0;
                 r.BotDuoGoldDiff15 = 0; r.LevelDiff15 = 0; r.CsDiff15 = 0; r.XpDiff15 = 0;
+                r.CsDiff10 = 0; r.XpDiff10 = 0;
             })
         };
 
@@ -406,6 +532,8 @@ public class ModelBenchmarkService
             .OrderByDescending(kv => kv.Value)
             .ToDictionary(kv => kv.Key, kv => kv.Value);
     }
+
+    public static MatchInputData CloneRowPublic(MatchInputData r) => CloneRow(r);
 
     private static MatchInputData CloneRow(MatchInputData r) => new()
     {
@@ -453,6 +581,8 @@ public class ModelBenchmarkService
         DeathDiff15 = r.DeathDiff15,
         VisionWardDiff15 = r.VisionWardDiff15,
         ControlWardDiff15 = r.ControlWardDiff15,
+        CsDiff10 = r.CsDiff10,
+        XpDiff10 = r.XpDiff10,
         Label = r.Label
     };
 }

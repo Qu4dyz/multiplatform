@@ -431,7 +431,9 @@ public partial class DraftPredictionViewModel : ViewModelBase
             FirstDragonValue = BlueFirstDragon ? 1.0f : 0f,
             DeathDiff15 = -KillDiffAt15 * 0.9f,
             VisionWardDiff15 = 0f,
-            ControlWardDiff15 = 0f
+            ControlWardDiff15 = 0f,
+            CsDiff10 = CsDiffAt15 * 0.65f,
+            XpDiff10 = XpDiffAt15 * 0.65f
         };
 
         Prediction = _analyticsService.PredictOutcome(features);

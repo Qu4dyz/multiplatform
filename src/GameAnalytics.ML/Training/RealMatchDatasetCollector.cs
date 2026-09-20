@@ -159,15 +159,15 @@ public class RealMatchDatasetCollector
                 if (existing != null && existing.Teams.Count >= 2 && existing.Teams.Any(t => t.GoldAt15 > 0))
                 {
                     // Backfill towers/dragons/vision/deaths at 15' for older rows missing those snapshots.
-                    if ((NeedsAt15ObjectiveBackfill(existing) || NeedsVisionDeathBackfill(existing))
-                        && objectiveBackfills < 20)
+                    if ((NeedsAt15ObjectiveBackfill(existing) || NeedsVisionDeathBackfill(existing) || NeedsCsXp10Backfill(existing))
+                        && objectiveBackfills < 60)
                     {
                         var timelineBackfill = await _apiClient.GetMatchTimelineAsync(matchId, ct);
                         if (timelineBackfill != null && ApplyTimelineSnapshot(existing, timelineBackfill))
                         {
                             await _matchRepo.UpsertMatchAsync(existing, ct);
                             objectiveBackfills++;
-                            logger?.Invoke($"[Collector] Backfill 15' timeline features: {matchId} ({objectiveBackfills}/20)");
+                            logger?.Invoke($"[Collector] Backfill 15' timeline features: {matchId} ({objectiveBackfills}/60)");
                         }
                     }
 
@@ -249,6 +249,9 @@ public class RealMatchDatasetCollector
 
         match.GoldDiff10 = timeline.GoldDiffAt10;
         match.KillDiff10 = timeline.KillDiffAt10;
+        match.CsDiff10 = timeline.CsDiffAt10;
+        match.XpDiff10 = timeline.XpDiffAt10;
+        match.HasCsXp10Features = true;
 
         match.FirstBloodTempo = DragonValueHelper.SignedTempo(timeline.BlueFirstBlood, timeline.FirstBloodTimeMs);
         match.FirstTowerTempo = DragonValueHelper.SignedTempo(timeline.BlueFirstTower, timeline.FirstTowerTimeMs);
@@ -351,6 +354,9 @@ public class RealMatchDatasetCollector
     /// <summary>Older rows may have gold@15 but never parsed wards/deaths — refresh timeline once.</summary>
     private static bool NeedsVisionDeathBackfill(Match match)
         => match.HasMinute15Objectives && !match.HasVisionDeathFeatures;
+
+    private static bool NeedsCsXp10Backfill(Match match)
+        => match.HasMinute15Objectives && !match.HasCsXp10Features;
 
     /// <summary>
     /// Converts stored historical matches into honest minute-15 ML features.
@@ -469,6 +475,12 @@ public class RealMatchDatasetCollector
                 RankAdjustedGoldDiff = rankAdjustedGold,
                 GoldDiff10 = goldDiff10,
                 KillDiff10 = killDiff10,
+                CsDiff10 = match.CsDiff10 != 0
+                    ? match.CsDiff10
+                    : (match.HasCsXp10Features ? 0f : csDiff15 * 0.65f),
+                XpDiff10 = match.XpDiff10 != 0
+                    ? match.XpDiff10
+                    : (match.HasCsXp10Features ? 0f : xpDiff15 * 0.65f),
                 GoldMomentum15 = goldMomentum,
                 WinRateDiff = winRateDiff,
                 EngageDiff = engageDiff,

@@ -179,6 +179,8 @@ public class MatchInputFeatures
 
     public float GoldDiff10 { get; set; }
     public float KillDiff10 { get; set; }
+    public float CsDiff10 { get; set; }
+    public float XpDiff10 { get; set; }
     public float GoldMomentum15 { get; set; }
     public float EngageDiff { get; set; }
     public float TankDiff { get; set; }
