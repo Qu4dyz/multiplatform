@@ -115,8 +115,8 @@ public class MlFeatureV2Tests
         var treeEng = ml.Model.CreatePredictionEngine<GameAnalytics.ML.Models.MatchInputData, GameAnalytics.ML.Models.MatchPrediction>(tree);
         var forestEng = ml.Model.CreatePredictionEngine<GameAnalytics.ML.Models.MatchInputData, GameAnalytics.ML.Models.MatchPrediction>(forest);
 
-        var w = ModelBenchmarkService.OptimizeEnsembleTreeWeight(treeEng, forestEng, cal);
-        Assert.InRange(w, 0.30f, 0.70f);
+        var w = ModelBenchmarkService.OptimizeEnsembleTreeWeight(treeEng, forestEng, cal, previousWeight: 0.55f);
+        Assert.InRange(w, 0.25f, 0.80f);
     }
 
     [Fact]
@@ -131,6 +131,15 @@ public class MlFeatureV2Tests
         Assert.DoesNotContain("GoldLead", pruned);
         Assert.True(Math.Abs(row.TopGoldDiff15 - 100f * ModelBenchmarkService.SoftPruneScale) < 0.01f);
         Assert.True(Math.Abs(row.CsDiff10 - 40f * ModelBenchmarkService.SoftPruneScale) < 0.01f);
+    }
+
+    [Fact]
+    public void UpdateAblationEma_SmoothsNoisyEpoch()
+    {
+        var ema = new Dictionary<string, double>();
+        ModelBenchmarkService.UpdateAblationEma(ema, new Dictionary<string, double> { ["Draft"] = -0.02 });
+        ModelBenchmarkService.UpdateAblationEma(ema, new Dictionary<string, double> { ["Draft"] = 0.03 });
+        Assert.True(ema["Draft"] > ModelBenchmarkService.SoftPruneNegativeDrop);
     }
 
     [Fact]

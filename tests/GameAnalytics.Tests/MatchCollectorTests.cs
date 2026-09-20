@@ -98,6 +98,16 @@ public class MatchCollectorTests
             return Task.FromResult<IReadOnlyList<string>>(puuids);
         }
 
+        public Task<IReadOnlyList<string>> GetMatchIdsNeedingTimelineBackfillAsync(int limit = 50, CancellationToken ct = default)
+        {
+            var ids = Stored.Values
+                .Where(m => m.HasMinute15Objectives && (!m.HasCsXp10Features || !m.HasVisionDeathFeatures))
+                .Select(m => m.MatchId)
+                .Take(limit)
+                .ToList();
+            return Task.FromResult<IReadOnlyList<string>>(ids);
+        }
+
         public Task<IReadOnlyDictionary<string, int>> GetPlayerMatchLpMapAsync(string puuid, CancellationToken ct = default)
             => Task.FromResult<IReadOnlyDictionary<string, int>>(new Dictionary<string, int>());
 

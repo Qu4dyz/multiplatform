@@ -162,7 +162,10 @@ public class ModelBenchmarkService
     public const float MidEloRankMax = 7.0f;
     public const float ConfidentProbabilityMargin = 0.15f; // |p-0.5| ≥ 0.15
     public const float SoftPruneScale = 0.35f; // dampen groups that hurt temporal accuracy
-    public const double SoftPruneNegativeDrop = -0.003; // ablation drop below this ⇒ prune
+    /// <summary>EMA ablation must stay below this for a group to be soft-pruned (stricter than single-epoch).</summary>
+    public const double SoftPruneNegativeDrop = -0.008;
+    public const double AblationEmaAlpha = 0.40; // weight of the newest epoch in the EMA
+    public const float TreeWeightEmaAlpha = 0.55f; // blend new optimum with previous TreeW
 
     public static ModelMetrics EvaluateSoftEnsemble(
         MLContext mlContext,
@@ -252,21 +255,30 @@ public class ModelBenchmarkService
     }
 
     /// <summary>
-    /// Pick FastTree weight in [0.30, 0.70] that minimises Brier on a calibration slice
-    /// (accuracy as tie-breaker). Keeps the ensemble honest instead of fixed 50/50.
+    /// Pick FastTree weight on a fine grid that minimises Brier on a calibration slice.
+    /// Ties prefer weights closer to 0.55 (avoid always slamming the 0.70 ceiling).
+    /// Optionally blends with the previous epoch weight for stability.
     /// </summary>
     public static float OptimizeEnsembleTreeWeight(
         PredictionEngine<MatchInputData, MatchPrediction> treeEngine,
         PredictionEngine<MatchInputData, MatchPrediction> forestEngine,
-        IReadOnlyList<MatchInputData> calibrationSet)
+        IReadOnlyList<MatchInputData> calibrationSet,
+        float? previousWeight = null)
     {
-        if (calibrationSet.Count < 40) return 0.55f;
+        if (calibrationSet.Count < 40) return previousWeight ?? 0.55f;
 
         float bestWeight = 0.55f;
         double bestBrier = double.MaxValue;
         double bestAcc = 0;
+        double bestCenterDist = double.MaxValue;
 
-        foreach (var w in new[] { 0.30f, 0.40f, 0.50f, 0.55f, 0.60f, 0.70f })
+        // Fine grid — includes interior points so we don't always stick at 0.70.
+        var candidates = new[]
+        {
+            0.25f, 0.30f, 0.35f, 0.40f, 0.45f, 0.50f, 0.55f, 0.60f, 0.65f, 0.70f, 0.75f, 0.80f
+        };
+
+        foreach (var w in candidates)
         {
             var fw = 1f - w;
             double brierSum = 0;
@@ -284,20 +296,64 @@ public class ModelBenchmarkService
 
             var brier = brierSum / calibrationSet.Count;
             var acc = correct / (double)calibrationSet.Count;
-            if (brier < bestBrier - 1e-6 || (Math.Abs(brier - bestBrier) < 1e-6 && acc > bestAcc))
+            var centerDist = Math.Abs(w - 0.55f);
+
+            // Prefer lower Brier; within 0.002 Brier prefer accuracy; then prefer closer to 0.55.
+            var better =
+                brier < bestBrier - 0.002 ||
+                (brier < bestBrier - 1e-6 && acc >= bestAcc - 0.005) ||
+                (Math.Abs(brier - bestBrier) < 0.002 && acc > bestAcc + 0.005) ||
+                (Math.Abs(brier - bestBrier) < 0.002 && Math.Abs(acc - bestAcc) < 0.005 && centerDist < bestCenterDist);
+
+            if (better)
             {
                 bestBrier = brier;
                 bestAcc = acc;
                 bestWeight = w;
+                bestCenterDist = centerDist;
             }
         }
 
-        return bestWeight;
+        if (previousWeight is >= 0.25f and <= 0.80f)
+        {
+            bestWeight = TreeWeightEmaAlpha * bestWeight + (1f - TreeWeightEmaAlpha) * previousWeight.Value;
+            // Snap to nearest 0.05 for readable lab logs.
+            bestWeight = MathF.Round(bestWeight * 20f) / 20f;
+        }
+
+        return Math.Clamp(bestWeight, 0.25f, 0.80f);
+    }
+
+    /// <summary>
+    /// Exponential moving average of ablation drops across epochs — dampens one-off noisy epochs.
+    /// </summary>
+    public static Dictionary<string, double> UpdateAblationEma(
+        Dictionary<string, double> ema,
+        IReadOnlyDictionary<string, double> current,
+        double alpha = AblationEmaAlpha)
+    {
+        alpha = Math.Clamp(alpha, 0.05, 0.95);
+        foreach (var (key, value) in current)
+        {
+            if (ema.TryGetValue(key, out var prev))
+                ema[key] = alpha * value + (1.0 - alpha) * prev;
+            else
+                ema[key] = value;
+        }
+
+        // Mild decay toward 0 for groups missing this epoch (keeps stale negatives from sticking forever).
+        foreach (var key in ema.Keys.ToList())
+        {
+            if (!current.ContainsKey(key))
+                ema[key] *= (1.0 - alpha * 0.5);
+        }
+
+        return ema;
     }
 
     /// <summary>
     /// Soft-prune feature groups whose leave-one-group-out ablation hurt accuracy
-    /// (negative drop). Scales those features down instead of hard-dropping them.
+    /// (negative drop). Prefer passing an EMA of ablation for stability.
     /// </summary>
     public static List<string> ApplySoftPruneFromAblation(
         IList<MatchInputData> rows,

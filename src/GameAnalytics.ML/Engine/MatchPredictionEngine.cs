@@ -21,6 +21,7 @@ public class MatchPredictionEngine : IPredictionEngine
     private PredictionEngine<MatchInputData, MatchPrediction>? _highEloEngine;
     private PredictionEngine<MatchInputData, MatchPrediction>? _midEloEngine;
     private float _ensembleTreeWeight = 0.55f;
+    private readonly Dictionary<string, double> _ablationEma = new(StringComparer.Ordinal);
     private readonly object _lock = new();
 
     public MLAlgorithmType ActiveAlgorithm { get; private set; } = MLAlgorithmType.FastTree;
@@ -450,11 +451,11 @@ public class MatchPredictionEngine : IPredictionEngine
                         var treeEngine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(treeModel);
                         var forestEngine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(forestModel);
 
-                        // Calibration slice = last 15% of train (still before test chronologically).
-                        var calCount = Math.Max(40, (int)Math.Round(trainSet.Count * 0.15));
+                        // Calibration slice = last 20% of train (still before test chronologically).
+                        var calCount = Math.Max(60, (int)Math.Round(trainSet.Count * 0.20));
                         var calSet = trainSet.Skip(Math.Max(0, trainSet.Count - calCount)).ToList();
                         _ensembleTreeWeight = ModelBenchmarkService.OptimizeEnsembleTreeWeight(
-                            treeEngine, forestEngine, calSet);
+                            treeEngine, forestEngine, calSet, previousWeight: _ensembleTreeWeight);
 
                         PredictionEngine<MatchInputData, MatchPrediction>? highEloEngine = null;
                         var highTrain = trainSet
@@ -483,7 +484,7 @@ public class MatchPredictionEngine : IPredictionEngine
                             _mlContext, treeEngine, forestEngine, testSet,
                             highEloEngine, midEloEngine, _ensembleTreeWeight);
 
-                        // Lab ablation: which feature groups actually move temporal accuracy.
+                        // Lab ablation + EMA soft-prune (ignore one-off noisy epochs).
                         List<string> prunedGroups = new();
                         if (trainSet.Count >= 120 && testSet.Count >= 30)
                         {
@@ -491,10 +492,12 @@ public class MatchPredictionEngine : IPredictionEngine
                                 ModelBenchmarkService.RunFeatureGroupAblation(
                                     _mlContext, trainSet, testSet, CurrentModelMetrics.Accuracy);
 
-                            // Soft-prune noisy groups on the full corpus before final retrain.
+                            ModelBenchmarkService.UpdateAblationEma(
+                                _ablationEma, CurrentModelMetrics.AblationAccuracyDrop);
+
                             var fullClone = matchDataList.Select(ModelBenchmarkService.CloneRowPublic).ToList();
                             prunedGroups = ModelBenchmarkService.ApplySoftPruneFromAblation(
-                                fullClone, CurrentModelMetrics.AblationAccuracyDrop);
+                                fullClone, _ablationEma);
                             CurrentModelMetrics.SoftPrunedGroups = prunedGroups;
 
                             if (prunedGroups.Count > 0)
