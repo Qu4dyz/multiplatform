@@ -1,5 +1,6 @@
 using GameAnalytics.Core.Entities;
 using GameAnalytics.Core.Enums;
+using GameAnalytics.Core.Helpers;
 
 namespace GameAnalytics.ML.Engine;
 
@@ -24,10 +25,14 @@ public static class MatchTacticalAnalyzer
 
         var teamSide = player.TeamSide;
         var teamKills = match.Participants.Where(p => p.TeamSide == teamSide).Sum(p => p.Kills);
-        var kp = teamKills > 0 ? (int)Math.Round((double)(player.Kills + player.Assists) / teamKills * 100) : 0;
+        var kp = player.KillParticipation > 0
+            ? (int)Math.Round(player.KillParticipation * 100)
+            : (teamKills > 0 ? (int)Math.Round((double)(player.Kills + player.Assists) / teamKills * 100) : 0);
 
         var teamDmg = match.Participants.Where(p => p.TeamSide == teamSide).Sum(p => p.TotalDamageDealtToChampions);
-        var dmgShare = teamDmg > 0 ? Math.Round((double)player.TotalDamageDealtToChampions / teamDmg * 100, 1) : 20.0;
+        var dmgShare = player.TeamDamagePercentage > 0
+            ? Math.Round(player.TeamDamagePercentage * 100, 1)
+            : (teamDmg > 0 ? Math.Round((double)player.TotalDamageDealtToChampions / teamDmg * 100, 1) : 20.0);
 
         var benchmark = RoleBenchmark.GetBenchmark(player.Position, tier);
 
@@ -110,6 +115,28 @@ public static class MatchTacticalAnalyzer
             Advice = deathDiff >= 0
                 ? "Дисциплінована гра без непотрібного ризику."
                 : "Надлишкові смерті передавали ворожій команді золото за стріки та відкривали нейтральні об'єкти."
+        });
+
+        // Vision Gap
+        var visionPerMin = Math.Round(player.VisionScore / Math.Max(1.0, durMin), 2);
+        if (player.VisionScorePerMinute > 0)
+            visionPerMin = Math.Round(player.VisionScorePerMinute, 2);
+        var visionDiff = Math.Round(visionPerMin - benchmark.TargetVisionScorePerMin, 2);
+        var controlWards = Math.Max(player.ControlWardsPlaced, player.ControlWardsBought);
+        report.GapAnalysis.Add(new MatchGapItem
+        {
+            Category = "Віжн та мап-контроль",
+            MetricName = "Vision Score / хв",
+            ActualValueText = $"{visionPerMin:F2} VS/хв ({controlWards} CW)",
+            BenchmarkValueText = $"{benchmark.TargetVisionScorePerMin:F2} VS/хв ({displayTier})",
+            EvaluationText = visionDiff >= 0
+                ? $"+{visionDiff:F2} VS/хв над еталоном"
+                : $"{visionDiff:F2} VS/хв нижче норми",
+            ImpactColor = visionDiff >= 0 ? "#0AC8B9" : "#E84057",
+            IsPositive = visionDiff >= 0,
+            Advice = visionDiff >= 0
+                ? "Добрий контроль туману війни навколо річки та об'єктів."
+                : $"Додайте контрольні варди (зараз {controlWards}, ціль ~{benchmark.TargetControlWardsPerGame:F0}) перед драконом/Бароном."
         });
 
         // 2. MINUTE-BY-MINUTE TIMELINE (Play-by-play real events from Riot Timeline API or tactical milestones)
@@ -408,6 +435,11 @@ public static class MatchTacticalAnalyzer
                 report.OverallMatchVerdict = $"Низька бойова конверсія на {player.ChampionName}: частка шкоди склала {dmgShare:F1}% команди при {kp}% участі в кілах.";
                 report.KeyTakeaway = "Працюйте над таймінгами вступу в бій та фокусуванням першочергових цілей.";
             }
+        }
+
+        if (timeline != null && timeline.Frames.Count > 0)
+        {
+            report.GoldCurve = GoldCurveBuilder.Build(timeline, playerParticipantId, player.TeamSide).ToList();
         }
 
         return report;

@@ -1,4 +1,5 @@
 using GameAnalytics.Core.Entities;
+using GameAnalytics.Core.Helpers;
 using GameAnalytics.Core.Interfaces;
 
 namespace GameAnalytics.Infrastructure.Services;
@@ -189,7 +190,35 @@ public class MatchAnalyticsService : IMatchAnalyticsService
 
     public async Task<MatchTimelineData?> GetMatchTimelineAsync(string matchId, CancellationToken ct = default)
     {
-        return await _apiClient.GetMatchTimelineAsync(matchId, ct);
+        var cached = await _matchRepository.GetCachedTimelineAsync(matchId, ct);
+        if (cached != null)
+            return cached;
+
+        var timeline = await _apiClient.GetMatchTimelineAsync(matchId, ct);
+        if (timeline == null)
+            return null;
+
+        try
+        {
+            await _matchRepository.SaveTimelineCacheAsync(matchId, timeline, ct);
+        }
+        catch
+        {
+            // Cache write failures must not block the UI
+        }
+
+        try
+        {
+            var match = await _matchRepository.GetMatchByMatchIdAsync(matchId, ct);
+            if (match != null && MatchTimelineApplier.ApplyTimelineSnapshot(match, timeline))
+                await _matchRepository.UpsertMatchAsync(match, ct);
+        }
+        catch
+        {
+            // Snapshot apply is best-effort for desktop @15 features
+        }
+
+        return timeline;
     }
 
     public PredictionResult PredictOutcome(MatchInputFeatures features)

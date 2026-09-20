@@ -555,7 +555,15 @@ public class RiotApiClient : IRiotApiClient
                     QuadraKills = p.QuadraKills,
                     PentaKills = p.PentaKills,
                     SoloKills = p.Challenges?.SoloKills ?? 0,
-                    TurretPlatesTaken = p.Challenges?.TurretPlatesTaken ?? 0
+                    TurretPlatesTaken = p.Challenges?.TurretPlatesTaken ?? 0,
+                    KillParticipation = (float)(p.Challenges?.KillParticipation ?? 0),
+                    VisionScorePerMinute = (float)(p.Challenges?.VisionScorePerMinute ?? 0),
+                    GoldPerMinute = (float)(p.Challenges?.GoldPerMinute ?? 0),
+                    DamagePerMinute = (float)(p.Challenges?.DamagePerMinute ?? 0),
+                    TeamDamagePercentage = (float)(p.Challenges?.TeamDamagePercentage ?? 0),
+                    ControlWardsPlaced = p.Challenges?.ControlWardsPlaced ?? 0,
+                    EffectiveHealAndShielding = (int)(p.Challenges?.EffectiveHealAndShielding ?? 0),
+                    DamageDealtToObjectivesChallenge = (int)(p.Challenges?.DamageDealtToObjectives ?? 0)
                 });
             }
         }
@@ -1115,7 +1123,15 @@ public class RiotApiClient : IRiotApiClient
                 DamageDealtToTurrets = random.Next(1000, 8000),
                 DoubleKills = random.Next(0, 3),
                 SoloKills = random.Next(0, 4),
-                TurretPlatesTaken = random.Next(0, 5)
+                TurretPlatesTaken = random.Next(0, 5),
+                KillParticipation = (float)(random.NextDouble() * 0.4 + 0.35),
+                VisionScorePerMinute = (float)(random.NextDouble() * 0.8 + 0.3),
+                GoldPerMinute = (float)(random.Next(300, 450)),
+                DamagePerMinute = (float)(random.Next(400, 800)),
+                TeamDamagePercentage = (float)(random.NextDouble() * 0.2 + 0.15),
+                ControlWardsPlaced = random.Next(1, 8),
+                EffectiveHealAndShielding = random.Next(500, 8000),
+                DamageDealtToObjectivesChallenge = random.Next(2000, 18000)
             });
         }
 
@@ -1417,6 +1433,30 @@ public class RiotApiClient : IRiotApiClient
 
         [JsonPropertyName("turretPlatesTaken")]
         public int? TurretPlatesTaken { get; set; }
+
+        [JsonPropertyName("killParticipation")]
+        public double? KillParticipation { get; set; }
+
+        [JsonPropertyName("visionScorePerMinute")]
+        public double? VisionScorePerMinute { get; set; }
+
+        [JsonPropertyName("goldPerMinute")]
+        public double? GoldPerMinute { get; set; }
+
+        [JsonPropertyName("damagePerMinute")]
+        public double? DamagePerMinute { get; set; }
+
+        [JsonPropertyName("teamDamagePercentage")]
+        public double? TeamDamagePercentage { get; set; }
+
+        [JsonPropertyName("controlWardsPlaced")]
+        public int? ControlWardsPlaced { get; set; }
+
+        [JsonPropertyName("effectiveHealAndShielding")]
+        public double? EffectiveHealAndShielding { get; set; }
+
+        [JsonPropertyName("damageDealtToObjectives")]
+        public double? DamageDealtToObjectives { get; set; }
     }
 
     public class RiotChampionMasteryDto

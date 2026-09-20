@@ -5,6 +5,7 @@ using GameAnalytics.Core.Enums;
 using GameAnalytics.Core.Helpers;
 using GameAnalytics.Desktop.Converters;
 using GameAnalytics.ML.Engine;
+using Avalonia;
 using Avalonia.Input;
 
 namespace GameAnalytics.Desktop.ViewModels;
@@ -116,6 +117,11 @@ public partial class DetailedParticipantViewModel : ObservableObject
     public int ControlWardsBought { get; set; }
     public int TurretPlatesTaken { get; set; }
     public int SoloKills { get; set; }
+    public string ChallengesText =>
+        SoloKills > 0 || TurretPlatesTaken > 0
+            ? $"Solo {SoloKills} · Plates {TurretPlatesTaken}"
+            : string.Empty;
+    public bool HasChallengesText => !string.IsNullOrEmpty(ChallengesText);
 
     public System.Windows.Input.ICommand? SelectPlayerCommand { get; set; }
 }
@@ -221,6 +227,13 @@ public partial class PlayerMatchItemViewModel : ObservableObject
     public string VisionScoreText => $"Віжн: {VisionScore}";
     public int WardsPlaced { get; set; }
     public int ControlWardsBought { get; set; }
+    public int SoloKills { get; set; }
+    public int TurretPlatesTaken { get; set; }
+    public string ChallengesBadgeText =>
+        SoloKills > 0 || TurretPlatesTaken > 0
+            ? $"Solo {SoloKills} · Plates {TurretPlatesTaken}"
+            : string.Empty;
+    public bool HasChallengesBadge => !string.IsNullOrEmpty(ChallengesBadgeText);
 
     public int Kills { get; set; }
     public int Deaths { get; set; }
@@ -267,6 +280,18 @@ public partial class PlayerMatchItemViewModel : ObservableObject
     // Tactical Breakdown & Peer Gap Analysis
     [ObservableProperty]
     private MatchTacticalReport? _tacticalReport;
+
+    [ObservableProperty]
+    private bool _hasGoldCurve;
+
+    [ObservableProperty]
+    private string _goldCurveSummary = string.Empty;
+
+    [ObservableProperty]
+    private Points? _goldDiffChartPoints;
+
+    [ObservableProperty]
+    private Points? _playerGoldChartPoints;
 
     private Match? _underlyingMatch;
     private Participant? _underlyingPlayer;
@@ -408,9 +433,10 @@ public partial class PlayerMatchItemViewModel : ObservableObject
         try
         {
             var tl = await _loadTimelineFunc(MatchId);
-            if (tl != null && tl.RealEvents.Count > 0)
+            if (tl != null && (tl.RealEvents.Count > 0 || tl.Frames.Count > 0))
             {
                 TacticalReport = MatchTacticalAnalyzer.AnalyzeMatchTactics(_underlyingMatch, _underlyingPlayer, tl, _playerTier);
+                ApplyGoldCurveFromReport(TacticalReport);
                 SelectedTimelineEvent = null;
                 SelectedMoment = null;
             }
@@ -423,6 +449,47 @@ public partial class PlayerMatchItemViewModel : ObservableObject
         {
             IsLoadingTimeline = false;
         }
+    }
+
+    private void ApplyGoldCurveFromReport(MatchTacticalReport? report)
+    {
+        if (report?.GoldCurve == null || report.GoldCurve.Count < 2)
+        {
+            HasGoldCurve = false;
+            GoldCurveSummary = string.Empty;
+            GoldDiffChartPoints = null;
+            PlayerGoldChartPoints = null;
+            return;
+        }
+
+        const double width = 560;
+        const double height = 100;
+        var curve = report.GoldCurve;
+        var maxAbsDiff = Math.Max(1, curve.Max(p => Math.Abs(p.GoldDiff)));
+        var maxPlayerGold = Math.Max(1, curve.Max(p => p.PlayerGold));
+        var n = curve.Count;
+
+        var diffPts = new Points();
+        var playerPts = new Points();
+        for (var i = 0; i < n; i++)
+        {
+            var p = curve[i];
+            var x = n == 1 ? 0 : i * (width / (n - 1));
+            var yDiff = height / 2.0 - (p.GoldDiff / (double)maxAbsDiff) * (height / 2.0 - 4);
+            var yPlayer = height - 4 - (p.PlayerGold / (double)maxPlayerGold) * (height - 8);
+            diffPts.Add(new Point(x, yDiff));
+            playerPts.Add(new Point(x, yPlayer));
+        }
+
+        GoldDiffChartPoints = diffPts;
+        PlayerGoldChartPoints = playerPts;
+        HasGoldCurve = true;
+
+        var at10 = curve.LastOrDefault(p => p.Minute <= 10);
+        var at15 = curve.LastOrDefault(p => p.Minute <= 15);
+        var last = curve[^1];
+        GoldCurveSummary =
+            $"@10 Δ{(at10?.GoldDiff ?? 0):+#;-#;0}  ·  @15 Δ{(at15?.GoldDiff ?? 0):+#;-#;0}  ·  фініш Δ{last.GoldDiff:+#;-#;0}";
     }
 
     [ObservableProperty]
@@ -631,6 +698,8 @@ public partial class PlayerMatchItemViewModel : ObservableObject
             vm.VisionScore = player.VisionScore;
             vm.WardsPlaced = player.WardsPlaced;
             vm.ControlWardsBought = player.ControlWardsBought;
+            vm.SoloKills = player.SoloKills;
+            vm.TurretPlatesTaken = player.TurretPlatesTaken;
 
             if (player.PentaKills > 0)
             {

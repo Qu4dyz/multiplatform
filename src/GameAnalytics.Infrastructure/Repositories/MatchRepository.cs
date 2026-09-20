@@ -71,7 +71,15 @@ public class MatchRepository : IMatchRepository
             "ALTER TABLE Participants ADD COLUMN QuadraKills INTEGER NOT NULL DEFAULT 0;",
             "ALTER TABLE Participants ADD COLUMN PentaKills INTEGER NOT NULL DEFAULT 0;",
             "ALTER TABLE Participants ADD COLUMN SoloKills INTEGER NOT NULL DEFAULT 0;",
-            "ALTER TABLE Participants ADD COLUMN TurretPlatesTaken INTEGER NOT NULL DEFAULT 0;"
+            "ALTER TABLE Participants ADD COLUMN TurretPlatesTaken INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN KillParticipation REAL NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN VisionScorePerMinute REAL NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN GoldPerMinute REAL NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN DamagePerMinute REAL NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN TeamDamagePercentage REAL NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN ControlWardsPlaced INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN EffectiveHealAndShielding INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN DamageDealtToObjectivesChallenge INTEGER NOT NULL DEFAULT 0;"
         };
 
         foreach (var sql in itemColumns)
@@ -194,6 +202,18 @@ public class MatchRepository : IMatchRepository
                     LpDelta INTEGER NOT NULL DEFAULT 0,
                     LeaguePointsAfter INTEGER NOT NULL DEFAULT 0,
                     RecordedAt TEXT NOT NULL
+                );");
+        }
+        catch { /* Table already exists */ }
+
+        try
+        {
+            _context.Database.ExecuteSqlRaw(@"
+                CREATE TABLE IF NOT EXISTS MatchTimelineCaches (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    MatchId TEXT NOT NULL UNIQUE,
+                    TimelineJson TEXT NOT NULL DEFAULT '',
+                    CachedAtUtc TEXT NOT NULL
                 );");
         }
         catch { /* Table already exists */ }
@@ -351,6 +371,48 @@ public class MatchRepository : IMatchRepository
         else
         {
             await _context.PlayerLpSnapshots.AddAsync(snapshot, ct);
+        }
+
+        await _context.SaveChangesAsync(ct);
+    }
+
+    public async Task<MatchTimelineData?> GetCachedTimelineAsync(string matchId, CancellationToken ct = default)
+    {
+        var row = await _context.MatchTimelineCaches
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.MatchId == matchId, ct);
+        if (row == null || string.IsNullOrWhiteSpace(row.TimelineJson))
+            return null;
+
+        try
+        {
+            return System.Text.Json.JsonSerializer.Deserialize<MatchTimelineData>(row.TimelineJson);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public async Task SaveTimelineCacheAsync(string matchId, MatchTimelineData data, CancellationToken ct = default)
+    {
+        var json = System.Text.Json.JsonSerializer.Serialize(data);
+        var existing = await _context.MatchTimelineCaches
+            .FirstOrDefaultAsync(c => c.MatchId == matchId, ct);
+
+        if (existing != null)
+        {
+            existing.TimelineJson = json;
+            existing.CachedAtUtc = DateTime.UtcNow;
+        }
+        else
+        {
+            await _context.MatchTimelineCaches.AddAsync(new MatchTimelineCache
+            {
+                MatchId = matchId,
+                TimelineJson = json,
+                CachedAtUtc = DateTime.UtcNow
+            }, ct);
         }
 
         await _context.SaveChangesAsync(ct);

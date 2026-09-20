@@ -31,6 +31,8 @@ public interface IMatchRepository
     Task SaveMatchLpRecordAsync(PlayerMatchLpRecord record, CancellationToken ct = default);
     Task<PlayerLpSnapshot?> GetLpSnapshotAsync(string puuid, int queueId = 420, CancellationToken ct = default);
     Task SaveLpSnapshotAsync(PlayerLpSnapshot snapshot, CancellationToken ct = default);
+    Task<MatchTimelineData?> GetCachedTimelineAsync(string matchId, CancellationToken ct = default);
+    Task SaveTimelineCacheAsync(string matchId, MatchTimelineData data, CancellationToken ct = default);
 }
 
 public interface IPredictionEngine

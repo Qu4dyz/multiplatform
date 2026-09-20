@@ -684,14 +684,13 @@
                         </StackPanel>
                     </Grid>
 
-                    <!-- 4 Skill Pillar Cards (Combat, Economy, Objectives, Survival) -->
-                    <Grid ColumnDefinitions="*, *, *, *" Margin="0,4">
+                    <!-- 5 Skill Pillar Cards -->
+                    <UniformGrid Columns="3" Margin="0,4">
                         <!-- Pillar 1: Combat -->
-                        <Border Grid.Column="0"
-                                Background="#161928"
+                        <Border Background="#161928"
                                 CornerRadius="10"
                                 Padding="14,12"
-                                Margin="0,0,5,0"
+                                Margin="0,0,5,5"
                                 BorderBrush="#24283E"
                                 BorderThickness="1">
                             <StackPanel Spacing="5">
@@ -703,26 +702,20 @@
                                     </Border>
                                 </Grid>
                                 <TextBlock Text="{Binding CoachingReport.Combat.PlayerValueText}" FontSize="17" FontWeight="Bold" Foreground="#FFFFFF" Margin="0,0,0,2" />
-                                
-                                <!-- Benchmark on dedicated line -->
                                 <TextBlock Text="{Binding CoachingReport.Combat.BenchmarkText}" FontSize="11" Foreground="#94A3B8" TextTrimming="CharacterEllipsis" />
-                                
-                                <!-- Diff on dedicated line in colored badge -->
                                 <Border Background="#1B1E32" CornerRadius="3" Padding="6,2" HorizontalAlignment="Left" Margin="0,2,0,3">
                                     <TextBlock Text="{Binding CoachingReport.Combat.DiffText}" FontSize="10" FontWeight="Bold" Foreground="{Binding CoachingReport.Combat.DiffColor}" />
                                 </Border>
-                                
                                 <ProgressBar Value="{Binding CoachingReport.Combat.Score}" Minimum="0" Maximum="100" Height="6" CornerRadius="3" Foreground="{Binding CoachingReport.Combat.GradeColor}" Background="#1E2235" Margin="0,2,0,4" />
                                 <TextBlock Text="{Binding CoachingReport.Combat.Description}" FontSize="11" Foreground="#94A3B8" TextWrapping="Wrap" LineHeight="16" MaxHeight="36" TextTrimming="CharacterEllipsis" />
                             </StackPanel>
                         </Border>
 
                         <!-- Pillar 2: Economy / Farm -->
-                        <Border Grid.Column="1"
-                                Background="#161928"
+                        <Border Background="#161928"
                                 CornerRadius="10"
                                 Padding="14,12"
-                                Margin="3,0,3,0"
+                                Margin="3,0,3,5"
                                 BorderBrush="#24283E"
                                 BorderThickness="1">
                             <StackPanel Spacing="5">
@@ -734,26 +727,20 @@
                                     </Border>
                                 </Grid>
                                 <TextBlock Text="{Binding CoachingReport.Economy.PlayerValueText}" FontSize="17" FontWeight="Bold" Foreground="#FFFFFF" Margin="0,0,0,2" />
-                                
-                                <!-- Benchmark on dedicated line -->
                                 <TextBlock Text="{Binding CoachingReport.Economy.BenchmarkText}" FontSize="11" Foreground="#94A3B8" TextTrimming="CharacterEllipsis" />
-                                
-                                <!-- Diff on dedicated line in colored badge -->
                                 <Border Background="#1B1E32" CornerRadius="3" Padding="6,2" HorizontalAlignment="Left" Margin="0,2,0,3">
                                     <TextBlock Text="{Binding CoachingReport.Economy.DiffText}" FontSize="10" FontWeight="Bold" Foreground="{Binding CoachingReport.Economy.DiffColor}" />
                                 </Border>
-                                
                                 <ProgressBar Value="{Binding CoachingReport.Economy.Score}" Minimum="0" Maximum="100" Height="6" CornerRadius="3" Foreground="{Binding CoachingReport.Economy.GradeColor}" Background="#1E2235" Margin="0,2,0,4" />
                                 <TextBlock Text="{Binding CoachingReport.Economy.Description}" FontSize="11" Foreground="#94A3B8" TextWrapping="Wrap" LineHeight="16" MaxHeight="36" TextTrimming="CharacterEllipsis" />
                             </StackPanel>
                         </Border>
 
                         <!-- Pillar 3: Map & Objectives -->
-                        <Border Grid.Column="2"
-                                Background="#161928"
+                        <Border Background="#161928"
                                 CornerRadius="10"
                                 Padding="14,12"
-                                Margin="3,0,3,0"
+                                Margin="5,0,0,5"
                                 BorderBrush="#24283E"
                                 BorderThickness="1">
                             <StackPanel Spacing="5">
@@ -765,26 +752,20 @@
                                     </Border>
                                 </Grid>
                                 <TextBlock Text="{Binding CoachingReport.Objectives.PlayerValueText}" FontSize="17" FontWeight="Bold" Foreground="#FFFFFF" Margin="0,0,0,2" />
-                                
-                                <!-- Benchmark on dedicated line -->
                                 <TextBlock Text="{Binding CoachingReport.Objectives.BenchmarkText}" FontSize="11" Foreground="#94A3B8" TextTrimming="CharacterEllipsis" />
-                                
-                                <!-- Diff on dedicated line in colored badge -->
                                 <Border Background="#1B1E32" CornerRadius="3" Padding="6,2" HorizontalAlignment="Left" Margin="0,2,0,3">
                                     <TextBlock Text="{Binding CoachingReport.Objectives.DiffText}" FontSize="10" FontWeight="Bold" Foreground="{Binding CoachingReport.Objectives.DiffColor}" />
                                 </Border>
-                                
                                 <ProgressBar Value="{Binding CoachingReport.Objectives.Score}" Minimum="0" Maximum="100" Height="6" CornerRadius="3" Foreground="{Binding CoachingReport.Objectives.GradeColor}" Background="#1E2235" Margin="0,2,0,4" />
                                 <TextBlock Text="{Binding CoachingReport.Objectives.Description}" FontSize="11" Foreground="#94A3B8" TextWrapping="Wrap" LineHeight="16" MaxHeight="36" TextTrimming="CharacterEllipsis" />
                             </StackPanel>
                         </Border>
 
                         <!-- Pillar 4: Survival -->
-                        <Border Grid.Column="3"
-                                Background="#161928"
+                        <Border Background="#161928"
                                 CornerRadius="10"
                                 Padding="14,12"
-                                Margin="5,0,0,0"
+                                Margin="0,0,5,0"
                                 BorderBrush="#24283E"
                                 BorderThickness="1">
                             <StackPanel Spacing="5">
@@ -796,20 +777,40 @@
                                     </Border>
                                 </Grid>
                                 <TextBlock Text="{Binding CoachingReport.Survival.PlayerValueText}" FontSize="17" FontWeight="Bold" Foreground="#FFFFFF" Margin="0,0,0,2" />
-                                
-                                <!-- Benchmark on dedicated line -->
                                 <TextBlock Text="{Binding CoachingReport.Survival.BenchmarkText}" FontSize="11" Foreground="#94A3B8" TextTrimming="CharacterEllipsis" />
-                                
-                                <!-- Diff on dedicated line in colored badge -->
                                 <Border Background="#1B1E32" CornerRadius="3" Padding="6,2" HorizontalAlignment="Left" Margin="0,2,0,3">
                                     <TextBlock Text="{Binding CoachingReport.Survival.DiffText}" FontSize="10" FontWeight="Bold" Foreground="{Binding CoachingReport.Survival.DiffColor}" />
                                 </Border>
-                                
                                 <ProgressBar Value="{Binding CoachingReport.Survival.Score}" Minimum="0" Maximum="100" Height="6" CornerRadius="3" Foreground="{Binding CoachingReport.Survival.GradeColor}" Background="#1E2235" Margin="0,2,0,4" />
                                 <TextBlock Text="{Binding CoachingReport.Survival.Description}" FontSize="11" Foreground="#94A3B8" TextWrapping="Wrap" LineHeight="16" MaxHeight="36" TextTrimming="CharacterEllipsis" />
                             </StackPanel>
                         </Border>
-                    </Grid>
+
+                        <!-- Pillar 5: Vision -->
+                        <Border Background="#161928"
+                                CornerRadius="10"
+                                Padding="14,12"
+                                Margin="3,0,3,0"
+                                BorderBrush="#24283E"
+                                BorderThickness="1">
+                            <StackPanel Spacing="5">
+                                <Grid ColumnDefinitions="Auto, *, Auto" Margin="0,0,0,4">
+                                    <TextBlock Grid.Column="0" Text="{Binding CoachingReport.Vision.Icon}" FontSize="16" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                    <TextBlock Grid.Column="1" Text="{Binding CoachingReport.Vision.PillarName}" FontSize="13" FontWeight="Bold" Foreground="#F8FAFC" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,8,0" />
+                                    <Border Grid.Column="2" Background="{Binding CoachingReport.Vision.GradeColor}" CornerRadius="4" Padding="6,1" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding CoachingReport.Vision.Grade}" FontSize="11" FontWeight="Bold" Foreground="#0B0C12" />
+                                    </Border>
+                                </Grid>
+                                <TextBlock Text="{Binding CoachingReport.Vision.PlayerValueText}" FontSize="17" FontWeight="Bold" Foreground="#FFFFFF" Margin="0,0,0,2" />
+                                <TextBlock Text="{Binding CoachingReport.Vision.BenchmarkText}" FontSize="11" Foreground="#94A3B8" TextTrimming="CharacterEllipsis" />
+                                <Border Background="#1B1E32" CornerRadius="3" Padding="6,2" HorizontalAlignment="Left" Margin="0,2,0,3">
+                                    <TextBlock Text="{Binding CoachingReport.Vision.DiffText}" FontSize="10" FontWeight="Bold" Foreground="{Binding CoachingReport.Vision.DiffColor}" />
+                                </Border>
+                                <ProgressBar Value="{Binding CoachingReport.Vision.Score}" Minimum="0" Maximum="100" Height="6" CornerRadius="3" Foreground="{Binding CoachingReport.Vision.GradeColor}" Background="#1E2235" Margin="0,2,0,4" />
+                                <TextBlock Text="{Binding CoachingReport.Vision.Description}" FontSize="11" Foreground="#94A3B8" TextWrapping="Wrap" LineHeight="16" MaxHeight="36" TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+                        </Border>
+                    </UniformGrid>
 
                     <!-- Coaching Advice Box -->
                     <Border Background="#1B1634"
@@ -1084,6 +1085,11 @@
                                                            FontSize="10"
                                                            Foreground="#94A3B8"
                                                            VerticalAlignment="Center" />
+                                                <TextBlock Text="{Binding ChallengesBadgeText}"
+                                                           FontSize="10"
+                                                           Foreground="#A78BFA"
+                                                           VerticalAlignment="Center"
+                                                           IsVisible="{Binding HasChallengesBadge}" />
                                             </StackPanel>
 
                                             <!-- Row 3: CS Stats -->
@@ -1588,7 +1594,7 @@
                                                     <ItemsControl ItemsSource="{Binding TacticalReport.GapAnalysis}">
                                                         <ItemsControl.ItemsPanel>
                                                             <ItemsPanelTemplate>
-                                                                <UniformGrid Columns="4" />
+                                                                <UniformGrid Columns="5" />
                                                             </ItemsPanelTemplate>
                                                         </ItemsControl.ItemsPanel>
                                                         <ItemsControl.ItemTemplate>
@@ -1610,6 +1616,40 @@
                                                         </ItemsControl.ItemTemplate>
                                                     </ItemsControl>
                                                 </StackPanel>
+
+                                                <!-- Gold curve (from cached timeline frames) -->
+                                                <Border Background="#141624" CornerRadius="10" BorderBrush="#22263C" BorderThickness="1" Padding="14,12"
+                                                        IsVisible="{Binding HasGoldCurve}">
+                                                    <StackPanel Spacing="8">
+                                                        <Grid ColumnDefinitions="*, Auto">
+                                                            <TextBlock Grid.Column="0" Text="📈 КРИВА ЗОЛОТА (TEAM Δ)" FontSize="12" FontWeight="Bold" Foreground="#C4B5FD" LetterSpacing="1.1" VerticalAlignment="Center" />
+                                                            <TextBlock Grid.Column="1" Text="{Binding GoldCurveSummary}" FontSize="11" Foreground="#94A3B8" VerticalAlignment="Center" />
+                                                        </Grid>
+                                                        <Grid Height="110">
+                                                            <!-- Zero line -->
+                                                            <Border Height="1" Background="#2A2F45" VerticalAlignment="Center" Margin="0,0,0,0" />
+                                                            <Canvas Width="560" Height="100" HorizontalAlignment="Stretch">
+                                                                <Polyline Points="{Binding GoldDiffChartPoints}"
+                                                                           Stroke="#A78BFA"
+                                                                           StrokeThickness="2.2" />
+                                                                <Polyline Points="{Binding PlayerGoldChartPoints}"
+                                                                           Stroke="#2DD4BF"
+                                                                           StrokeThickness="1.6"
+                                                                           Opacity="0.85" />
+                                                            </Canvas>
+                                                        </Grid>
+                                                        <StackPanel Orientation="Horizontal" Spacing="14">
+                                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                <Border Width="14" Height="3" Background="#A78BFA" CornerRadius="1" VerticalAlignment="Center" />
+                                                                <TextBlock Text="Δ золота vs вороги" FontSize="11" Foreground="#94A3B8" />
+                                                            </StackPanel>
+                                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                <Border Width="14" Height="3" Background="#2DD4BF" CornerRadius="1" VerticalAlignment="Center" />
+                                                                <TextBlock Text="Ваше золото" FontSize="11" Foreground="#94A3B8" />
+                                                            </StackPanel>
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                </Border>
 
                                                 <!-- Play-by-play Minute-by-Minute Timeline -->
                                                 <StackPanel Spacing="8">
