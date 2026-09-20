@@ -84,6 +84,8 @@ public class ModelTrainer
             var deathDiff = -killDiff + (float)rand.Next(-2, 3); // deaths roughly inverse of kill lead + noise
             var visionDiff = (float)rand.Next(-12, 13);
             var controlDiff = (float)rand.Next(-6, 7);
+            var cs10 = csDiff * 0.65f + (float)rand.Next(-8, 9);
+            var xp10 = xpDiff * 0.65f + (float)rand.Next(-400, 401);
 
             double z = 0.0;
             z += goldDiff * 0.00055;
@@ -124,6 +126,8 @@ public class ModelTrainer
             z += -deathDiff * 0.08; // fewer own deaths ⇒ better
             z += visionDiff * 0.025;
             z += controlDiff * 0.04;
+            z += cs10 * 0.01;
+            z += xp10 * 0.0002;
             z += Math.Abs(goldDiff) * (rankScore - 5.5) * 0.00002;
 
             var probability = 1.0 / (1.0 + Math.Exp(-z));
@@ -175,6 +179,8 @@ public class ModelTrainer
                 DeathDiff15 = deathDiff,
                 VisionWardDiff15 = visionDiff,
                 ControlWardDiff15 = controlDiff,
+                CsDiff10 = cs10,
+                XpDiff10 = xp10,
                 Label = win
             });
         }

@@ -152,7 +152,15 @@ public class MatchInputData
     [LoadColumn(43)]
     public float ControlWardDiff15 { get; set; }
 
-    [LoadColumn(44), ColumnName("Label")]
+    /// <summary>Blue − Red CS at minute 10.</summary>
+    [LoadColumn(44)]
+    public float CsDiff10 { get; set; }
+
+    /// <summary>Blue − Red XP at minute 10.</summary>
+    [LoadColumn(45)]
+    public float XpDiff10 { get; set; }
+
+    [LoadColumn(46), ColumnName("Label")]
     public bool Label { get; set; }
 }
 

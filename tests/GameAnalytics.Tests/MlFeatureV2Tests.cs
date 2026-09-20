@@ -87,6 +87,53 @@ public class MlFeatureV2Tests
     }
 
     [Fact]
+    public void ExtractFeatures_IncludesCsXpAt10()
+    {
+        var match = MakeMatch("CS10", TeamSide.Blue, "Garen", "Darius", DateTime.UtcNow, goldDiff: 1200);
+        match.CsDiff10 = 25f;
+        match.XpDiff10 = 900f;
+        match.HasCsXp10Features = true;
+
+        var features = RealMatchDatasetCollector.ExtractFeaturesFromMatches(new[] { match });
+        Assert.Single(features);
+        Assert.Equal(25f, features[0].CsDiff10);
+        Assert.Equal(900f, features[0].XpDiff10);
+    }
+
+    [Fact]
+    public void OptimizeEnsembleTreeWeight_ReturnsWeightInRange()
+    {
+        var data = ModelTrainer.GenerateSyntheticRankedDataset(300);
+        var ml = new Microsoft.ML.MLContext(seed: 3);
+        var bench = new ModelBenchmarkService();
+        var train = data.Take(240).ToList();
+        var cal = data.Skip(240).ToList();
+        var tree = bench.BuildPipeline(GameAnalytics.Core.Enums.MLAlgorithmType.FastTree)
+            .Fit(ml.Data.LoadFromEnumerable(train));
+        var forest = bench.BuildPipeline(GameAnalytics.Core.Enums.MLAlgorithmType.FastForest)
+            .Fit(ml.Data.LoadFromEnumerable(train));
+        var treeEng = ml.Model.CreatePredictionEngine<GameAnalytics.ML.Models.MatchInputData, GameAnalytics.ML.Models.MatchPrediction>(tree);
+        var forestEng = ml.Model.CreatePredictionEngine<GameAnalytics.ML.Models.MatchInputData, GameAnalytics.ML.Models.MatchPrediction>(forest);
+
+        var w = ModelBenchmarkService.OptimizeEnsembleTreeWeight(treeEng, forestEng, cal);
+        Assert.InRange(w, 0.30f, 0.70f);
+    }
+
+    [Fact]
+    public void SoftPrune_ScalesNegativeAblationGroups()
+    {
+        var row = ModelTrainer.GenerateSyntheticRankedDataset(1)[0];
+        row.TopGoldDiff15 = 100f;
+        row.CsDiff10 = 40f;
+        var ablation = new Dictionary<string, double> { ["Lanes"] = -0.02, ["GoldLead"] = 0.05 };
+        var pruned = ModelBenchmarkService.ApplySoftPruneFromAblation(new[] { row }, ablation);
+        Assert.Contains("Lanes", pruned);
+        Assert.DoesNotContain("GoldLead", pruned);
+        Assert.True(Math.Abs(row.TopGoldDiff15 - 100f * ModelBenchmarkService.SoftPruneScale) < 0.01f);
+        Assert.True(Math.Abs(row.CsDiff10 - 40f * ModelBenchmarkService.SoftPruneScale) < 0.01f);
+    }
+
+    [Fact]
     public void RunFeatureGroupAblation_ReportsGroupDrops()
     {
         var data = ModelTrainer.GenerateSyntheticRankedDataset(500);
@@ -123,8 +170,9 @@ public class MlFeatureV2Tests
         var treeEng = ml.Model.CreatePredictionEngine<GameAnalytics.ML.Models.MatchInputData, GameAnalytics.ML.Models.MatchPrediction>(treeModel);
         var forestEng = ml.Model.CreatePredictionEngine<GameAnalytics.ML.Models.MatchInputData, GameAnalytics.ML.Models.MatchPrediction>(forestModel);
 
-        var metrics = ModelBenchmarkService.EvaluateSoftEnsemble(ml, treeEng, forestEng, test);
+        var metrics = ModelBenchmarkService.EvaluateSoftEnsemble(ml, treeEng, forestEng, test, treeWeight: 0.60f);
         Assert.InRange(metrics.Accuracy, 0.55, 1.0);
+        Assert.Equal(0.60f, metrics.EnsembleTreeWeight);
         Assert.True(metrics.ConfidentCoverage > 0);
         Assert.True(metrics.AccuracyWhenConfident >= metrics.Accuracy - 0.05);
         Assert.InRange(metrics.BrierScore, 0, 0.5);

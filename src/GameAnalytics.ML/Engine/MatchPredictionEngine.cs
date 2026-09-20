@@ -15,9 +15,12 @@ public class MatchPredictionEngine : IPredictionEngine
     private ITransformer? _model;
     private ITransformer? _ensembleForestModel;
     private ITransformer? _highEloModel;
+    private ITransformer? _midEloModel;
     private PredictionEngine<MatchInputData, MatchPrediction>? _predictionEngine;
     private PredictionEngine<MatchInputData, MatchPrediction>? _ensembleForestEngine;
     private PredictionEngine<MatchInputData, MatchPrediction>? _highEloEngine;
+    private PredictionEngine<MatchInputData, MatchPrediction>? _midEloEngine;
+    private float _ensembleTreeWeight = 0.55f;
     private readonly object _lock = new();
 
     public MLAlgorithmType ActiveAlgorithm { get; private set; } = MLAlgorithmType.FastTree;
@@ -74,6 +77,13 @@ public class MatchPredictionEngine : IPredictionEngine
                     {
                         _highEloModel = _mlContext.Model.Load(highFile, out _);
                         _highEloEngine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(_highEloModel);
+                    }
+
+                    var midFile = Path.Combine(_modelDirectory, "fasttree_midelo_model.zip");
+                    if (File.Exists(midFile))
+                    {
+                        _midEloModel = _mlContext.Model.Load(midFile, out _);
+                        _midEloEngine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(_midEloModel);
                     }
 
                     IsTrainedOnRealData = true;
@@ -237,17 +247,24 @@ public class MatchPredictionEngine : IPredictionEngine
                     : (features.GoldDiffAt15 / 2000f) * (features.LatePowerDiff / 10f),
                 DeathDiff15 = features.DeathDiff15,
                 VisionWardDiff15 = features.VisionWardDiff15,
-                ControlWardDiff15 = features.ControlWardDiff15
+                ControlWardDiff15 = features.ControlWardDiff15,
+                CsDiff10 = features.CsDiff10 != 0
+                    ? features.CsDiff10
+                    : features.CsDiffAt15 * 0.65f,
+                XpDiff10 = features.XpDiff10 != 0
+                    ? features.XpDiff10
+                    : features.XpDiffAt15 * 0.65f
             };
 
             var prediction = _predictionEngine!.Predict(input);
             var blueProb = Math.Clamp(prediction.Probability, 0.05f, 0.95f);
 
-            // Soft-vote with FastForest when the ensemble partner is available.
+            // Weighted soft-vote with FastForest when the ensemble partner is available.
             if (_ensembleForestEngine != null)
             {
                 var forestProb = Math.Clamp(_ensembleForestEngine.Predict(input).Probability, 0.05f, 0.95f);
-                blueProb = Math.Clamp((blueProb + forestProb) * 0.5f, 0.05f, 0.95f);
+                var tw = Math.Clamp(_ensembleTreeWeight, 0.25f, 0.75f);
+                blueProb = Math.Clamp(blueProb * tw + forestProb * (1f - tw), 0.05f, 0.95f);
             }
 
             // Diamond+ lobbies: blend in the high-elo specialist (ranks convert leads differently).
@@ -255,6 +272,14 @@ public class MatchPredictionEngine : IPredictionEngine
             {
                 var highProb = Math.Clamp(_highEloEngine.Predict(input).Probability, 0.05f, 0.95f);
                 blueProb = Math.Clamp(blueProb * 0.40f + highProb * 0.60f, 0.05f, 0.95f);
+            }
+            // Gold–Emerald: mid-elo specialist — different snowball / throw rates than high or low.
+            else if (_midEloEngine != null
+                     && input.AvgRankScore >= ModelBenchmarkService.MidEloRankMin
+                     && input.AvgRankScore < ModelBenchmarkService.MidEloRankMax)
+            {
+                var midProb = Math.Clamp(_midEloEngine.Predict(input).Probability, 0.05f, 0.95f);
+                blueProb = Math.Clamp(blueProb * 0.45f + midProb * 0.55f, 0.05f, 0.95f);
             }
 
             var redProb = 1.0f - blueProb;
@@ -415,8 +440,8 @@ public class MatchPredictionEngine : IPredictionEngine
                         // Temporal holdout: train on older ~80%, evaluate on newest ~20%.
                         var testCount = Math.Max(1, (int)Math.Round(matchDataList.Count * 0.2));
                         var trainCount = matchDataList.Count - testCount;
-                        var trainSet = matchDataList.Take(trainCount).ToList();
-                        var testSet = matchDataList.Skip(trainCount).ToList();
+                        var trainSet = matchDataList.Take(trainCount).Select(ModelBenchmarkService.CloneRowPublic).ToList();
+                        var testSet = matchDataList.Skip(trainCount).Select(ModelBenchmarkService.CloneRowPublic).ToList();
 
                         var trainView = _mlContext.Data.LoadFromEnumerable(trainSet);
                         var treeModel = treePipeline.Fit(trainView);
@@ -424,6 +449,12 @@ public class MatchPredictionEngine : IPredictionEngine
 
                         var treeEngine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(treeModel);
                         var forestEngine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(forestModel);
+
+                        // Calibration slice = last 15% of train (still before test chronologically).
+                        var calCount = Math.Max(40, (int)Math.Round(trainSet.Count * 0.15));
+                        var calSet = trainSet.Skip(Math.Max(0, trainSet.Count - calCount)).ToList();
+                        _ensembleTreeWeight = ModelBenchmarkService.OptimizeEnsembleTreeWeight(
+                            treeEngine, forestEngine, calSet);
 
                         PredictionEngine<MatchInputData, MatchPrediction>? highEloEngine = null;
                         var highTrain = trainSet
@@ -436,15 +467,41 @@ public class MatchPredictionEngine : IPredictionEngine
                             highEloEngine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(highModel);
                         }
 
+                        PredictionEngine<MatchInputData, MatchPrediction>? midEloEngine = null;
+                        var midTrain = trainSet
+                            .Where(r => r.AvgRankScore >= ModelBenchmarkService.MidEloRankMin
+                                        && r.AvgRankScore < ModelBenchmarkService.MidEloRankMax)
+                            .ToList();
+                        if (midTrain.Count >= 220)
+                        {
+                            var midView = _mlContext.Data.LoadFromEnumerable(midTrain);
+                            var midModel = treePipeline.Fit(midView);
+                            midEloEngine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(midModel);
+                        }
+
                         CurrentModelMetrics = ModelBenchmarkService.EvaluateSoftEnsemble(
-                            _mlContext, treeEngine, forestEngine, testSet, highEloEngine);
+                            _mlContext, treeEngine, forestEngine, testSet,
+                            highEloEngine, midEloEngine, _ensembleTreeWeight);
 
                         // Lab ablation: which feature groups actually move temporal accuracy.
+                        List<string> prunedGroups = new();
                         if (trainSet.Count >= 120 && testSet.Count >= 30)
                         {
                             CurrentModelMetrics.AblationAccuracyDrop =
                                 ModelBenchmarkService.RunFeatureGroupAblation(
                                     _mlContext, trainSet, testSet, CurrentModelMetrics.Accuracy);
+
+                            // Soft-prune noisy groups on the full corpus before final retrain.
+                            var fullClone = matchDataList.Select(ModelBenchmarkService.CloneRowPublic).ToList();
+                            prunedGroups = ModelBenchmarkService.ApplySoftPruneFromAblation(
+                                fullClone, CurrentModelMetrics.AblationAccuracyDrop);
+                            CurrentModelMetrics.SoftPrunedGroups = prunedGroups;
+
+                            if (prunedGroups.Count > 0)
+                            {
+                                matchDataList = fullClone;
+                                dataView = _mlContext.Data.LoadFromEnumerable(matchDataList);
+                            }
                         }
 
                         // Retrain on the full chronological corpus for the shipped model weights.
@@ -457,18 +514,28 @@ public class MatchPredictionEngine : IPredictionEngine
                         _highEloModel = highFull.Count >= 180
                             ? treePipeline.Fit(_mlContext.Data.LoadFromEnumerable(highFull))
                             : null;
+
+                        var midFull = matchDataList
+                            .Where(r => r.AvgRankScore >= ModelBenchmarkService.MidEloRankMin
+                                        && r.AvgRankScore < ModelBenchmarkService.MidEloRankMax)
+                            .ToList();
+                        _midEloModel = midFull.Count >= 220
+                            ? treePipeline.Fit(_mlContext.Data.LoadFromEnumerable(midFull))
+                            : null;
                     }
                     else
                     {
                         _model = treePipeline.Fit(dataView);
                         _ensembleForestModel = forestPipeline.Fit(dataView);
                         _highEloModel = null;
+                        _midEloModel = null;
                     }
 
                     var trainer = new ModelTrainer();
                     var modelFile = Path.Combine(_modelDirectory, $"{ActiveAlgorithm.ToString().ToLower()}_model.zip");
                     var forestFile = Path.Combine(_modelDirectory, "fastforest_model.zip");
                     var highFile = Path.Combine(_modelDirectory, "fasttree_highelo_model.zip");
+                    var midFile = Path.Combine(_modelDirectory, "fasttree_midelo_model.zip");
                     trainer.SaveModel(_model, dataView.Schema, modelFile);
                     if (_ensembleForestModel != null)
                         trainer.SaveModel(_ensembleForestModel, dataView.Schema, forestFile);
@@ -476,6 +543,10 @@ public class MatchPredictionEngine : IPredictionEngine
                         trainer.SaveModel(_highEloModel, dataView.Schema, highFile);
                     else if (File.Exists(highFile))
                         File.Delete(highFile);
+                    if (_midEloModel != null)
+                        trainer.SaveModel(_midEloModel, dataView.Schema, midFile);
+                    else if (File.Exists(midFile))
+                        File.Delete(midFile);
 
                     _predictionEngine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(_model);
                     _ensembleForestEngine = _ensembleForestModel != null
@@ -483,6 +554,9 @@ public class MatchPredictionEngine : IPredictionEngine
                         : null;
                     _highEloEngine = _highEloModel != null
                         ? _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(_highEloModel)
+                        : null;
+                    _midEloEngine = _midEloModel != null
+                        ? _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(_midEloModel)
                         : null;
 
                     IsTrainedOnRealData = true;

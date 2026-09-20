@@ -572,12 +572,17 @@ public class RiotApiClient : IRiotApiClient
                 var result = new MatchTimelineData { MatchId = matchId };
                 var frameCount = framesElem.GetArrayLength();
 
-                // Frame 10 + 15 snapshots for gold momentum features
-                ExtractTeamGoldFrame(framesElem, frameCount, 10, out var gold10Blue, out var gold10Red, out _, out _, out _, out _);
+                // Frame 10 + 15 snapshots for gold / CS / XP momentum features
+                ExtractTeamGoldFrame(framesElem, frameCount, 10,
+                    out var gold10Blue, out var gold10Red, out var cs10Blue, out var cs10Red, out var xp10Blue, out var xp10Red);
                 ExtractTeamGoldFrame(framesElem, frameCount, 15, out var goldBlue, out var goldRed, out var csBlue, out var csRed, out var xpBlue, out var xpRed);
 
                 result.GoldAt10Blue = gold10Blue;
                 result.GoldAt10Red = gold10Red;
+                result.CsAt10Blue = cs10Blue;
+                result.CsAt10Red = cs10Red;
+                result.XpAt10Blue = xp10Blue;
+                result.XpAt10Red = xp10Red;
                 result.GoldAt15Blue = goldBlue > 0 ? goldBlue : 24500;
                 result.GoldAt15Red = goldRed > 0 ? goldRed : 23800;
                 result.CsAt15Blue = csBlue;

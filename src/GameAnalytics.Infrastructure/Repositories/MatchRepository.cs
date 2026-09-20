@@ -154,7 +154,10 @@ public class MatchRepository : IMatchRepository
             "ALTER TABLE Matches ADD COLUMN DeathDiff15 REAL NOT NULL DEFAULT 0;",
             "ALTER TABLE Matches ADD COLUMN VisionWardDiff15 REAL NOT NULL DEFAULT 0;",
             "ALTER TABLE Matches ADD COLUMN ControlWardDiff15 REAL NOT NULL DEFAULT 0;",
-            "ALTER TABLE Matches ADD COLUMN HasVisionDeathFeatures INTEGER NOT NULL DEFAULT 0;"
+            "ALTER TABLE Matches ADD COLUMN HasVisionDeathFeatures INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE Matches ADD COLUMN CsDiff10 REAL NOT NULL DEFAULT 0;",
+            "ALTER TABLE Matches ADD COLUMN XpDiff10 REAL NOT NULL DEFAULT 0;",
+            "ALTER TABLE Matches ADD COLUMN HasCsXp10Features INTEGER NOT NULL DEFAULT 0;"
         };
         foreach (var sql in matchMlColumns)
         {

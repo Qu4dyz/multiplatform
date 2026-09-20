@@ -13,6 +13,12 @@ public class MatchTimelineData
     public int KillsAt10Blue { get; set; }
     public int KillsAt10Red { get; set; }
     public int KillDiffAt10 => KillsAt10Blue - KillsAt10Red;
+    public int CsAt10Blue { get; set; }
+    public int CsAt10Red { get; set; }
+    public int CsDiffAt10 => CsAt10Blue - CsAt10Red;
+    public int XpAt10Blue { get; set; }
+    public int XpAt10Red { get; set; }
+    public int XpDiffAt10 => XpAt10Blue - XpAt10Red;
 
     // Minute 15 snapshot (standard metric mark for LoL competitive analysis)
     public int GoldAt15Blue { get; set; }
