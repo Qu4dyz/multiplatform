@@ -37,8 +37,8 @@ public class RealMatchDatasetCollector
         const int maxRefillAttempts = 6;
         var objectiveBackfills = 0;
         var csXpBackfills = 0;
-        const int backfillCap = 90;
-        const int csXpReserve = 50;
+        const int backfillCap = 55;
+        const int csXpReserve = 30;
         var ladderSeeded = false;
 
         void RememberRankHint(string? puuid, float rankScore)
@@ -290,8 +290,8 @@ public class RealMatchDatasetCollector
         Action<string>? logger,
         CancellationToken ct)
     {
-        const int matchCap = 80;
-        const int apiLookupCap = 45;
+        const int matchCap = 50;
+        const int apiLookupCap = 24;
         var ids = await _matchRepo.GetMatchIdsNeedingRankBackfillAsync(matchCap, ct);
         if (ids.Count == 0) return;
 
@@ -358,7 +358,7 @@ public class RealMatchDatasetCollector
     /// </summary>
     private async Task BackfillStaleTimelineFeaturesAsync(Action<string>? logger, CancellationToken ct)
     {
-        const int dedicatedCap = 55;
+        const int dedicatedCap = 35;
         IReadOnlyList<string> ids;
         try
         {
