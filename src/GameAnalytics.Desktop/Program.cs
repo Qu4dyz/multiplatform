@@ -123,15 +123,15 @@ sealed class Program
             Console.WriteLine("[VPS ML Trainer] Отримано сигнал завершення роботи (SIGINT/Ctrl+C)...");
         };
 
-        // Lighter cadence for small VPS hosts (1 vCPU / ~1GB RAM).
+        // Balanced cadence after VPS cleanup (~0.5GB free, other bots still share the box).
         if (predictionEngine is MatchPredictionEngine mpe)
             mpe.AblationIntervalEpochs = 4;
 
         // Wrap training with post-epoch match-count refresh for the status API
         await worker.RunContinuousTrainingAsync(
             seedPuuid,
-            batchSize: 18,
-            epochDelay: TimeSpan.FromMinutes(5),
+            batchSize: 26,
+            epochDelay: TimeSpan.FromMinutes(3),
             logger: msg =>
             {
                 Console.WriteLine(msg);
