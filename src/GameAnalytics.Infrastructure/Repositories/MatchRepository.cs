@@ -321,6 +321,20 @@ public class MatchRepository : IMatchRepository
         return ordered;
     }
 
+    public async Task<IReadOnlyList<string>> GetMatchIdsNeedingRankBackfillAsync(int limit = 80, CancellationToken ct = default)
+    {
+        var ids = await _context.Matches
+            .AsNoTracking()
+            .Where(m => m.ApproxRankScore <= 0 && (m.QueueId == 420 || m.QueueId == 440))
+            .Select(m => m.MatchId)
+            .ToListAsync(ct);
+
+        return ids
+            .OrderBy(_ => Random.Shared.Next())
+            .Take(limit)
+            .ToList();
+    }
+
     public async Task<IReadOnlyDictionary<string, int>> GetPlayerMatchLpMapAsync(string puuid, CancellationToken ct = default)
     {
         return await _context.PlayerMatchLpRecords

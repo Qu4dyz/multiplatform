@@ -160,6 +160,7 @@ public class ModelBenchmarkService
     public const float HighEloRankThreshold = 7.0f; // Diamond+
     public const float MidEloRankMin = 3.5f;        // Gold–Emerald band
     public const float MidEloRankMax = 7.0f;
+    public const float LowEloRankMax = 3.5f;        // Iron–Silver (exclusive of mid)
     public const float ConfidentProbabilityMargin = 0.15f; // |p-0.5| ≥ 0.15
     public const float SoftPruneScale = 0.35f; // dampen groups that hurt temporal accuracy
     /// <summary>EMA ablation must stay below this for a group to be soft-pruned (stricter than single-epoch).</summary>
@@ -174,6 +175,7 @@ public class ModelBenchmarkService
         IReadOnlyList<MatchInputData> testSet,
         PredictionEngine<MatchInputData, MatchPrediction>? highEloEngine = null,
         PredictionEngine<MatchInputData, MatchPrediction>? midEloEngine = null,
+        PredictionEngine<MatchInputData, MatchPrediction>? lowEloEngine = null,
         float treeWeight = 0.5f)
     {
         treeWeight = Math.Clamp(treeWeight, 0.25f, 0.75f);
@@ -197,6 +199,13 @@ public class ModelBenchmarkService
             {
                 var pm = Math.Clamp(midEloEngine.Predict(row).Probability, 0.01f, 0.99f);
                 p = p * 0.45f + pm * 0.55f;
+            }
+            else if (lowEloEngine != null
+                     && row.AvgRankScore > 0
+                     && row.AvgRankScore < LowEloRankMax)
+            {
+                var pl = Math.Clamp(lowEloEngine.Predict(row).Probability, 0.01f, 0.99f);
+                p = p * 0.45f + pl * 0.55f;
             }
 
             rows.Add((row.Label, p, row.AvgRankScore));
@@ -250,6 +259,7 @@ public class ModelBenchmarkService
             BrierScore = brier,
             UsedHighEloSpecialist = highEloEngine != null,
             UsedMidEloSpecialist = midEloEngine != null,
+            UsedLowEloSpecialist = lowEloEngine != null,
             EnsembleTreeWeight = treeWeight
         };
     }

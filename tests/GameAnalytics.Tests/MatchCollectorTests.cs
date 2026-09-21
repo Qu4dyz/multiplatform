@@ -53,6 +53,12 @@ public class MatchCollectorTests
         public Task<IReadOnlyList<LadderPlayerEntry>> GetHighEloLadderPlayersAsync(string queue = "RANKED_SOLO_5x5", int maxCount = 20, CancellationToken ct = default)
             => Task.FromResult<IReadOnlyList<LadderPlayerEntry>>(
                 LadderPuuids.Take(maxCount).Select(p => new LadderPlayerEntry(p, GameTier.Challenger)).ToList());
+
+        public Task<IReadOnlyList<LadderPlayerEntry>> GetDivisionLadderPlayersAsync(string queue = "RANKED_SOLO_5x5", int maxCount = 40, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<LadderPlayerEntry>>(Array.Empty<LadderPlayerEntry>());
+
+        public Task<float> GetSoloRankScoreByPuuidAsync(string puuid, CancellationToken ct = default)
+            => Task.FromResult(0f);
     }
 
     private sealed class FakeMatchRepo : IMatchRepository
@@ -102,6 +108,16 @@ public class MatchCollectorTests
         {
             var ids = Stored.Values
                 .Where(m => m.HasMinute15Objectives && (!m.HasCsXp10Features || !m.HasVisionDeathFeatures))
+                .Select(m => m.MatchId)
+                .Take(limit)
+                .ToList();
+            return Task.FromResult<IReadOnlyList<string>>(ids);
+        }
+
+        public Task<IReadOnlyList<string>> GetMatchIdsNeedingRankBackfillAsync(int limit = 80, CancellationToken ct = default)
+        {
+            var ids = Stored.Values
+                .Where(m => m.ApproxRankScore <= 0 && (m.QueueId == 420 || m.QueueId == 440))
                 .Select(m => m.MatchId)
                 .Take(limit)
                 .ToList();

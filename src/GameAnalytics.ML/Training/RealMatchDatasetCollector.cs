@@ -71,13 +71,17 @@ public class RealMatchDatasetCollector
             ladderSeeded = true;
             try
             {
-                var ladder = await _apiClient.GetHighEloLadderPlayersAsync("RANKED_SOLO_5x5", maxCount: 50, ct: ct);
                 var before = candidatePuuids.Count;
-                foreach (var entry in ladder)
-                {
+                var high = await _apiClient.GetHighEloLadderPlayersAsync("RANKED_SOLO_5x5", maxCount: 40, ct: ct);
+                foreach (var entry in high)
                     EnqueueCandidate(entry.Puuid, RankScoreHelper.FromTier(entry.Tier));
-                }
-                logger?.Invoke($"[Collector] Ladder seed: +{candidatePuuids.Count - before} high-elo гравців (rank hints для лобі).");
+
+                var divisions = await _apiClient.GetDivisionLadderPlayersAsync("RANKED_SOLO_5x5", maxCount: 42, ct: ct);
+                foreach (var entry in divisions)
+                    EnqueueCandidate(entry.Puuid, RankScoreHelper.FromTier(entry.Tier));
+
+                logger?.Invoke(
+                    $"[Collector] Ladder seed: +{candidatePuuids.Count - before} гравців (high+division, rank hints для лобі).");
             }
             catch (Exception ex)
             {
@@ -87,6 +91,9 @@ public class RealMatchDatasetCollector
 
         EnqueueCandidate(seedPuuid);
         await SeedLadderAsync();
+
+        // Close rank-tagging gaps on older rows before mining new matches.
+        await BackfillUntaggedRankScoresAsync(puuidRankHints, logger, ct);
 
         // Dedicated pass: close CS/XP@10 + vision gaps on older rows (not only those hit by crawl).
         await BackfillStaleTimelineFeaturesAsync(logger, ct);
@@ -127,13 +134,16 @@ public class RealMatchDatasetCollector
                 {
                     try
                     {
-                        var ladder = await _apiClient.GetHighEloLadderPlayersAsync("RANKED_SOLO_5x5", maxCount: 40, ct: ct);
                         var before = candidatePuuids.Count;
+                        var ladder = await _apiClient.GetHighEloLadderPlayersAsync("RANKED_SOLO_5x5", maxCount: 30, ct: ct);
                         foreach (var entry in ladder)
-                        {
                             EnqueueCandidate(entry.Puuid, RankScoreHelper.FromTier(entry.Tier));
-                        }
-                        logger?.Invoke($"[Collector] Ladder refill: +{candidatePuuids.Count - before} гравців з Challenger/GM/Master (з міткою рангу).");
+
+                        var divisions = await _apiClient.GetDivisionLadderPlayersAsync("RANKED_SOLO_5x5", maxCount: 28, ct: ct);
+                        foreach (var entry in divisions)
+                            EnqueueCandidate(entry.Puuid, RankScoreHelper.FromTier(entry.Tier));
+
+                        logger?.Invoke($"[Collector] Ladder refill: +{candidatePuuids.Count - before} гравців (high+division, з міткою рангу).");
                     }
                     catch (Exception ex)
                     {
@@ -164,6 +174,12 @@ public class RealMatchDatasetCollector
                 var existing = await _matchRepo.GetMatchByMatchIdAsync(matchId, ct);
                 if (existing != null && existing.Teams.Count >= 2 && existing.Teams.Any(t => t.GoldAt15 > 0))
                 {
+                    // Retag lobby rank when we now know participant tiers.
+                    if (existing.ApproxRankScore <= 0 && TryTagMatchRankScore(existing, puuidRankHints))
+                    {
+                        await _matchRepo.UpsertMatchAsync(existing, ct);
+                    }
+
                     // Backfill towers/dragons/vision/deaths/CS·XP@10 for older rows missing snapshots.
                     // Reserve part of the budget for CS/XP@10 (lowest coverage).
                     var needsCsXp = NeedsCsXp10Backfill(existing);
@@ -240,8 +256,15 @@ public class RealMatchDatasetCollector
 
     /// <summary>Tags a match with the average known ladder rank among its participants (lobby skill).</summary>
     public static void TagMatchRankScore(Match match, IReadOnlyDictionary<string, float> puuidRankHints)
+        => TryTagMatchRankScore(match, puuidRankHints, overwrite: false);
+
+    /// <summary>Returns true when ApproxRankScore was written/updated from participant hints.</summary>
+    public static bool TryTagMatchRankScore(
+        Match match,
+        IReadOnlyDictionary<string, float> puuidRankHints,
+        bool overwrite = false)
     {
-        if (match.ApproxRankScore > 0) return;
+        if (!overwrite && match.ApproxRankScore > 0) return false;
         float sum = 0;
         var n = 0;
         foreach (var p in match.Participants)
@@ -254,12 +277,64 @@ public class RealMatchDatasetCollector
             }
         }
 
-        if (n > 0)
-            match.ApproxRankScore = sum / n;
+        if (n == 0) return false;
+        match.ApproxRankScore = sum / n;
+        return true;
     }
 
     public static void ApplyLaneAndLevelDiffs(Match match, MatchTimelineData timeline)
         => MatchTimelineApplier.ApplyLaneAndLevelDiffs(match, timeline);
+
+    private async Task BackfillUntaggedRankScoresAsync(
+        Dictionary<string, float> puuidRankHints,
+        Action<string>? logger,
+        CancellationToken ct)
+    {
+        const int matchCap = 80;
+        const int apiLookupCap = 45;
+        var ids = await _matchRepo.GetMatchIdsNeedingRankBackfillAsync(matchCap, ct);
+        if (ids.Count == 0) return;
+
+        var tagged = 0;
+        var lookups = 0;
+
+        foreach (var matchId in ids)
+        {
+            if (ct.IsCancellationRequested) break;
+            var match = await _matchRepo.GetMatchByMatchIdAsync(matchId, ct);
+            if (match == null || match.ApproxRankScore > 0) continue;
+
+            // Resolve a few unknown participants via LEAGUE-V4 so coverage climbs every epoch.
+            foreach (var p in match.Participants)
+            {
+                if (lookups >= apiLookupCap) break;
+                if (string.IsNullOrWhiteSpace(p.Puuid)) continue;
+                if (puuidRankHints.ContainsKey(p.Puuid)) continue;
+
+                var score = await _apiClient.GetSoloRankScoreByPuuidAsync(p.Puuid, ct);
+                lookups++;
+                if (score > 0)
+                    puuidRankHints[p.Puuid] = score;
+
+                // 2 successful lookups (or a few attempts) is enough to average a lobby.
+                if (puuidRankHints.ContainsKey(p.Puuid) &&
+                    match.Participants.Count(x => !string.IsNullOrWhiteSpace(x.Puuid) && puuidRankHints.ContainsKey(x.Puuid!)) >= 2)
+                    break;
+            }
+
+            if (TryTagMatchRankScore(match, puuidRankHints))
+            {
+                await _matchRepo.UpsertMatchAsync(match, ct);
+                tagged++;
+            }
+        }
+
+        if (tagged > 0 || lookups > 0)
+        {
+            logger?.Invoke(
+                $"[Collector] Rank backfill: tagged {tagged}/{ids.Count} matches (LEAGUE lookups={lookups}).");
+        }
+    }
 
     private static bool NeedsAt15ObjectiveBackfill(Match match)
     {
