@@ -54,7 +54,9 @@ public class VpsTrainingWorker
                 var allMatches = await _matchRepo.GetAllMatchesAsync(ct);
                 log($"[VPS ML Trainer] Всього матчів у базі даних: {allMatches.Count} (нових у цій епосі: {newMatches})");
 
-                if (allMatches.Count >= 5)
+                // On tiny VPS: skip full retrain when crawl added nothing (still refresh every 4th epoch).
+                var shouldTrain = newMatches > 0 || epoch == 1 || epoch % 4 == 0;
+                if (allMatches.Count >= 5 && shouldTrain)
                 {
                     log($"[VPS ML Trainer] Навчання моделі {_predictionEngine.ActiveAlgorithm} на реальних даних...");
                     await _predictionEngine.TrainModelAsync(allMatches, ct);
@@ -93,6 +95,14 @@ public class VpsTrainingWorker
                         }
                     }
                     log($"[VPS ML Trainer] Модель успішно експортована в директорію models/{_predictionEngine.ActiveAlgorithm.ToString().ToLower()}_model.zip.");
+
+                    // Release training graphs ASAP on 1GB VPS hosts.
+                    GC.Collect(2, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+                    GC.WaitForPendingFinalizers();
+                }
+                else if (allMatches.Count >= 5)
+                {
+                    log($"[VPS ML Trainer] Пропуск retrain (нових матчів немає) — економія CPU/RAM на VPS.");
                 }
 
                 epoch++;

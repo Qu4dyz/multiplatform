@@ -31,6 +31,9 @@ public class MatchPredictionEngine : IPredictionEngine
     public bool IsTrainedOnRealData { get; private set; }
     public int TrainingDatasetSize { get; private set; }
     public DateTime? LastTrainedAt { get; private set; }
+    /// <summary>Run leave-one-group ablation every N train passes (1 = every time). Higher = lighter VPS load.</summary>
+    public int AblationIntervalEpochs { get; set; } = 1;
+    private int _completedTrainPasses;
 
     public MatchPredictionEngine()
     {
@@ -513,26 +516,36 @@ public class MatchPredictionEngine : IPredictionEngine
                             _mlContext, treeEngine, forestEngine, testSet,
                             highEloEngine, midEloEngine, lowEloEngine, _ensembleTreeWeight);
 
-                        // Lab ablation + EMA soft-prune (ignore one-off noisy epochs).
+                        _completedTrainPasses++;
+                        var runAblation = AblationIntervalEpochs <= 1
+                            || (_completedTrainPasses % AblationIntervalEpochs == 0);
+
+                        // Lab ablation (expensive) only every N passes; soft-prune still uses EMA.
                         List<string> prunedGroups = new();
                         if (trainSet.Count >= 120 && testSet.Count >= 30)
                         {
-                            CurrentModelMetrics.AblationAccuracyDrop =
-                                ModelBenchmarkService.RunFeatureGroupAblation(
-                                    _mlContext, trainSet, testSet, CurrentModelMetrics.Accuracy);
-
-                            ModelBenchmarkService.UpdateAblationEma(
-                                _ablationEma, CurrentModelMetrics.AblationAccuracyDrop);
-
-                            var fullClone = matchDataList.Select(ModelBenchmarkService.CloneRowPublic).ToList();
-                            prunedGroups = ModelBenchmarkService.ApplySoftPruneFromAblation(
-                                fullClone, _ablationEma);
-                            CurrentModelMetrics.SoftPrunedGroups = prunedGroups;
-
-                            if (prunedGroups.Count > 0)
+                            if (runAblation)
                             {
-                                matchDataList = fullClone;
-                                dataView = _mlContext.Data.LoadFromEnumerable(matchDataList);
+                                CurrentModelMetrics.AblationAccuracyDrop =
+                                    ModelBenchmarkService.RunFeatureGroupAblation(
+                                        _mlContext, trainSet, testSet, CurrentModelMetrics.Accuracy);
+
+                                ModelBenchmarkService.UpdateAblationEma(
+                                    _ablationEma, CurrentModelMetrics.AblationAccuracyDrop);
+                            }
+
+                            if (_ablationEma.Count > 0)
+                            {
+                                var fullClone = matchDataList.Select(ModelBenchmarkService.CloneRowPublic).ToList();
+                                prunedGroups = ModelBenchmarkService.ApplySoftPruneFromAblation(
+                                    fullClone, _ablationEma);
+                                CurrentModelMetrics.SoftPrunedGroups = prunedGroups;
+
+                                if (prunedGroups.Count > 0)
+                                {
+                                    matchDataList = fullClone;
+                                    dataView = _mlContext.Data.LoadFromEnumerable(matchDataList);
+                                }
                             }
                         }
 
