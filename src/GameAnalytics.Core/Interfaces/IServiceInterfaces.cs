@@ -12,6 +12,10 @@ public interface IRiotApiClient
     Task<IReadOnlyList<string>> GetChallengerPlayerPuuidsAsync(string queue = "RANKED_SOLO_5x5", int maxCount = 20, CancellationToken ct = default);
     /// <summary>High-elo ladder entries with tier tags for rank-aware ML labeling.</summary>
     Task<IReadOnlyList<LadderPlayerEntry>> GetHighEloLadderPlayersAsync(string queue = "RANKED_SOLO_5x5", int maxCount = 20, CancellationToken ct = default);
+    /// <summary>Iron–Diamond division pages for mid/low-elo crawl + rank hints.</summary>
+    Task<IReadOnlyList<LadderPlayerEntry>> GetDivisionLadderPlayersAsync(string queue = "RANKED_SOLO_5x5", int maxCount = 40, CancellationToken ct = default);
+    /// <summary>Current solo/duo rank score (1–10) for a player, or 0 if unranked/unknown.</summary>
+    Task<float> GetSoloRankScoreByPuuidAsync(string puuid, CancellationToken ct = default);
 }
 
 public readonly record struct LadderPlayerEntry(string Puuid, GameAnalytics.Core.Enums.GameTier Tier);
@@ -27,6 +31,8 @@ public interface IMatchRepository
     Task<IReadOnlyList<string>> GetDistinctParticipantPuuidsAsync(int limit = 50, CancellationToken ct = default);
     /// <summary>Match IDs that have minute-15 objectives but still miss vision/death or CS/XP@10 features.</summary>
     Task<IReadOnlyList<string>> GetMatchIdsNeedingTimelineBackfillAsync(int limit = 50, CancellationToken ct = default);
+    /// <summary>Ranked matches still missing ApproxRankScore (lobby skill tag).</summary>
+    Task<IReadOnlyList<string>> GetMatchIdsNeedingRankBackfillAsync(int limit = 80, CancellationToken ct = default);
     Task<IReadOnlyDictionary<string, int>> GetPlayerMatchLpMapAsync(string puuid, CancellationToken ct = default);
     Task SaveMatchLpRecordAsync(PlayerMatchLpRecord record, CancellationToken ct = default);
     Task<PlayerLpSnapshot?> GetLpSnapshotAsync(string puuid, int queueId = 420, CancellationToken ct = default);

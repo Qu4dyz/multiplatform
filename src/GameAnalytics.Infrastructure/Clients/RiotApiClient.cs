@@ -330,6 +330,92 @@ public class RiotApiClient : IRiotApiClient
         }
     }
 
+    public async Task<IReadOnlyList<LadderPlayerEntry>> GetDivisionLadderPlayersAsync(
+        string queue = "RANKED_SOLO_5x5", int maxCount = 40, CancellationToken ct = default)
+    {
+        if (!_options.HasValidApiKey || maxCount <= 0)
+            return Array.Empty<LadderPlayerEntry>();
+
+        // Sample one division page per band so crawl covers Iron→Diamond, not only Master+.
+        var targets = new (GameTier Tier, string TierName, string Division)[]
+        {
+            (GameTier.Iron, "IRON", "IV"),
+            (GameTier.Bronze, "BRONZE", "II"),
+            (GameTier.Silver, "SILVER", "I"),
+            (GameTier.Gold, "GOLD", "II"),
+            (GameTier.Platinum, "PLATINUM", "II"),
+            (GameTier.Emerald, "EMERALD", "I"),
+            (GameTier.Diamond, "DIAMOND", "II"),
+        };
+
+        var result = new List<LadderPlayerEntry>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var perTier = Math.Max(3, maxCount / targets.Length);
+
+        try
+        {
+            foreach (var (tier, tierName, division) in targets)
+            {
+                if (result.Count >= maxCount) break;
+
+                var url =
+                    $"https://{_options.PlatformRegion}.api.riotgames.com/lol/league/v4/entries/{queue}/{tierName}/{division}?page=1";
+                using var response = await SendWithRetryAsync(url, ct);
+                if (response == null || !response.IsSuccessStatusCode) continue;
+
+                var entries = await response.Content.ReadFromJsonAsync<List<RiotLeagueItemDto>>(cancellationToken: ct);
+                if (entries == null || entries.Count == 0) continue;
+
+                var taken = 0;
+                foreach (var entry in entries)
+                {
+                    if (result.Count >= maxCount || taken >= perTier) break;
+
+                    string? puuid = null;
+                    if (!string.IsNullOrWhiteSpace(entry.Puuid))
+                        puuid = entry.Puuid;
+                    else if (!string.IsNullOrWhiteSpace(entry.SummonerId))
+                        puuid = await ResolvePuuidFromSummonerIdAsync(entry.SummonerId, ct);
+
+                    if (string.IsNullOrWhiteSpace(puuid) || !seen.Add(puuid)) continue;
+                    result.Add(new LadderPlayerEntry(puuid, tier));
+                    taken++;
+                }
+            }
+
+            return result;
+        }
+        catch
+        {
+            return result;
+        }
+    }
+
+    public async Task<float> GetSoloRankScoreByPuuidAsync(string puuid, CancellationToken ct = default)
+    {
+        if (!_options.HasValidApiKey || string.IsNullOrWhiteSpace(puuid))
+            return 0f;
+
+        try
+        {
+            var url = $"https://{_options.PlatformRegion}.api.riotgames.com/lol/league/v4/entries/by-puuid/{puuid}";
+            using var response = await SendWithRetryAsync(url, ct);
+            if (response == null || !response.IsSuccessStatusCode) return 0f;
+
+            var entries = await response.Content.ReadFromJsonAsync<List<RiotLeagueEntryDto>>(cancellationToken: ct);
+            var solo = entries?.FirstOrDefault(e =>
+                string.Equals(e.QueueType, "RANKED_SOLO_5x5", StringComparison.OrdinalIgnoreCase));
+            if (solo == null || string.IsNullOrWhiteSpace(solo.Tier)) return 0f;
+
+            var tier = ParseTier(solo.Tier);
+            return tier == GameTier.Unranked ? 0f : RankScoreHelper.FromTier(tier);
+        }
+        catch
+        {
+            return 0f;
+        }
+    }
+
     private async Task<string?> ResolvePuuidFromSummonerIdAsync(string summonerId, CancellationToken ct)
     {
         try

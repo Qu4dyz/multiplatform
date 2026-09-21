@@ -44,6 +44,9 @@ public class ModelMetrics
     /// <summary>True when a Gold–Emerald mid-elo specialist was blended.</summary>
     public bool UsedMidEloSpecialist { get; set; }
 
+    /// <summary>True when an Iron–Silver low-elo specialist was blended.</summary>
+    public bool UsedLowEloSpecialist { get; set; }
+
     /// <summary>FastTree weight in the soft ensemble (FastForest = 1 − TreeWeight).</summary>
     public float EnsembleTreeWeight { get; set; } = 0.5f;
 

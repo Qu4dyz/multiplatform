@@ -68,6 +68,7 @@ public class VpsTrainingWorker
                             var specialists = new List<string>();
                             if (m.UsedHighEloSpecialist) specialists.Add("HighElo");
                             if (m.UsedMidEloSpecialist) specialists.Add("MidElo");
+                            if (m.UsedLowEloSpecialist) specialists.Add("LowElo");
                             var specTxt = specialists.Count > 0 ? $" | Specialists: {string.Join("+", specialists)}" : "";
                             log($"[VPS ML Trainer] Впевнені предикти (|p-0.5|≥0.15): Accuracy = {m.AccuracyWhenConfident:P1} на {m.ConfidentCoverage:P0} тест-вибірки | Brier = {m.BrierScore:F3} | TreeW={m.EnsembleTreeWeight:F2}{specTxt}");
                         }

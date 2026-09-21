@@ -225,4 +225,30 @@ public class MlFeatureV2Tests
             }
         };
     }
+
+    [Fact]
+    public void TryTagMatchRankScore_AveragesKnownParticipantHints()
+    {
+        var match = MakeMatch("RANK1", TeamSide.Blue, "Garen", "Darius", DateTime.UtcNow, goldDiff: 100);
+        match.Participants[0].Puuid = "p-challenger";
+        match.Participants[5].Puuid = "p-silver";
+        var hints = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["p-challenger"] = RankScoreHelper.FromTier(GameTier.Challenger),
+            ["p-silver"] = RankScoreHelper.FromTier(GameTier.Silver)
+        };
+
+        Assert.True(RealMatchDatasetCollector.TryTagMatchRankScore(match, hints));
+        Assert.Equal(6.5f, match.ApproxRankScore, 1); // (10+3)/2
+    }
+
+    [Fact]
+    public void RankBuckets_LowMidHigh_AreContiguous()
+    {
+        Assert.True(ModelBenchmarkService.LowEloRankMax == ModelBenchmarkService.MidEloRankMin);
+        Assert.True(ModelBenchmarkService.MidEloRankMax == ModelBenchmarkService.HighEloRankThreshold);
+        Assert.True(2.0f < ModelBenchmarkService.LowEloRankMax);
+        Assert.True(5.0f >= ModelBenchmarkService.MidEloRankMin
+                    && 5.0f < ModelBenchmarkService.MidEloRankMax);
+    }
 }
