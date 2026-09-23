@@ -287,11 +287,13 @@ public partial class PlayerMatchItemViewModel : ObservableObject
     [ObservableProperty]
     private string _goldCurveSummary = string.Empty;
 
+    // Avalonia Polyline.CreateDefiningGeometry throws ArgumentNullException on null Points
+    // (silent process kill). Keep non-null empty collections at all times.
     [ObservableProperty]
-    private Points? _goldDiffChartPoints = new();
+    private Points _goldDiffChartPoints = new();
 
     [ObservableProperty]
-    private Points? _playerGoldChartPoints = new();
+    private Points _playerGoldChartPoints = new();
 
     private Match? _underlyingMatch;
     private Participant? _underlyingPlayer;
