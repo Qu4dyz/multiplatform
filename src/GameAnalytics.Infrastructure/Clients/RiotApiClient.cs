@@ -546,43 +546,34 @@ public class RiotApiClient : IRiotApiClient
             WinningTeam = blueWin ? TeamSide.Blue : TeamSide.Red
         };
 
-        // Teams
+        // Teams — end-game objective totals stay on TowerKills/DragonKills/etc.
+        // Minute-15 fields stay 0 until MATCH-V5 timeline is applied (avoids placeholder leakage into ML).
         match.Teams.Add(new TeamStats
         {
             TeamSide = TeamSide.Blue,
             Win = blueWin,
-            FirstBlood = blueTeamDto?.Objectives?.Champion?.First ?? false,
-            FirstTower = blueTeamDto?.Objectives?.Tower?.First ?? false,
-            FirstDragon = blueTeamDto?.Objectives?.Dragon?.First ?? false,
             FirstBaron = blueTeamDto?.Objectives?.Baron?.First ?? false,
             TowerKills = blueTeamDto?.Objectives?.Tower?.Kills ?? 0,
             DragonKills = blueTeamDto?.Objectives?.Dragon?.Kills ?? 0,
             BaronKills = blueTeamDto?.Objectives?.Baron?.Kills ?? 0,
             VoidgrubKills = blueTeamDto?.Objectives?.Horde?.Kills ?? 0,
             RiftHeraldKills = blueTeamDto?.Objectives?.RiftHerald?.Kills ?? 0,
-            FirstVoidgrub = blueTeamDto?.Objectives?.Horde?.First ?? false,
-            FirstRiftHerald = blueTeamDto?.Objectives?.RiftHerald?.First ?? false,
-            GoldAt15 = 25000,
-            KillsAt15 = blueTeamDto?.Objectives?.Champion?.Kills ?? 10
+            GoldAt15 = 0,
+            KillsAt15 = 0
         });
 
         match.Teams.Add(new TeamStats
         {
             TeamSide = TeamSide.Red,
             Win = !blueWin,
-            FirstBlood = redTeamDto?.Objectives?.Champion?.First ?? false,
-            FirstTower = redTeamDto?.Objectives?.Tower?.First ?? false,
-            FirstDragon = redTeamDto?.Objectives?.Dragon?.First ?? false,
             FirstBaron = redTeamDto?.Objectives?.Baron?.First ?? false,
             TowerKills = redTeamDto?.Objectives?.Tower?.Kills ?? 0,
             DragonKills = redTeamDto?.Objectives?.Dragon?.Kills ?? 0,
             BaronKills = redTeamDto?.Objectives?.Baron?.Kills ?? 0,
             VoidgrubKills = redTeamDto?.Objectives?.Horde?.Kills ?? 0,
             RiftHeraldKills = redTeamDto?.Objectives?.RiftHerald?.Kills ?? 0,
-            FirstVoidgrub = redTeamDto?.Objectives?.Horde?.First ?? false,
-            FirstRiftHerald = redTeamDto?.Objectives?.RiftHerald?.First ?? false,
-            GoldAt15 = 25000,
-            KillsAt15 = redTeamDto?.Objectives?.Champion?.Kills ?? 10
+            GoldAt15 = 0,
+            KillsAt15 = 0
         });
 
         // Participants

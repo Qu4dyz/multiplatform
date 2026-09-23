@@ -311,7 +311,17 @@ public class MatchRepository : IMatchRepository
 
     public async Task<IReadOnlyList<string>> GetMatchIdsNeedingTimelineBackfillAsync(int limit = 50, CancellationToken ct = default)
     {
-        // Prefer CS/XP@10 gaps first (lowest coverage), then vision/death, randomized within each tier.
+        // Highest priority: rows never got a real timeline (placeholder / failed fetch).
+        // Then CS/XP@10 gaps, then vision/death — randomized within each tier.
+        var missingTimeline = await _context.Matches
+            .AsNoTracking()
+            .Where(m => !m.HasMinute15Objectives
+                        && (m.QueueId == 420 || m.QueueId == 440 || m.QueueId == 400)
+                        && m.GameDurationSeconds >= 300
+                        && !m.IsRemake)
+            .Select(m => m.MatchId)
+            .ToListAsync(ct);
+
         var missingCsXp = await _context.Matches
             .AsNoTracking()
             .Where(m => m.HasMinute15Objectives && !m.HasCsXp10Features)
@@ -324,8 +334,9 @@ public class MatchRepository : IMatchRepository
             .Select(m => m.MatchId)
             .ToListAsync(ct);
 
-        var ordered = missingCsXp
+        var ordered = missingTimeline
             .OrderBy(_ => Random.Shared.Next())
+            .Concat(missingCsXp.OrderBy(_ => Random.Shared.Next()))
             .Concat(missingVision.OrderBy(_ => Random.Shared.Next()))
             .Take(limit)
             .ToList();
