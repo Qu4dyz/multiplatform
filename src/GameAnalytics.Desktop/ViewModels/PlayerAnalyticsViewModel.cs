@@ -188,6 +188,28 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
     [ObservableProperty]
     private string _statusMessage = "Введіть Riot ID (наприклад, Qu4dyz #qu4) та оберіть сервер";
 
+    /// <summary>Default quiet poll while a profile is open (~100s). Bumps to Retry-After on 429.</summary>
+    public static readonly TimeSpan DefaultAutoRefreshInterval = TimeSpan.FromSeconds(100);
+
+    private CancellationTokenSource? _autoRefreshCts;
+    private TimeSpan _autoRefreshCooldown = DefaultAutoRefreshInterval;
+    private DateTime _nextAutoRefreshUtc = DateTime.MinValue;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(AutoRefreshToggleText))]
+    private bool _isAutoRefreshEnabled = true;
+
+    public string AutoRefreshToggleText => IsAutoRefreshEnabled ? "Пауза авто" : "Увімкнути авто";
+
+    [ObservableProperty]
+    private bool _isAutoRefreshing;
+
+    [ObservableProperty]
+    private string _autoRefreshStatusText = string.Empty;
+
+    [ObservableProperty]
+    private bool _hasLoadedProfile;
+
     private int _currentMatchCount = 20;
     private List<Match> _rawMatches = new();
     internal List<Match> RawMatches { get => _rawMatches; set => _rawMatches = value; }
@@ -198,6 +220,7 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
         _analyticsService = null!;
         _options = new RiotApiOptions();
         _selectedRegion = AvailableRegions[0];
+        UpdateAutoRefreshStatusText();
     }
 
     public PlayerAnalyticsViewModel(IMatchAnalyticsService analyticsService, RiotApiOptions options, IDataDragonService? dataDragonService = null)
@@ -212,8 +235,24 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
         _apiKeyInput = options.ApiKey;
 
         UpdateApiStatus();
+        UpdateAutoRefreshStatusText();
         _ = _dataDragonService?.PreloadItemDataAsync();
         _ = SearchPlayerAsync();
+    }
+
+    partial void OnIsAutoRefreshEnabledChanged(bool value)
+    {
+        if (value && HasLoadedProfile && Summoner != null)
+        {
+            ScheduleNextAutoRefresh(_autoRefreshCooldown);
+            StartAutoRefreshLoop();
+        }
+        else
+        {
+            StopAutoRefreshLoop();
+        }
+
+        UpdateAutoRefreshStatusText();
     }
 
     partial void OnSelectedRegionChanged(ServerRegionInfo value)
@@ -307,6 +346,8 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
         try
         {
             IsLoading = true;
+            HasLoadedProfile = false;
+            StopAutoRefreshLoop();
             _currentMatchCount = 20;
             CanLoadMore = true;
             var gameName = GameName.Trim();
@@ -324,9 +365,15 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
             catch (GameAnalytics.Core.Exceptions.RiotApiException ex) when (ex.IsRateLimited)
             {
                 var sec = ex.RetryAfter.HasValue ? Math.Max(1, (int)Math.Ceiling(ex.RetryAfter.Value.TotalSeconds)) : 60;
+                ApplyRateLimitCooldown(ex.RetryAfter);
                 StatusMessage = hadCached
-                    ? $"Показано кеш ({RecentMatches.Count} матчів). Riot API ліміт (429) — повторіть через ~{sec}с. Можливо VPS-краулер вичерпав ключ."
+                    ? $"Показано кеш ({RecentMatches.Count} матчів). Riot API ліміт (429) — авто через ~{sec}с. Можливо VPS-краулер вичерпав ключ."
                     : $"Riot API ліміт запитів (429). Повторіть через ~{sec}с. Перевірте, чи VPS-краулер не використовує той самий ключ.";
+                if (hadCached)
+                {
+                    HasLoadedProfile = true;
+                    StartAutoRefreshLoop();
+                }
                 return;
             }
             catch (GameAnalytics.Core.Exceptions.RiotApiException ex) when (ex.IsUnauthorized)
@@ -334,6 +381,8 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
                 StatusMessage = hadCached
                     ? $"Показано кеш ({RecentMatches.Count} матчів). Riot API ключ відхилено (401/403) — оновіть ключ у Налаштуваннях."
                     : "Riot API ключ відхилено (401/403). Оновіть ключ у Налаштуваннях або developer.riotgames.com.";
+                if (hadCached)
+                    HasLoadedProfile = true;
                 return;
             }
 
@@ -378,9 +427,12 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
                 catch (GameAnalytics.Core.Exceptions.RiotApiException ex) when (ex.IsRateLimited)
                 {
                     var sec = ex.RetryAfter.HasValue ? Math.Max(1, (int)Math.Ceiling(ex.RetryAfter.Value.TotalSeconds)) : 60;
+                    ApplyRateLimitCooldown(ex.RetryAfter);
                     StatusMessage = RecentMatches.Count > 0
-                        ? $"Профіль OK, матчі з кешу ({RecentMatches.Count}). Оновлення з Riot заблоковано лімітом — через ~{sec}с."
+                        ? $"Профіль OK, матчі з кешу ({RecentMatches.Count}). Оновлення з Riot заблоковано лімітом — авто через ~{sec}с."
                         : $"Профіль завантажено, але Riot API ліміт (429) під час історії матчів. Повторіть через ~{sec}с.";
+                    HasLoadedProfile = true;
+                    StartAutoRefreshLoop();
                     return;
                 }
 
@@ -413,12 +465,34 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
                 await PopulateMatchesAsync(matches, profile);
 
                 StatusMessage = $"Завантажено {RecentMatches.Count} матчів для {profile.FullName} ({SelectedRegion.Code}).";
+                HasLoadedProfile = true;
+                ScheduleNextAutoRefresh(DefaultAutoRefreshInterval);
+                StartAutoRefreshLoop();
             }
             else
             {
+                HasLoadedProfile = RecentMatches.Count > 0;
                 StatusMessage = hadCached
                     ? $"Показано кеш ({RecentMatches.Count} матчів). Онлайн-профіль {gameName}#{tagLine} на {SelectedRegion.Code} не знайдено."
                     : $"Гравця {gameName}#{tagLine} не знайдено на сервері {SelectedRegion.Code}. Перевірте правильність написання нікнейму та тегу.";
+                if (HasLoadedProfile)
+                {
+                    ScheduleNextAutoRefresh(DefaultAutoRefreshInterval);
+                    StartAutoRefreshLoop();
+                }
+            }
+        }
+        catch (GameAnalytics.Core.Exceptions.RiotApiException ex) when (ex.IsRateLimited)
+        {
+            var sec = ex.RetryAfter.HasValue ? Math.Max(1, (int)Math.Ceiling(ex.RetryAfter.Value.TotalSeconds)) : 60;
+            ApplyRateLimitCooldown(ex.RetryAfter);
+            StatusMessage = RecentMatches.Count > 0
+                ? $"Кеш на екрані ({RecentMatches.Count}). Riot 429 — авто-оновлення через ~{sec}с."
+                : $"Riot API ліміт (429). Повторіть через ~{sec}с.";
+            if (RecentMatches.Count > 0)
+            {
+                HasLoadedProfile = true;
+                StartAutoRefreshLoop();
             }
         }
         catch (GameAnalytics.Core.Exceptions.RiotApiException ex)
@@ -432,6 +506,7 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
         finally
         {
             IsLoading = false;
+            UpdateAutoRefreshStatusText();
         }
     }
 
@@ -587,6 +662,156 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
         {
             IsLoadingMore = false;
         }
+    }
+
+    [RelayCommand]
+    public void ToggleAutoRefresh()
+    {
+        IsAutoRefreshEnabled = !IsAutoRefreshEnabled;
+    }
+
+    private void ScheduleNextAutoRefresh(TimeSpan cooldown)
+    {
+        _autoRefreshCooldown = cooldown < TimeSpan.FromSeconds(15) ? TimeSpan.FromSeconds(15) : cooldown;
+        _nextAutoRefreshUtc = DateTime.UtcNow + _autoRefreshCooldown;
+        UpdateAutoRefreshStatusText();
+    }
+
+    private void ApplyRateLimitCooldown(TimeSpan? retryAfter)
+    {
+        var retry = retryAfter ?? TimeSpan.FromSeconds(60);
+        // Wait out Riot Retry-After, but never poll faster than the default quiet interval.
+        var seconds = Math.Max(DefaultAutoRefreshInterval.TotalSeconds, retry.TotalSeconds);
+        ScheduleNextAutoRefresh(TimeSpan.FromSeconds(seconds));
+    }
+
+    private void StartAutoRefreshLoop()
+    {
+        StopAutoRefreshLoop();
+        if (!IsAutoRefreshEnabled || !HasLoadedProfile || Summoner == null)
+        {
+            UpdateAutoRefreshStatusText();
+            return;
+        }
+
+        if (_nextAutoRefreshUtc < DateTime.UtcNow)
+            ScheduleNextAutoRefresh(_autoRefreshCooldown);
+
+        _autoRefreshCts = new CancellationTokenSource();
+        _ = RunAutoRefreshLoopAsync(_autoRefreshCts.Token);
+        UpdateAutoRefreshStatusText();
+    }
+
+    private void StopAutoRefreshLoop()
+    {
+        try { _autoRefreshCts?.Cancel(); }
+        catch { /* ignore */ }
+        _autoRefreshCts?.Dispose();
+        _autoRefreshCts = null;
+        IsAutoRefreshing = false;
+        UpdateAutoRefreshStatusText();
+    }
+
+    private async Task RunAutoRefreshLoopAsync(CancellationToken ct)
+    {
+        while (!ct.IsCancellationRequested)
+        {
+            try
+            {
+                var remaining = _nextAutoRefreshUtc - DateTime.UtcNow;
+                if (remaining > TimeSpan.Zero)
+                {
+                    UpdateAutoRefreshStatusText();
+                    var delay = remaining > TimeSpan.FromSeconds(1) ? TimeSpan.FromSeconds(1) : remaining;
+                    await Task.Delay(delay, ct);
+                    continue;
+                }
+
+                await QuietRefreshMatchesAsync(ct);
+                ScheduleNextAutoRefresh(DefaultAutoRefreshInterval);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (GameAnalytics.Core.Exceptions.RiotApiException ex) when (ex.IsRateLimited)
+            {
+                ApplyRateLimitCooldown(ex.RetryAfter);
+                var sec = (int)Math.Ceiling(_autoRefreshCooldown.TotalSeconds);
+                StatusMessage = $"Riot 429 — авто-оновлення призупинено на ~{sec}с (MaxRateLimitBlock / Retry-After).";
+            }
+            catch (Exception ex)
+            {
+                ScheduleNextAutoRefresh(DefaultAutoRefreshInterval);
+                StatusMessage = $"Авто-оновлення: {ex.Message}";
+            }
+        }
+    }
+
+    private async Task QuietRefreshMatchesAsync(CancellationToken ct)
+    {
+        if (Summoner == null || IsLoading || IsLoadingMore || IsAutoRefreshing)
+            return;
+
+        IsAutoRefreshing = true;
+        UpdateAutoRefreshStatusText();
+        try
+        {
+            var previousNewest = RecentMatches.FirstOrDefault()?.MatchId;
+            var matches = await _analyticsService.FetchAndSaveRecentMatchesAsync(Summoner.Puuid, _currentMatchCount, ct);
+            ct.ThrowIfCancellationRequested();
+
+            var newest = matches.OrderByDescending(m => m.GameCreation).FirstOrDefault()?.MatchId;
+            var countChanged = matches.Count != _rawMatches.Count;
+            var setChanged = !matches.Select(m => m.MatchId).OrderBy(x => x)
+                .SequenceEqual(_rawMatches.Select(m => m.MatchId).OrderBy(x => x));
+
+            if (countChanged || setChanged || !string.Equals(previousNewest, newest, StringComparison.OrdinalIgnoreCase))
+            {
+                await _analyticsService.TrackAndReconstructLpAsync(Summoner, matches, ct);
+                await PopulateMatchesAsync(matches, Summoner);
+                StatusMessage = $"Авто-оновлення: {RecentMatches.Count} матчів для {Summoner.FullName}.";
+            }
+            else
+            {
+                StatusMessage = $"Авто-перевірка: нових матчів немає ({Summoner.FullName}).";
+            }
+        }
+        finally
+        {
+            IsAutoRefreshing = false;
+            UpdateAutoRefreshStatusText();
+        }
+    }
+
+    private void UpdateAutoRefreshStatusText()
+    {
+        if (!IsAutoRefreshEnabled)
+        {
+            AutoRefreshStatusText = "Авто-оновлення: пауза";
+            return;
+        }
+
+        if (!HasLoadedProfile || Summoner == null)
+        {
+            AutoRefreshStatusText = "Авто-оновлення: очікує профіль";
+            return;
+        }
+
+        if (IsAutoRefreshing)
+        {
+            AutoRefreshStatusText = "Авто-оновлення: синхронізація...";
+            return;
+        }
+
+        var remaining = _nextAutoRefreshUtc - DateTime.UtcNow;
+        if (remaining < TimeSpan.Zero)
+            remaining = TimeSpan.Zero;
+
+        var secs = (int)Math.Ceiling(remaining.TotalSeconds);
+        AutoRefreshStatusText = secs <= 0
+            ? "Авто-оновлення: зараз..."
+            : $"Авто-оновлення через {secs}с";
     }
 
     internal void UpdateMomentumAnalysis(IReadOnlyList<Match> matches, string puuidOrName)
