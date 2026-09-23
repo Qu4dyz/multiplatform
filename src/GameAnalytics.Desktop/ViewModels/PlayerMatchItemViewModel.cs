@@ -288,10 +288,10 @@ public partial class PlayerMatchItemViewModel : ObservableObject
     private string _goldCurveSummary = string.Empty;
 
     [ObservableProperty]
-    private Points? _goldDiffChartPoints;
+    private Points? _goldDiffChartPoints = new();
 
     [ObservableProperty]
-    private Points? _playerGoldChartPoints;
+    private Points? _playerGoldChartPoints = new();
 
     private Match? _underlyingMatch;
     private Participant? _underlyingPlayer;
@@ -457,8 +457,8 @@ public partial class PlayerMatchItemViewModel : ObservableObject
         {
             HasGoldCurve = false;
             GoldCurveSummary = string.Empty;
-            GoldDiffChartPoints = null;
-            PlayerGoldChartPoints = null;
+            GoldDiffChartPoints = new Points();
+            PlayerGoldChartPoints = new Points();
             return;
         }
 

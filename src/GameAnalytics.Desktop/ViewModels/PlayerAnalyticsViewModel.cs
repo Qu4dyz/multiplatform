@@ -117,7 +117,7 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
     private string _avgKpText = "P/Kill 0%";
 
     [ObservableProperty]
-    private string _preferredRoleText = "MID ⚡";
+    private string _preferredRoleText = "MID";
 
     [ObservableProperty]
     private bool _hasSessionData;
@@ -662,13 +662,12 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
             if (topRole != null)
             {
                 var pct = (int)Math.Round((double)topRole.Count() / nonAramGames.Count * 100);
-                var icon = topRole.FirstOrDefault()?.PositionIcon ?? "⚡";
-                PreferredRoleText = $"{topRole.Key} {icon} ({pct}%)";
+                PreferredRoleText = $"{topRole.Key} · {pct}%";
             }
         }
         else
         {
-            PreferredRoleText = "ARAM 🎲 (100%)";
+            PreferredRoleText = "ARAM · 100%";
         }
     }
 
