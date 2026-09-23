@@ -325,9 +325,9 @@ public class RealMatchDatasetCollector
         Action<string>? logger,
         CancellationToken ct)
     {
-        const int matchCap = 160;
-        const int apiLookupCap = 90;
-        const int freeTagScan = 500;
+        const int matchCap = 220;
+        const int apiLookupCap = 100;
+        const int freeTagScan = 800;
 
         // Pass 1: retag from durable/in-memory hints without burning LEAGUE quota.
         var freeTagged = await RetagMatchesFromHintsAsync(puuidRankHints, freeTagScan, ct);
@@ -439,7 +439,7 @@ public class RealMatchDatasetCollector
     /// </summary>
     private async Task BackfillStaleTimelineFeaturesAsync(Action<string>? logger, CancellationToken ct)
     {
-        const int dedicatedCap = 48;
+        const int dedicatedCap = 25;
         IReadOnlyList<string> ids;
         try
         {

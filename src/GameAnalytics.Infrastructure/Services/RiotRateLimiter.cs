@@ -2,7 +2,13 @@ using System.Collections.Concurrent;
 
 namespace GameAnalytics.Infrastructure.Services;
 
-public class RiotRateLimiter
+    /// <summary>
+    /// Personal Riot keys expose <c>X-App-Rate-Limit: 100:120,20:1</c> (confirmed live).
+    /// Production keys may be higher — headers always win if we ever parse them.
+    /// Buckets are per routing/platform region so europe (match-v5) and euw1 (league-v4)
+    /// do not steal each other's quota.
+    /// </summary>
+    public class RiotRateLimiter
 {
     private readonly ConcurrentDictionary<string, RegionBucket> _buckets = new(StringComparer.OrdinalIgnoreCase);
 
