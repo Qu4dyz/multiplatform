@@ -205,6 +205,8 @@ public class MlFeatureV2Tests
             GameDurationSeconds = 1800,
             WinningTeam = winner,
             HasMinute15Objectives = true,
+            HasCsXp10Features = true,
+            HasVisionDeathFeatures = true,
             Participants =
             {
                 new Participant { ChampionName = blueTop, TeamSide = TeamSide.Blue, Position = Position.Top, Win = winner == TeamSide.Blue, ParticipantId = 1 },
@@ -240,6 +242,87 @@ public class MlFeatureV2Tests
 
         Assert.True(RealMatchDatasetCollector.TryTagMatchRankScore(match, hints));
         Assert.Equal(6.5f, match.ApproxRankScore, 1); // (10+3)/2
+    }
+
+    [Fact]
+    public void ExtractFeatures_UnknownRank_DoesNotImputeIntoMidBand()
+    {
+        var match = MakeMatch("UNK", TeamSide.Blue, "Garen", "Darius", DateTime.UtcNow, goldDiff: 1000);
+        match.ApproxRankScore = 0;
+        var features = RealMatchDatasetCollector.ExtractFeaturesFromMatches(new[] { match });
+        Assert.Single(features);
+        Assert.Equal(0f, features[0].AvgRankScore);
+        Assert.Equal(0f, features[0].HasKnownRank);
+        Assert.Equal(features[0].GoldDiff15, features[0].RankAdjustedGoldDiff);
+        // Must sit outside MidElo band so specialists never train on imputed 5.5.
+        Assert.True(features[0].AvgRankScore < ModelBenchmarkService.MidEloRankMin);
+    }
+
+    [Fact]
+    public void ExtractFeatures_SkipsIncompleteCsXpOrVisionFlags()
+    {
+        var incomplete = MakeMatch("INC", TeamSide.Blue, "Garen", "Darius", DateTime.UtcNow, goldDiff: 500);
+        incomplete.HasCsXp10Features = false;
+        incomplete.HasVisionDeathFeatures = true;
+
+        var ok = MakeMatch("OK", TeamSide.Blue, "Garen", "Darius", DateTime.UtcNow.AddHours(1), goldDiff: 500);
+        var rows = RealMatchDatasetCollector.ExtractFeaturesFromMatches(new[] { incomplete, ok });
+        Assert.Single(rows);
+    }
+
+    [Fact]
+    public void ApplyTemperature_SoftensProbabilitiesWhenTGreaterThanOne()
+    {
+        var sharp = ModelBenchmarkService.ApplyTemperature(0.90f, 1.4f);
+        Assert.True(sharp < 0.90f);
+        Assert.True(sharp > 0.5f);
+        Assert.Equal(0.75f, ModelBenchmarkService.ApplyTemperature(0.75f, 1f), 3);
+    }
+
+    [Fact]
+    public void OptimizeSpecialistBlendWeight_ReturnsWeightInRange()
+    {
+        var data = ModelTrainer.GenerateSyntheticRankedDataset(400);
+        var ml = new Microsoft.ML.MLContext(seed: 11);
+        var bench = new ModelBenchmarkService();
+        var train = data.Take(300).ToList();
+        var cal = data.Skip(300).ToList();
+        var tree = bench.BuildPipeline(GameAnalytics.Core.Enums.MLAlgorithmType.FastTree)
+            .Fit(ml.Data.LoadFromEnumerable(train));
+        var forest = bench.BuildPipeline(GameAnalytics.Core.Enums.MLAlgorithmType.FastForest)
+            .Fit(ml.Data.LoadFromEnumerable(train));
+        var treeEng = ml.Model.CreatePredictionEngine<GameAnalytics.ML.Models.MatchInputData, GameAnalytics.ML.Models.MatchPrediction>(tree);
+        var forestEng = ml.Model.CreatePredictionEngine<GameAnalytics.ML.Models.MatchInputData, GameAnalytics.ML.Models.MatchPrediction>(forest);
+
+        var midTrain = train.Where(r => r.AvgRankScore >= ModelBenchmarkService.MidEloRankMin
+                                        && r.AvgRankScore < ModelBenchmarkService.MidEloRankMax).ToList();
+        var midEng = midTrain.Count >= 40
+            ? ml.Model.CreatePredictionEngine<GameAnalytics.ML.Models.MatchInputData, GameAnalytics.ML.Models.MatchPrediction>(
+                bench.BuildPipeline(GameAnalytics.Core.Enums.MLAlgorithmType.FastTree)
+                    .Fit(ml.Data.LoadFromEnumerable(midTrain)))
+            : null;
+
+        var w = ModelBenchmarkService.OptimizeSpecialistBlendWeight(
+            treeEng, forestEng, null, midEng, null, cal, treeWeight: 0.55f, previousBlend: 0.50f);
+        Assert.InRange(w, ModelBenchmarkService.SpecialistBlendMin, ModelBenchmarkService.SpecialistBlendMax);
+    }
+
+    [Fact]
+    public void ComputeRankBucketAccuracy_SkipsUnknownRank()
+    {
+        var rows = new List<(bool Label, float Prob, float Rank)>
+        {
+            (true, 0.8f, 0f),
+            (false, 0.2f, 0f),
+            (true, 0.7f, 5f),
+            (true, 0.6f, 5.5f),
+            (false, 0.4f, 4f),
+            (true, 0.75f, 5.2f),
+            (false, 0.3f, 6f),
+        };
+        var buckets = ModelBenchmarkService.ComputeRankBucketAccuracy(rows);
+        Assert.DoesNotContain(buckets.Keys, k => k.Contains("Low", StringComparison.Ordinal));
+        Assert.Contains("Mid (Gold–Emerald)", buckets.Keys);
     }
 
     [Fact]

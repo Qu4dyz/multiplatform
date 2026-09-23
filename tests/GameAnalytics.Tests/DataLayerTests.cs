@@ -1329,6 +1329,8 @@ public class DataLayerTests
                 GameDurationSeconds = 1500,
                 WinningTeam = TeamSide.Blue,
                 HasMinute15Objectives = true,
+                HasCsXp10Features = true,
+                HasVisionDeathFeatures = true,
                 Teams = new List<TeamStats>
                 {
                     new TeamStats { TeamSide = TeamSide.Blue, GoldAt15 = 26000, KillsAt15 = 10, CsAt15 = 240, XpAt15 = 18000, VoidgrubKills = 5, RiftHeraldKills = 1, FirstBlood = true, FirstTower = true, FirstDragon = true, TowersAt15 = 2, DragonsAt15 = 1, TowerKills = 7, DragonKills = 3 },
@@ -1354,8 +1356,10 @@ public class DataLayerTests
         // Must use at-15 towers/dragons, never end-of-game 7-2 / 3-1.
         Assert.Equal(2f, features[0].TowerDiff);
         Assert.Equal(1f, features[0].DragonDiff);
-        Assert.True(features[0].AvgRankScore > 0);
-        Assert.Equal(features[0].GoldDiff15 * (features[0].AvgRankScore / 5.5f), features[0].RankAdjustedGoldDiff, 2);
+        // Unknown ApproxRankScore stays 0 (never imputed into MidElo band).
+        Assert.Equal(0f, features[0].AvgRankScore);
+        Assert.Equal(0f, features[0].HasKnownRank);
+        Assert.Equal(features[0].GoldDiff15, features[0].RankAdjustedGoldDiff, 2);
     }
 
     [Fact]
@@ -1371,6 +1375,8 @@ public class DataLayerTests
                 WinningTeam = TeamSide.Blue,
                 ApproxRankScore = 8f,
                 HasMinute15Objectives = true,
+                HasCsXp10Features = true,
+                HasVisionDeathFeatures = true,
                 Teams =
                 {
                     new TeamStats { TeamSide = TeamSide.Blue, GoldAt15 = 27000, KillsAt15 = 9, CsAt15 = 230, XpAt15 = 17500, TowersAt15 = 1, DragonsAt15 = 1 },
@@ -1395,6 +1401,7 @@ public class DataLayerTests
         var features = GameAnalytics.ML.Training.RealMatchDatasetCollector.ExtractFeaturesFromMatches(matches);
         Assert.Equal(12, features.Count);
         Assert.Equal(8f, features[0].AvgRankScore);
+        Assert.Equal(1f, features[0].HasKnownRank);
         // First match has no past history → neutral WR; later matches see rolling blue-favoring WR.
         Assert.Equal(50f, features[0].BlueAvgWinRate);
         Assert.Equal(50f, features[0].RedAvgWinRate);
@@ -1439,6 +1446,8 @@ public class DataLayerTests
                 GameDurationSeconds = 2000,
                 WinningTeam = TeamSide.Red,
                 HasMinute15Objectives = true,
+                HasCsXp10Features = true,
+                HasVisionDeathFeatures = true,
                 Teams = new List<TeamStats>
                 {
                     // Blue slightly ahead at 15', but crushed end-game scoreboard — must not leak.
