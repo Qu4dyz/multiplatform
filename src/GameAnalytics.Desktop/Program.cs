@@ -21,13 +21,58 @@ sealed class Program
     [STAThread]
     public static async Task Main(string[] args)
     {
+        AttachCrashLogging();
+
         if (args.Any(a => a.Equals("--vps-train", StringComparison.OrdinalIgnoreCase) || a.Equals("--train", StringComparison.OrdinalIgnoreCase)))
         {
             await RunHeadlessVpsTrainerAsync(args);
             return;
         }
 
-        BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+        try
+        {
+            BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+        }
+        catch (Exception ex)
+        {
+            WriteCrashLog(ex);
+            throw;
+        }
+    }
+
+    private static void AttachCrashLogging()
+    {
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+        {
+            if (e.ExceptionObject is Exception ex)
+                WriteCrashLog(ex);
+            else
+                WriteCrashLog(new Exception(e.ExceptionObject?.ToString() ?? "Unknown unhandled exception"));
+        };
+
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+        {
+            WriteCrashLog(e.Exception);
+            e.SetObserved();
+        };
+    }
+
+    private static void WriteCrashLog(Exception ex)
+    {
+        try
+        {
+            Console.Error.WriteLine(ex);
+            var path = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "GameAnalytics",
+                "crash.log");
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.AppendAllText(path, $"[{DateTime.Now:O}] {ex}{Environment.NewLine}{Environment.NewLine}");
+        }
+        catch
+        {
+            // Best-effort diagnostics only.
+        }
     }
 
     private static async Task RunHeadlessVpsTrainerAsync(string[] args)
@@ -50,6 +95,8 @@ sealed class Program
             if (File.Exists(projectConfig)) configPath = projectConfig;
         }
         var riotOptions = RiotApiOptions.LoadFromFile(configPath);
+        // Headless crawl must wait out Riot Retry-After instead of failing fast like the desktop UI.
+        riotOptions.MaxRateLimitBlockSeconds = 0;
         services.AddSingleton(riotOptions);
         services.AddSingleton<IPredictionEngine, MatchPredictionEngine>();
         services.AddScoped<VpsTrainingWorker>();

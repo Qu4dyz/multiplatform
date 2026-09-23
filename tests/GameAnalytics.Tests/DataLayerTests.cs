@@ -128,15 +128,63 @@ public class DataLayerTests
     {
         var limiter = new RiotRateLimiter();
 
-        // Hit rate limit on euw1 for 600ms
         limiter.NotifyRateLimitHit("euw1", TimeSpan.FromMilliseconds(600));
 
-        // Call to europe should complete almost instantaneously (<100ms)
         var sw = System.Diagnostics.Stopwatch.StartNew();
         await limiter.WaitForSlotAsync("europe");
         sw.Stop();
 
         Assert.True(sw.ElapsedMilliseconds < 250, $"europe was blocked unexpectedly: {sw.ElapsedMilliseconds}ms");
+    }
+
+    [Fact]
+    public async Task RiotRateLimiter_FailFast_WhenBlockExceedsMaxWait()
+    {
+        var limiter = new RiotRateLimiter();
+        limiter.NotifyRateLimitHit("europe", TimeSpan.FromSeconds(30));
+
+        var ex = await Assert.ThrowsAsync<GameAnalytics.Core.Exceptions.RiotApiException>(
+            () => limiter.WaitForSlotAsync("europe", TimeSpan.FromSeconds(2)));
+
+        Assert.True(ex.IsRateLimited);
+        Assert.Equal(429, ex.StatusCode);
+    }
+
+    [Fact]
+    public async Task RiotApiClient_GetSummoner_ThrowsOn429WithoutLongSleep()
+    {
+        var handler = new StubHttpHandler(req =>
+        {
+            var resp = new HttpResponseMessage((System.Net.HttpStatusCode)429);
+            resp.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(TimeSpan.FromSeconds(60));
+            return resp;
+        });
+        using var http = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(10) };
+        var options = new RiotApiOptions
+        {
+            ApiKey = "RGAPI-test-key-not-a-real-key-xxxxxx",
+            PlatformRegion = "euw1",
+            RoutingRegion = "europe",
+            UseMockFallback = false,
+            MaxRateLimitBlockSeconds = 5
+        };
+        var client = new GameAnalytics.Infrastructure.Clients.RiotApiClient(http, options, new RiotRateLimiter());
+
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var ex = await Assert.ThrowsAsync<GameAnalytics.Core.Exceptions.RiotApiException>(
+            () => client.GetSummonerByRiotIdAsync("Qu4dyz", "qu4"));
+        sw.Stop();
+
+        Assert.True(ex.IsRateLimited);
+        Assert.True(sw.Elapsed < TimeSpan.FromSeconds(8), $"429 path took too long: {sw.Elapsed}");
+    }
+
+    private sealed class StubHttpHandler : HttpMessageHandler
+    {
+        private readonly Func<HttpRequestMessage, HttpResponseMessage> _responder;
+        public StubHttpHandler(Func<HttpRequestMessage, HttpResponseMessage> responder) => _responder = responder;
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+            => Task.FromResult(_responder(request));
     }
 
     [Fact]
@@ -789,9 +837,9 @@ public class DataLayerTests
 
         // Check pillars
         Assert.NotNull(report.Combat);
-        Assert.Equal("⚔️", report.Combat.Icon);
+        Assert.Equal("CMB", report.Combat.Icon);
         Assert.NotNull(report.Economy);
-        Assert.Equal("🌾", report.Economy.Icon);
+        Assert.Equal("ECO", report.Economy.Icon);
         Assert.True(report.Economy.Score > 70, "7.3 CS/M exceeds 6.8 benchmark");
         Assert.NotNull(report.Objectives);
         Assert.NotNull(report.Survival);
@@ -1112,6 +1160,44 @@ public class DataLayerTests
         Assert.Equal(0, vm.ActiveDetailTab);
         Assert.True(vm.IsScoreboardTabActive);
         Assert.False(vm.IsTacticalTabActive);
+    }
+
+    [Fact]
+    public void PlayerMatchItemViewModel_GoldCurvePoints_NeverNullForAvaloniaPolyline()
+    {
+        // Avalonia Polyline.CreateDefiningGeometry throws ArgumentNullException on null Points
+        // and kills the desktop process with no dialog — keep collections non-null always.
+        var match = new Match
+        {
+            MatchId = "EUW1_GOLD_CURVE",
+            GameDurationSeconds = 1800,
+            QueueId = 420,
+            Participants = new List<Participant>
+            {
+                new()
+                {
+                    Puuid = "gold-puuid",
+                    SummonerName = "Qu4dyz#qu4",
+                    ChampionName = "Ahri",
+                    Position = Position.Middle,
+                    TeamSide = TeamSide.Blue,
+                    Kills = 5,
+                    Deaths = 2,
+                    Assists = 7
+                }
+            }
+        };
+
+        var vm = PlayerMatchItemViewModel.FromMatch(match, "gold-puuid");
+        Assert.NotNull(vm.GoldDiffChartPoints);
+        Assert.NotNull(vm.PlayerGoldChartPoints);
+        Assert.False(vm.HasGoldCurve);
+
+        var fresh = new PlayerMatchItemViewModel();
+        Assert.NotNull(fresh.GoldDiffChartPoints);
+        Assert.NotNull(fresh.PlayerGoldChartPoints);
+        Assert.Empty(fresh.GoldDiffChartPoints);
+        Assert.Empty(fresh.PlayerGoldChartPoints);
     }
 
     [Fact]
