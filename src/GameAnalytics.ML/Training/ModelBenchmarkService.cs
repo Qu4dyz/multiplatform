@@ -171,8 +171,8 @@ public class ModelBenchmarkService
     public const float TreeWeightMin = 0.25f;
     public const float TreeWeightMax = 0.80f;
     public const float SpecialistBlendMin = 0.25f;
-    public const float SpecialistBlendMax = 0.70f;
-    public const float SpecialistBlendDefault = 0.50f; // slightly less aggressive than old 0.55–0.60
+    public const float SpecialistBlendMax = 0.55f; // keep base ensemble dominant — SpecW>0.60 hurt temporal holdout
+    public const float SpecialistBlendDefault = 0.45f;
     public const float TemperatureMin = 0.55f;
     public const float TemperatureMax = 1.80f;
 
@@ -368,7 +368,7 @@ public class ModelBenchmarkService
 
         var candidates = new[]
         {
-            0.25f, 0.30f, 0.35f, 0.40f, 0.45f, 0.50f, 0.55f, 0.60f, 0.65f, 0.70f
+            0.25f, 0.30f, 0.35f, 0.40f, 0.45f, 0.50f, 0.55f
         };
 
         foreach (var w in candidates)
