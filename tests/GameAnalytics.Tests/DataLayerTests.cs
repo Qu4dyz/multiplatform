@@ -128,15 +128,63 @@ public class DataLayerTests
     {
         var limiter = new RiotRateLimiter();
 
-        // Hit rate limit on euw1 for 600ms
         limiter.NotifyRateLimitHit("euw1", TimeSpan.FromMilliseconds(600));
 
-        // Call to europe should complete almost instantaneously (<100ms)
         var sw = System.Diagnostics.Stopwatch.StartNew();
         await limiter.WaitForSlotAsync("europe");
         sw.Stop();
 
         Assert.True(sw.ElapsedMilliseconds < 250, $"europe was blocked unexpectedly: {sw.ElapsedMilliseconds}ms");
+    }
+
+    [Fact]
+    public async Task RiotRateLimiter_FailFast_WhenBlockExceedsMaxWait()
+    {
+        var limiter = new RiotRateLimiter();
+        limiter.NotifyRateLimitHit("europe", TimeSpan.FromSeconds(30));
+
+        var ex = await Assert.ThrowsAsync<GameAnalytics.Core.Exceptions.RiotApiException>(
+            () => limiter.WaitForSlotAsync("europe", TimeSpan.FromSeconds(2)));
+
+        Assert.True(ex.IsRateLimited);
+        Assert.Equal(429, ex.StatusCode);
+    }
+
+    [Fact]
+    public async Task RiotApiClient_GetSummoner_ThrowsOn429WithoutLongSleep()
+    {
+        var handler = new StubHttpHandler(req =>
+        {
+            var resp = new HttpResponseMessage((System.Net.HttpStatusCode)429);
+            resp.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(TimeSpan.FromSeconds(60));
+            return resp;
+        });
+        using var http = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(10) };
+        var options = new RiotApiOptions
+        {
+            ApiKey = "RGAPI-test-key-not-a-real-key-xxxxxx",
+            PlatformRegion = "euw1",
+            RoutingRegion = "europe",
+            UseMockFallback = false,
+            MaxRateLimitBlockSeconds = 5
+        };
+        var client = new GameAnalytics.Infrastructure.Clients.RiotApiClient(http, options, new RiotRateLimiter());
+
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var ex = await Assert.ThrowsAsync<GameAnalytics.Core.Exceptions.RiotApiException>(
+            () => client.GetSummonerByRiotIdAsync("Qu4dyz", "qu4"));
+        sw.Stop();
+
+        Assert.True(ex.IsRateLimited);
+        Assert.True(sw.Elapsed < TimeSpan.FromSeconds(8), $"429 path took too long: {sw.Elapsed}");
+    }
+
+    private sealed class StubHttpHandler : HttpMessageHandler
+    {
+        private readonly Func<HttpRequestMessage, HttpResponseMessage> _responder;
+        public StubHttpHandler(Func<HttpRequestMessage, HttpResponseMessage> responder) => _responder = responder;
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+            => Task.FromResult(_responder(request));
     }
 
     [Fact]

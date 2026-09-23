@@ -23,6 +23,8 @@ public readonly record struct LadderPlayerEntry(string Puuid, GameAnalytics.Core
 public interface IMatchRepository
 {
     Task<IReadOnlyList<Match>> GetAllMatchesAsync(CancellationToken ct = default);
+    /// <summary>Recent matches for a Riot ID from local SQLite (no network).</summary>
+    Task<IReadOnlyList<Match>> GetMatchesByRiotIdAsync(string gameName, string tagLine, int limit = 20, CancellationToken ct = default);
     Task<Match?> GetMatchByMatchIdAsync(string matchId, CancellationToken ct = default);
     Task SaveMatchAsync(Match match, CancellationToken ct = default);
     Task UpsertMatchAsync(Match match, CancellationToken ct = default);
@@ -65,6 +67,8 @@ public interface IMatchAnalyticsService
     Task<IReadOnlyDictionary<string, int>> GetPlayerMatchLpMapAsync(string puuid, CancellationToken ct = default);
     Task TrackAndReconstructLpAsync(SummonerProfile profile, IReadOnlyList<Match> matches, CancellationToken ct = default);
     Task<IReadOnlyList<Match>> GetSavedMatchHistoryAsync(CancellationToken ct = default);
+    /// <summary>Local SQLite matches for a Riot ID — used to paint UI before / without live API.</summary>
+    Task<IReadOnlyList<Match>> GetSavedMatchesForPlayerAsync(string gameName, string tagLine, int limit = 20, CancellationToken ct = default);
     Task<MatchTimelineData?> GetMatchTimelineAsync(string matchId, CancellationToken ct = default);
     Task<bool> RetrainModelOnSavedMatchesAsync(CancellationToken ct = default);
     PredictionResult PredictOutcome(MatchInputFeatures features);

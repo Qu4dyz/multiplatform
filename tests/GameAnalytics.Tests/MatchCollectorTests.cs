@@ -70,6 +70,19 @@ public class MatchCollectorTests
         public Task<IReadOnlyList<Match>> GetAllMatchesAsync(CancellationToken ct = default)
             => Task.FromResult<IReadOnlyList<Match>>(Stored.Values.ToList());
 
+        public Task<IReadOnlyList<Match>> GetMatchesByRiotIdAsync(string gameName, string tagLine, int limit = 20, CancellationToken ct = default)
+        {
+            var riotId = string.IsNullOrWhiteSpace(tagLine) ? gameName : $"{gameName}#{tagLine}";
+            var list = Stored.Values
+                .Where(m => m.Participants.Any(p =>
+                    p.SummonerName.Equals(riotId, StringComparison.OrdinalIgnoreCase) ||
+                    p.SummonerName.StartsWith(gameName + "#", StringComparison.OrdinalIgnoreCase)))
+                .OrderByDescending(m => m.GameCreation)
+                .Take(limit)
+                .ToList();
+            return Task.FromResult<IReadOnlyList<Match>>(list);
+        }
+
         public Task<Match?> GetMatchByMatchIdAsync(string matchId, CancellationToken ct = default)
             => Task.FromResult(Stored.TryGetValue(matchId, out var m) ? m : null);
 
