@@ -64,8 +64,41 @@ public static class SpellRuneHelper
             return $"https://ddragon.leagueoflegends.com/cdn/{version}/img/spell/{spellName}.png";
         }
 
-        // Fallback default Flash if unknown
-        return spellId > 0 ? $"https://ddragon.leagueoflegends.com/cdn/{version}/img/spell/SummonerFlash.png" : string.Empty;
+        // Prefer blank over a misleading Flash icon for unknown / mode-specific IDs.
+        return string.Empty;
+    }
+
+    /// <summary>
+    /// Use Riot match data as-is. Only invent spells when the id is missing (0).
+    /// Never treat Flash (4) or Ignite (14) as "unset defaults" — those are real, common picks.
+    /// </summary>
+    public static (int Spell1, int Spell2) ResolveSpellIds(int spell1Id, int spell2Id, string? championName, GameAnalytics.Core.Enums.Position position)
+    {
+        if (spell1Id > 0 && spell2Id > 0)
+            return (spell1Id, spell2Id);
+
+        var rec = GetRecommendedRunesAndSpells(championName, position);
+        return (
+            spell1Id > 0 ? spell1Id : rec.Spell1,
+            spell2Id > 0 ? spell2Id : rec.Spell2);
+    }
+
+    /// <summary>
+    /// Prefer real perk ids from the match. Recommendations only fill missing/zero values.
+    /// </summary>
+    public static (int PrimaryRune, int SecondaryStyle) ResolveRuneIds(
+        int primaryRuneId,
+        int secondaryStyleId,
+        string? championName,
+        GameAnalytics.Core.Enums.Position position)
+    {
+        if (primaryRuneId > 0 && secondaryStyleId > 0)
+            return (primaryRuneId, secondaryStyleId);
+
+        var rec = GetRecommendedRunesAndSpells(championName, position);
+        return (
+            primaryRuneId > 0 ? primaryRuneId : rec.PrimaryRune,
+            secondaryStyleId > 0 ? secondaryStyleId : rec.SecondaryStyle);
     }
 
     public static string GetRuneIconUrl(int runeId)
