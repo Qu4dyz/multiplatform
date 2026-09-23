@@ -217,6 +217,18 @@ public class MatchRepository : IMatchRepository
                 );");
         }
         catch { /* Table already exists */ }
+
+        try
+        {
+            _context.Database.ExecuteSqlRaw(@"
+                CREATE TABLE IF NOT EXISTS PlayerRankHints (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Puuid TEXT NOT NULL UNIQUE,
+                    RankScore REAL NOT NULL DEFAULT 0,
+                    UpdatedAtUtc TEXT NOT NULL
+                );");
+        }
+        catch { /* Table already exists */ }
     }
 
     public async Task<IReadOnlyList<Match>> GetAllMatchesAsync(CancellationToken ct = default)
@@ -333,6 +345,47 @@ public class MatchRepository : IMatchRepository
             .OrderBy(_ => Random.Shared.Next())
             .Take(limit)
             .ToList();
+    }
+
+    public async Task<IReadOnlyDictionary<string, float>> GetPlayerRankHintsAsync(CancellationToken ct = default)
+    {
+        return await _context.PlayerRankHints
+            .AsNoTracking()
+            .Where(h => h.RankScore > 0)
+            .ToDictionaryAsync(h => h.Puuid, h => h.RankScore, StringComparer.OrdinalIgnoreCase, ct);
+    }
+
+    public async Task UpsertPlayerRankHintsAsync(IReadOnlyDictionary<string, float> hints, CancellationToken ct = default)
+    {
+        if (hints.Count == 0) return;
+
+        foreach (var (puuid, score) in hints)
+        {
+            if (string.IsNullOrWhiteSpace(puuid) || score <= 0) continue;
+
+            var existing = await _context.PlayerRankHints
+                .FirstOrDefaultAsync(h => h.Puuid == puuid, ct);
+
+            if (existing != null)
+            {
+                if (score >= existing.RankScore)
+                {
+                    existing.RankScore = score;
+                    existing.UpdatedAtUtc = DateTime.UtcNow;
+                }
+            }
+            else
+            {
+                await _context.PlayerRankHints.AddAsync(new PlayerRankHint
+                {
+                    Puuid = puuid,
+                    RankScore = score,
+                    UpdatedAtUtc = DateTime.UtcNow
+                }, ct);
+            }
+        }
+
+        await _context.SaveChangesAsync(ct);
     }
 
     public async Task<IReadOnlyDictionary<string, int>> GetPlayerMatchLpMapAsync(string puuid, CancellationToken ct = default)

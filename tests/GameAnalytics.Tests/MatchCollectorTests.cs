@@ -58,7 +58,9 @@ public class MatchCollectorTests
             => Task.FromResult<IReadOnlyList<LadderPlayerEntry>>(Array.Empty<LadderPlayerEntry>());
 
         public Task<float> GetSoloRankScoreByPuuidAsync(string puuid, CancellationToken ct = default)
-            => Task.FromResult(0f);
+            => Task.FromResult(RankScores.TryGetValue(puuid, out var s) ? s : 0f);
+
+        public Dictionary<string, float> RankScores { get; } = new(StringComparer.OrdinalIgnoreCase);
     }
 
     private sealed class FakeMatchRepo : IMatchRepository
@@ -122,6 +124,22 @@ public class MatchCollectorTests
                 .Take(limit)
                 .ToList();
             return Task.FromResult<IReadOnlyList<string>>(ids);
+        }
+
+        private readonly Dictionary<string, float> _rankHints = new(StringComparer.OrdinalIgnoreCase);
+
+        public Task<IReadOnlyDictionary<string, float>> GetPlayerRankHintsAsync(CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyDictionary<string, float>>(new Dictionary<string, float>(_rankHints, StringComparer.OrdinalIgnoreCase));
+
+        public Task UpsertPlayerRankHintsAsync(IReadOnlyDictionary<string, float> hints, CancellationToken ct = default)
+        {
+            foreach (var (puuid, score) in hints)
+            {
+                if (string.IsNullOrWhiteSpace(puuid) || score <= 0) continue;
+                if (!_rankHints.TryGetValue(puuid, out var existing) || score > existing)
+                    _rankHints[puuid] = score;
+            }
+            return Task.CompletedTask;
         }
 
         public Task<IReadOnlyDictionary<string, int>> GetPlayerMatchLpMapAsync(string puuid, CancellationToken ct = default)
@@ -219,5 +237,28 @@ public class MatchCollectorTests
 
         Assert.Equal(1, added);
         Assert.Contains("EUW1_CHAL", (IDictionary<string, Match>)repo.Stored);
+    }
+
+    [Fact]
+    public async Task CollectRankedMatches_PersistsRankHintsAndFreeTagsFromCache()
+    {
+        var api = new FakeRiotApi();
+        var repo = new FakeMatchRepo();
+
+        api.RankScores["p1"] = 8f;
+        api.RankScores["p2"] = 7f;
+
+        var untagged = MakeStoredMatch("EUW1_UNTAGGED", "p1", "p2", "p3", "p4", "p5", "p6", "p7", "p8", "p9", "p10");
+        untagged.ApproxRankScore = 0;
+        repo.Stored[untagged.MatchId] = untagged;
+
+        // No new matches to crawl — backfill still runs at epoch start.
+        api.MatchIdsByPuuid["seed-puuid"] = new List<string>();
+
+        var collector = new RealMatchDatasetCollector(api, repo);
+        await collector.CollectRankedMatchesAsync("seed-puuid", targetNewMatches: 1);
+
+        Assert.True(repo.Stored["EUW1_UNTAGGED"].ApproxRankScore > 0);
+        Assert.True((await repo.GetPlayerRankHintsAsync()).ContainsKey("p1"));
     }
 }

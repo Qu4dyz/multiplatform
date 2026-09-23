@@ -26,3 +26,12 @@ public class PlayerMatchLpRecord
     public int LeaguePointsAfter { get; set; }
     public DateTime RecordedAt { get; set; } = DateTime.UtcNow;
 }
+
+/// <summary>Persistent solo/duo rank score (1–10) so lobby tagging survives across crawl epochs.</summary>
+public class PlayerRankHint
+{
+    public int Id { get; set; }
+    public string Puuid { get; set; } = string.Empty;
+    public float RankScore { get; set; }
+    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+}

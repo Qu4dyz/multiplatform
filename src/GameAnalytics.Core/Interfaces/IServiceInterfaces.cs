@@ -33,6 +33,9 @@ public interface IMatchRepository
     Task<IReadOnlyList<string>> GetMatchIdsNeedingTimelineBackfillAsync(int limit = 50, CancellationToken ct = default);
     /// <summary>Ranked matches still missing ApproxRankScore (lobby skill tag).</summary>
     Task<IReadOnlyList<string>> GetMatchIdsNeedingRankBackfillAsync(int limit = 80, CancellationToken ct = default);
+    /// <summary>Cached PUUID → solo rank score (1–10) for lobby tagging across epochs.</summary>
+    Task<IReadOnlyDictionary<string, float>> GetPlayerRankHintsAsync(CancellationToken ct = default);
+    Task UpsertPlayerRankHintsAsync(IReadOnlyDictionary<string, float> hints, CancellationToken ct = default);
     Task<IReadOnlyDictionary<string, int>> GetPlayerMatchLpMapAsync(string puuid, CancellationToken ct = default);
     Task SaveMatchLpRecordAsync(PlayerMatchLpRecord record, CancellationToken ct = default);
     Task<PlayerLpSnapshot?> GetLpSnapshotAsync(string puuid, int queueId = 420, CancellationToken ct = default);

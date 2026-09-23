@@ -40,13 +40,20 @@ public class RealMatchDatasetCollector
         const int backfillCap = 70;
         const int csXpReserve = 40;
         var ladderSeeded = false;
+        var learnedRankHints = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
 
-        void RememberRankHint(string? puuid, float rankScore)
+        void MergeRankHint(string? puuid, float rankScore, bool markForPersist)
         {
             if (string.IsNullOrWhiteSpace(puuid) || rankScore <= 0) return;
             if (!puuidRankHints.TryGetValue(puuid, out var existing) || rankScore > existing)
                 puuidRankHints[puuid] = rankScore;
+            if (!markForPersist) return;
+            if (!learnedRankHints.TryGetValue(puuid, out var learned) || rankScore > learned)
+                learnedRankHints[puuid] = rankScore;
         }
+
+        void RememberRankHint(string? puuid, float rankScore)
+            => MergeRankHint(puuid, rankScore, markForPersist: true);
 
         void EnqueueCandidate(string? puuid, float? rankHint = null)
         {
@@ -72,11 +79,11 @@ public class RealMatchDatasetCollector
             try
             {
                 var before = candidatePuuids.Count;
-                var high = await _apiClient.GetHighEloLadderPlayersAsync("RANKED_SOLO_5x5", maxCount: 40, ct: ct);
+                var high = await _apiClient.GetHighEloLadderPlayersAsync("RANKED_SOLO_5x5", maxCount: 55, ct: ct);
                 foreach (var entry in high)
                     EnqueueCandidate(entry.Puuid, RankScoreHelper.FromTier(entry.Tier));
 
-                var divisions = await _apiClient.GetDivisionLadderPlayersAsync("RANKED_SOLO_5x5", maxCount: 42, ct: ct);
+                var divisions = await _apiClient.GetDivisionLadderPlayersAsync("RANKED_SOLO_5x5", maxCount: 60, ct: ct);
                 foreach (var entry in divisions)
                     EnqueueCandidate(entry.Puuid, RankScoreHelper.FromTier(entry.Tier));
 
@@ -92,8 +99,21 @@ public class RealMatchDatasetCollector
         EnqueueCandidate(seedPuuid);
         await SeedLadderAsync();
 
-        // Close rank-tagging gaps on older rows before mining new matches.
-        await BackfillUntaggedRankScoresAsync(puuidRankHints, logger, ct);
+        // Merge durable PUUID→rank cache, then close gaps before mining new matches.
+        try
+        {
+            var cached = await _matchRepo.GetPlayerRankHintsAsync(ct);
+            foreach (var (puuid, score) in cached)
+                MergeRankHint(puuid, score, markForPersist: false);
+            if (cached.Count > 0)
+                logger?.Invoke($"[Collector] Rank cache: loaded {cached.Count} PUUID hints from DB.");
+        }
+        catch (Exception ex)
+        {
+            logger?.Invoke($"[Collector] Rank cache load skip: {ex.Message}");
+        }
+
+        await BackfillUntaggedRankScoresAsync(puuidRankHints, RememberRankHint, logger, ct);
 
         // Dedicated pass: close CS/XP@10 + vision gaps on older rows (not only those hit by crawl).
         await BackfillStaleTimelineFeaturesAsync(logger, ct);
@@ -122,7 +142,7 @@ public class RealMatchDatasetCollector
                     visitedPuuids.Add(seedPuuid);
                 }
 
-                var storedPuuids = await _matchRepo.GetDistinctParticipantPuuidsAsync(limit: 80, ct);
+                var storedPuuids = await _matchRepo.GetDistinctParticipantPuuidsAsync(limit: 140, ct);
                 foreach (var p in storedPuuids)
                 {
                     EnqueueCandidate(p);
@@ -161,10 +181,10 @@ public class RealMatchDatasetCollector
             var puuid = candidatePuuids.Dequeue();
 
             // Deeper lookback: previously collected players still have older ranked games worth mining
-            var matchIds = await _apiClient.GetRecentMatchIdsByPuuidAsync(puuid, count: 30, queue: 420, ct: ct);
+            var matchIds = await _apiClient.GetRecentMatchIdsByPuuidAsync(puuid, count: 40, queue: 420, ct: ct);
             if (matchIds.Count == 0)
             {
-                matchIds = await _apiClient.GetRecentMatchIdsByPuuidAsync(puuid, count: 20, queue: null, ct: ct);
+                matchIds = await _apiClient.GetRecentMatchIdsByPuuidAsync(puuid, count: 25, queue: null, ct: ct);
             }
 
             foreach (var matchId in matchIds)
@@ -244,6 +264,20 @@ public class RealMatchDatasetCollector
         }
 
         logger?.Invoke($"[Collector] Збір завершено. Додано {newlySavedMatches} нових матчів до тренувальної вибірки.");
+
+        if (learnedRankHints.Count > 0)
+        {
+            try
+            {
+                await _matchRepo.UpsertPlayerRankHintsAsync(learnedRankHints, ct);
+                logger?.Invoke($"[Collector] Rank cache: saved {learnedRankHints.Count} new/updated PUUID hints.");
+            }
+            catch (Exception ex)
+            {
+                logger?.Invoke($"[Collector] Rank cache save skip: {ex.Message}");
+            }
+        }
+
         return newlySavedMatches;
     }
 
@@ -287,13 +321,24 @@ public class RealMatchDatasetCollector
 
     private async Task BackfillUntaggedRankScoresAsync(
         Dictionary<string, float> puuidRankHints,
+        Action<string?, float> rememberRankHint,
         Action<string>? logger,
         CancellationToken ct)
     {
-        const int matchCap = 70;
-        const int apiLookupCap = 36;
+        const int matchCap = 160;
+        const int apiLookupCap = 90;
+        const int freeTagScan = 500;
+
+        // Pass 1: retag from durable/in-memory hints without burning LEAGUE quota.
+        var freeTagged = await RetagMatchesFromHintsAsync(puuidRankHints, freeTagScan, ct);
+
         var ids = await _matchRepo.GetMatchIdsNeedingRankBackfillAsync(matchCap, ct);
-        if (ids.Count == 0) return;
+        if (ids.Count == 0)
+        {
+            if (freeTagged > 0)
+                logger?.Invoke($"[Collector] Rank backfill: free-tagged {freeTagged} matches from cache (queue empty).");
+            return;
+        }
 
         var tagged = 0;
         var lookups = 0;
@@ -304,7 +349,16 @@ public class RealMatchDatasetCollector
             var match = await _matchRepo.GetMatchByMatchIdAsync(matchId, ct);
             if (match == null || match.ApproxRankScore > 0) continue;
 
-            // Resolve a few unknown participants via LEAGUE-V4 so coverage climbs every epoch.
+            // Prefer known hints first — may already be enough after cache merge.
+            if (TryTagMatchRankScore(match, puuidRankHints))
+            {
+                await _matchRepo.UpsertMatchAsync(match, ct);
+                tagged++;
+                continue;
+            }
+
+            var lookupsThisMatch = 0;
+
             foreach (var p in match.Participants)
             {
                 if (lookups >= apiLookupCap) break;
@@ -313,12 +367,14 @@ public class RealMatchDatasetCollector
 
                 var score = await _apiClient.GetSoloRankScoreByPuuidAsync(p.Puuid, ct);
                 lookups++;
+                lookupsThisMatch++;
                 if (score > 0)
-                    puuidRankHints[p.Puuid] = score;
+                    rememberRankHint(p.Puuid, score);
 
-                // 2 successful lookups (or a few attempts) is enough to average a lobby.
-                if (puuidRankHints.ContainsKey(p.Puuid) &&
-                    match.Participants.Count(x => !string.IsNullOrWhiteSpace(x.Puuid) && puuidRankHints.ContainsKey(x.Puuid!)) >= 2)
+                var knownNow = match.Participants.Count(x =>
+                    !string.IsNullOrWhiteSpace(x.Puuid) && puuidRankHints.ContainsKey(x.Puuid!));
+                // Stop once we have a few lobby anchors, or after several attempts on this match.
+                if (knownNow >= 3 || (knownNow >= 2 && lookupsThisMatch >= 4) || lookupsThisMatch >= 6)
                     break;
             }
 
@@ -329,11 +385,36 @@ public class RealMatchDatasetCollector
             }
         }
 
-        if (tagged > 0 || lookups > 0)
+        // Pass 3: newly learned PUUIDs often unlock siblings in the same epoch.
+        var freeTaggedAfter = await RetagMatchesFromHintsAsync(puuidRankHints, freeTagScan, ct);
+
+        if (tagged > 0 || lookups > 0 || freeTagged > 0 || freeTaggedAfter > 0)
         {
             logger?.Invoke(
-                $"[Collector] Rank backfill: tagged {tagged}/{ids.Count} matches (LEAGUE lookups={lookups}).");
+                $"[Collector] Rank backfill: tagged {tagged}/{ids.Count} via API, free-tagged {freeTagged}+{freeTaggedAfter} from cache (LEAGUE lookups={lookups}).");
         }
+    }
+
+    private async Task<int> RetagMatchesFromHintsAsync(
+        IReadOnlyDictionary<string, float> puuidRankHints,
+        int scanLimit,
+        CancellationToken ct)
+    {
+        if (puuidRankHints.Count == 0) return 0;
+
+        var ids = await _matchRepo.GetMatchIdsNeedingRankBackfillAsync(scanLimit, ct);
+        var tagged = 0;
+        foreach (var matchId in ids)
+        {
+            if (ct.IsCancellationRequested) break;
+            var match = await _matchRepo.GetMatchByMatchIdAsync(matchId, ct);
+            if (match == null || match.ApproxRankScore > 0) continue;
+            if (!TryTagMatchRankScore(match, puuidRankHints)) continue;
+            await _matchRepo.UpsertMatchAsync(match, ct);
+            tagged++;
+        }
+
+        return tagged;
     }
 
     private static bool NeedsAt15ObjectiveBackfill(Match match)
