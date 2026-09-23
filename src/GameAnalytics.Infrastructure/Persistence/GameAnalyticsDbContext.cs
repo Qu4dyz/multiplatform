@@ -11,6 +11,7 @@ public class GameAnalyticsDbContext : DbContext
     public DbSet<PlayerLpSnapshot> PlayerLpSnapshots => Set<PlayerLpSnapshot>();
     public DbSet<PlayerMatchLpRecord> PlayerMatchLpRecords => Set<PlayerMatchLpRecord>();
     public DbSet<MatchTimelineCache> MatchTimelineCaches => Set<MatchTimelineCache>();
+    public DbSet<PlayerRankHint> PlayerRankHints => Set<PlayerRankHint>();
 
     private readonly string _dbPath;
 
@@ -105,6 +106,13 @@ public class GameAnalyticsDbContext : DbContext
             entity.HasKey(c => c.Id);
             entity.HasIndex(c => c.MatchId).IsUnique();
             entity.Property(c => c.MatchId).IsRequired().HasMaxLength(64);
+        });
+
+        modelBuilder.Entity<PlayerRankHint>(entity =>
+        {
+            entity.HasKey(h => h.Id);
+            entity.HasIndex(h => h.Puuid).IsUnique();
+            entity.Property(h => h.Puuid).IsRequired().HasMaxLength(128);
         });
     }
 }
