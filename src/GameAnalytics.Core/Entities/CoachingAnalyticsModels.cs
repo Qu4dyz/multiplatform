@@ -5,7 +5,7 @@ namespace GameAnalytics.Core.Entities;
 public class SkillPillarScore
 {
     public string PillarName { get; set; } = string.Empty;
-    public string Icon { get; set; } = "⚔️";
+    public string Icon { get; set; } = "CMB";
     public int Score { get; set; } = 50;
     public string Grade { get; set; } = "B";
     public string GradeColor { get; set; } = "#5383E8";
@@ -135,7 +135,7 @@ public class GlobalCoachingReport
     public string OverallGradeColor { get; set; } = "#5383E8";
     public Position PrimaryRole { get; set; } = Position.Middle;
     public string RoleName { get; set; } = "MID";
-    public string RoleIcon { get; set; } = "⚡";
+    public string RoleIcon { get; set; } = "MID";
 
     public SkillPillarScore Combat { get; set; } = new();
     public SkillPillarScore Economy { get; set; } = new();
