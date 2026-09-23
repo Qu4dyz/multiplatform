@@ -188,6 +188,11 @@ public class MatchAnalyticsService : IMatchAnalyticsService
         return await _matchRepository.GetAllMatchesAsync(ct);
     }
 
+    public async Task<IReadOnlyList<Match>> GetSavedMatchesForPlayerAsync(string gameName, string tagLine, int limit = 20, CancellationToken ct = default)
+    {
+        return await _matchRepository.GetMatchesByRiotIdAsync(gameName, tagLine, limit, ct);
+    }
+
     public async Task<MatchTimelineData?> GetMatchTimelineAsync(string matchId, CancellationToken ct = default)
     {
         var cached = await _matchRepository.GetCachedTimelineAsync(matchId, ct);

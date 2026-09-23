@@ -309,9 +309,34 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
             IsLoading = true;
             _currentMatchCount = 20;
             CanLoadMore = true;
-            StatusMessage = $"Завантаження даних для {GameName}#{TagLine} ({SelectedRegion.DisplayName})...";
+            var gameName = GameName.Trim();
+            var tagLine = TagLine.Trim();
+            StatusMessage = $"Завантаження даних для {gameName}#{tagLine} ({SelectedRegion.DisplayName})...";
 
-            var profile = await _analyticsService.FetchAndCacheSummonerAsync(GameName.Trim(), TagLine.Trim());
+            // Paint local SQLite history immediately so a rate-limited Riot key cannot leave the UI empty.
+            var hadCached = await TryShowCachedMatchesAsync(gameName, tagLine);
+
+            SummonerProfile? profile;
+            try
+            {
+                profile = await _analyticsService.FetchAndCacheSummonerAsync(gameName, tagLine);
+            }
+            catch (GameAnalytics.Core.Exceptions.RiotApiException ex) when (ex.IsRateLimited)
+            {
+                var sec = ex.RetryAfter.HasValue ? Math.Max(1, (int)Math.Ceiling(ex.RetryAfter.Value.TotalSeconds)) : 60;
+                StatusMessage = hadCached
+                    ? $"Показано кеш ({RecentMatches.Count} матчів). Riot API ліміт (429) — повторіть через ~{sec}с. Можливо VPS-краулер вичерпав ключ."
+                    : $"Riot API ліміт запитів (429). Повторіть через ~{sec}с. Перевірте, чи VPS-краулер не використовує той самий ключ.";
+                return;
+            }
+            catch (GameAnalytics.Core.Exceptions.RiotApiException ex) when (ex.IsUnauthorized)
+            {
+                StatusMessage = hadCached
+                    ? $"Показано кеш ({RecentMatches.Count} матчів). Riot API ключ відхилено (401/403) — оновіть ключ у Налаштуваннях."
+                    : "Riot API ключ відхилено (401/403). Оновіть ключ у Налаштуваннях або developer.riotgames.com.";
+                return;
+            }
+
             if (profile != null)
             {
                 Summoner = profile;
@@ -321,42 +346,43 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
                     ? $"Профіль {profile.FullName} успішно завантажено з Riot API. Оновлення матчів..."
                     : $"Профіль {profile.FullName} (Демо-режим). Отримання матчів...";
 
-                // Warm up UI with cached matches from local SQLite immediately for zero delay
+                // Refresh cache filter with real PUUID if we already showed name-matched rows
+                if (!hadCached)
+                {
+                    try
+                    {
+                        var cachedMatches = await _analyticsService.GetSavedMatchesForPlayerAsync(gameName, tagLine, _currentMatchCount);
+                        if (cachedMatches.Count == 0)
+                        {
+                            var allCached = await _analyticsService.GetSavedMatchHistoryAsync();
+                            cachedMatches = allCached
+                                .Where(m => m.Participants.Any(p => p.Puuid == profile.Puuid))
+                                .OrderByDescending(m => m.GameCreation)
+                                .Take(_currentMatchCount)
+                                .ToList();
+                        }
+
+                        if (cachedMatches.Count > 0 && RecentMatches.Count == 0)
+                        {
+                            await PopulateMatchesAsync(cachedMatches, profile);
+                        }
+                    }
+                    catch { /* Non-critical cache warm-up */ }
+                }
+
+                IReadOnlyList<Match> matches;
                 try
                 {
-                    var cachedMatches = await _analyticsService.GetSavedMatchHistoryAsync();
-                    var playerCached = cachedMatches
-                        .Where(m => m.Participants.Any(p => p.Puuid == profile.Puuid || 
-                                                            p.SummonerName.Equals(profile.GameName, StringComparison.OrdinalIgnoreCase)))
-                        .OrderByDescending(m => m.GameCreation)
-                        .Take(_currentMatchCount)
-                        .ToList();
-
-                    if (playerCached.Count > 0 && RecentMatches.Count == 0)
-                    {
-                        UpdateMomentumAnalysis(playerCached, profile.Puuid);
-                        var lpMapFast = await _analyticsService.GetPlayerMatchLpMapAsync(profile.Puuid);
-                        RecentMatches.Clear();
-                        var fastTier = Summoner?.Tier ?? GameTier.Emerald;
-                        foreach (var m in playerCached)
-                        {
-                            int? overrideLp = lpMapFast.TryGetValue(m.MatchId, out var delta) ? delta : null;
-                            RecentMatches.Add(PlayerMatchItemViewModel.FromMatch(
-                                m, 
-                                profile.Puuid, 
-                                profile.GameName, 
-                                SelectPlayerCommand, 
-                                fastTier, 
-                                mId => _analyticsService.GetMatchTimelineAsync(mId),
-                                overrideLp,
-                                profile.WinRate));
-                        }
-                        ApplyQueueFilter();
-                    }
+                    matches = await _analyticsService.FetchAndSaveRecentMatchesAsync(profile.Puuid, _currentMatchCount);
                 }
-                catch { /* Non-critical cache warm-up */ }
-
-                var matches = await _analyticsService.FetchAndSaveRecentMatchesAsync(profile.Puuid, _currentMatchCount);
+                catch (GameAnalytics.Core.Exceptions.RiotApiException ex) when (ex.IsRateLimited)
+                {
+                    var sec = ex.RetryAfter.HasValue ? Math.Max(1, (int)Math.Ceiling(ex.RetryAfter.Value.TotalSeconds)) : 60;
+                    StatusMessage = RecentMatches.Count > 0
+                        ? $"Профіль OK, матчі з кешу ({RecentMatches.Count}). Оновлення з Riot заблоковано лімітом — через ~{sec}с."
+                        : $"Профіль завантажено, але Riot API ліміт (429) під час історії матчів. Повторіть через ~{sec}с.";
+                    return;
+                }
 
                 UpdateMomentumAnalysis(matches, profile.Puuid);
 
@@ -384,33 +410,20 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
                 _ = BitmapAssetValueConverter.PreloadImagesAsync(iconsToPreload);
 
                 await _analyticsService.TrackAndReconstructLpAsync(profile, matches);
-                var lpMap = await _analyticsService.GetPlayerMatchLpMapAsync(profile.Puuid);
-
-                _rawMatches = matches.ToList();
-                RecentMatches.Clear();
-                var currentTier = Summoner?.Tier ?? GameTier.Emerald;
-                foreach (var m in matches)
-                {
-                    int? overrideLp = lpMap.TryGetValue(m.MatchId, out var delta) ? delta : null;
-                    RecentMatches.Add(PlayerMatchItemViewModel.FromMatch(
-                        m, 
-                        profile.Puuid, 
-                        profile.GameName, 
-                        SelectPlayerCommand, 
-                        currentTier, 
-                        mId => _analyticsService.GetMatchTimelineAsync(mId),
-                        overrideLp,
-                        profile.WinRate));
-                }
-
-                ApplyQueueFilter();
+                await PopulateMatchesAsync(matches, profile);
 
                 StatusMessage = $"Завантажено {RecentMatches.Count} матчів для {profile.FullName} ({SelectedRegion.Code}).";
             }
             else
             {
-                StatusMessage = $"Гравця {GameName}#{TagLine} не знайдено на сервері {SelectedRegion.Code}. Перевірте правильність написання нікнейму та тегу.";
+                StatusMessage = hadCached
+                    ? $"Показано кеш ({RecentMatches.Count} матчів). Онлайн-профіль {gameName}#{tagLine} на {SelectedRegion.Code} не знайдено."
+                    : $"Гравця {gameName}#{tagLine} не знайдено на сервері {SelectedRegion.Code}. Перевірте правильність написання нікнейму та тегу.";
             }
+        }
+        catch (GameAnalytics.Core.Exceptions.RiotApiException ex)
+        {
+            StatusMessage = $"Помилка Riot API ({ex.StatusCode}): {ex.Message}";
         }
         catch (Exception ex)
         {
@@ -420,6 +433,77 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
         {
             IsLoading = false;
         }
+    }
+
+    private async Task<bool> TryShowCachedMatchesAsync(string gameName, string tagLine)
+    {
+        try
+        {
+            var cachedMatches = await _analyticsService.GetSavedMatchesForPlayerAsync(gameName, tagLine, _currentMatchCount);
+            if (cachedMatches.Count == 0)
+                return false;
+
+            var sample = cachedMatches
+                .SelectMany(m => m.Participants)
+                .FirstOrDefault(p =>
+                    p.SummonerName.Equals($"{gameName}#{tagLine}", StringComparison.OrdinalIgnoreCase) ||
+                    p.SummonerName.StartsWith(gameName + "#", StringComparison.OrdinalIgnoreCase));
+
+            var puuid = sample?.Puuid ?? string.Empty;
+
+            var profile = Summoner;
+            if (profile == null || !profile.GameName.Equals(gameName, StringComparison.OrdinalIgnoreCase))
+            {
+                profile = new SummonerProfile
+                {
+                    Puuid = puuid,
+                    GameName = gameName,
+                    TagLine = tagLine,
+                    SummonerLevel = Summoner?.SummonerLevel ?? 0,
+                    ProfileIconId = Summoner?.ProfileIconId ?? 1,
+                    Tier = Summoner?.Tier ?? GameTier.Unranked,
+                    Rank = Summoner?.Rank ?? string.Empty,
+                    LeaguePoints = Summoner?.LeaguePoints ?? 0,
+                    Wins = Summoner?.Wins ?? 0,
+                    Losses = Summoner?.Losses ?? 0
+                };
+                Summoner = profile;
+                TierBadgeColor = GetTierColor(profile.Tier);
+            }
+
+            await PopulateMatchesAsync(cachedMatches, profile);
+            StatusMessage = $"Показано {RecentMatches.Count} матчів з локального кешу для {gameName}#{tagLine}. Оновлення з Riot API...";
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private async Task PopulateMatchesAsync(IReadOnlyList<Match> matches, SummonerProfile profile)
+    {
+        UpdateMomentumAnalysis(matches, profile.Puuid);
+        var lpMap = await _analyticsService.GetPlayerMatchLpMapAsync(profile.Puuid);
+
+        _rawMatches = matches.ToList();
+        RecentMatches.Clear();
+        var currentTier = Summoner?.Tier ?? GameTier.Emerald;
+        foreach (var m in matches)
+        {
+            int? overrideLp = lpMap.TryGetValue(m.MatchId, out var delta) ? delta : null;
+            RecentMatches.Add(PlayerMatchItemViewModel.FromMatch(
+                m,
+                profile.Puuid,
+                profile.GameName,
+                SelectPlayerCommand,
+                currentTier,
+                mId => _analyticsService.GetMatchTimelineAsync(mId),
+                overrideLp,
+                profile.WinRate));
+        }
+
+        ApplyQueueFilter();
     }
 
     [RelayCommand]

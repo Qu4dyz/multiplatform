@@ -50,6 +50,8 @@ sealed class Program
             if (File.Exists(projectConfig)) configPath = projectConfig;
         }
         var riotOptions = RiotApiOptions.LoadFromFile(configPath);
+        // Headless crawl must wait out Riot Retry-After instead of failing fast like the desktop UI.
+        riotOptions.MaxRateLimitBlockSeconds = 0;
         services.AddSingleton(riotOptions);
         services.AddSingleton<IPredictionEngine, MatchPredictionEngine>();
         services.AddScoped<VpsTrainingWorker>();

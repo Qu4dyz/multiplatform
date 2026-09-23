@@ -241,6 +241,44 @@ public class MatchRepository : IMatchRepository
             .ToListAsync(ct);
     }
 
+    public async Task<IReadOnlyList<Match>> GetMatchesByRiotIdAsync(string gameName, string tagLine, int limit = 20, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(gameName) || limit <= 0)
+            return Array.Empty<Match>();
+
+        var cleanName = gameName.Trim();
+        var cleanTag = (tagLine ?? string.Empty).Trim();
+        var riotId = string.IsNullOrEmpty(cleanTag) ? cleanName : $"{cleanName}#{cleanTag}";
+        var namePrefix = cleanName + "#";
+
+        // Prefer exact Riot ID, then same game name with any tag, capped for UI.
+        var matches = await _context.Matches
+            .Include(m => m.Participants)
+            .Include(m => m.Teams)
+            .AsNoTracking()
+            .Where(m => m.Participants.Any(p =>
+                p.SummonerName == riotId ||
+                (string.IsNullOrEmpty(cleanTag) && p.SummonerName.StartsWith(namePrefix))))
+            .OrderByDescending(m => m.GameCreation)
+            .Take(limit)
+            .ToListAsync(ct);
+
+        if (matches.Count > 0 || string.IsNullOrEmpty(cleanTag))
+            return matches;
+
+        // Case-insensitive fallback (SQLite default LIKE is ASCII case-insensitive)
+        return await _context.Matches
+            .Include(m => m.Participants)
+            .Include(m => m.Teams)
+            .AsNoTracking()
+            .Where(m => m.Participants.Any(p =>
+                EF.Functions.Like(p.SummonerName, riotId) ||
+                EF.Functions.Like(p.SummonerName, namePrefix + "%")))
+            .OrderByDescending(m => m.GameCreation)
+            .Take(limit)
+            .ToListAsync(ct);
+    }
+
     public async Task<Match?> GetMatchByMatchIdAsync(string matchId, CancellationToken ct = default)
     {
         return await _context.Matches

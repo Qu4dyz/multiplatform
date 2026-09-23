@@ -24,6 +24,13 @@ public class RiotApiOptions
     public bool UseMockFallback { get; set; } = true;
     public string VpsServerUrl { get; set; } = "http://45.77.53.46:5050";
 
+    /// <summary>
+    /// Max seconds the HTTP client will block on a known Riot 429 before failing fast.
+    /// Desktop default is 5 so Player Analytics cannot spin for minutes.
+    /// Set to 0 (or negative) for VPS crawl to wait out the full Retry-After on the shared limiter.
+    /// </summary>
+    public int MaxRateLimitBlockSeconds { get; set; } = 5;
+
     // Configurable demo stats when offline / without Riot API key
     public GameAnalytics.Core.Enums.GameTier DemoTier { get; set; } = GameAnalytics.Core.Enums.GameTier.Gold;
     public string DemoRank { get; set; } = "II";
@@ -89,6 +96,7 @@ public class RiotApiOptions
                         options.VpsServerUrl = localOptions.VpsServerUrl;
                     options.UseMockFallback = localOptions.UseMockFallback;
                     options.DemoTier = localOptions.DemoTier;
+                    options.MaxRateLimitBlockSeconds = localOptions.MaxRateLimitBlockSeconds;
                     break;
                 }
             }
