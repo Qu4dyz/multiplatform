@@ -58,12 +58,12 @@ public static class GlobalCoachingAnalyzer
 
         var (roleName, roleIcon) = primaryPos switch
         {
-            Position.Top => ("TOP", "🛡️"),
-            Position.Jungle => ("JGL", "🌲"),
-            Position.Middle => ("MID", "⚡"),
-            Position.Bottom => ("BOT", "🏹"),
-            Position.Utility => ("SUP", "✨"),
-            _ => ("MID", "⚔️")
+            Position.Top => ("TOP", "TOP"),
+            Position.Jungle => ("JGL", "JGL"),
+            Position.Middle => ("MID", "MID"),
+            Position.Bottom => ("BOT", "BOT"),
+            Position.Utility => ("SUP", "SUP"),
+            _ => ("MID", "MID")
         };
         report.RoleName = roleName;
         report.RoleIcon = roleIcon;
@@ -144,7 +144,7 @@ public static class GlobalCoachingAnalyzer
         report.Combat = new SkillPillarScore
         {
             PillarName = "Бій (Combat)",
-            Icon = "⚔️",
+            Icon = "CMB",
             Score = combatScore,
             Grade = combatGrade,
             GradeColor = combatColor,
@@ -175,7 +175,7 @@ public static class GlobalCoachingAnalyzer
         report.Economy = new SkillPillarScore
         {
             PillarName = "Фарм (Economy)",
-            Icon = "🌾",
+            Icon = "ECO",
             Score = economyScore,
             Grade = economyGrade,
             GradeColor = economyColor,
@@ -204,7 +204,7 @@ public static class GlobalCoachingAnalyzer
         report.Objectives = new SkillPillarScore
         {
             PillarName = "Об'єкти (Objectives)",
-            Icon = "🗺️",
+            Icon = "OBJ",
             Score = objScore,
             Grade = objGrade,
             GradeColor = objColor,
@@ -225,7 +225,7 @@ public static class GlobalCoachingAnalyzer
         report.Survival = new SkillPillarScore
         {
             PillarName = "Живучість (Survival)",
-            Icon = "🛡️",
+            Icon = "SRV",
             Score = survivalScore,
             Grade = survivalGrade,
             GradeColor = survivalColor,
@@ -251,7 +251,7 @@ public static class GlobalCoachingAnalyzer
         report.Vision = new SkillPillarScore
         {
             PillarName = "Віжн (Vision)",
-            Icon = "👁️",
+            Icon = "VIS",
             Score = visionScore,
             Grade = visionGrade,
             GradeColor = visionColor,
