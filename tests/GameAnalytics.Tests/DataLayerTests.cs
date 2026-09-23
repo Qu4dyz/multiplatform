@@ -1163,6 +1163,44 @@ public class DataLayerTests
     }
 
     [Fact]
+    public void PlayerMatchItemViewModel_GoldCurvePoints_NeverNullForAvaloniaPolyline()
+    {
+        // Avalonia Polyline.CreateDefiningGeometry throws ArgumentNullException on null Points
+        // and kills the desktop process with no dialog — keep collections non-null always.
+        var match = new Match
+        {
+            MatchId = "EUW1_GOLD_CURVE",
+            GameDurationSeconds = 1800,
+            QueueId = 420,
+            Participants = new List<Participant>
+            {
+                new()
+                {
+                    Puuid = "gold-puuid",
+                    SummonerName = "Qu4dyz#qu4",
+                    ChampionName = "Ahri",
+                    Position = Position.Middle,
+                    TeamSide = TeamSide.Blue,
+                    Kills = 5,
+                    Deaths = 2,
+                    Assists = 7
+                }
+            }
+        };
+
+        var vm = PlayerMatchItemViewModel.FromMatch(match, "gold-puuid");
+        Assert.NotNull(vm.GoldDiffChartPoints);
+        Assert.NotNull(vm.PlayerGoldChartPoints);
+        Assert.False(vm.HasGoldCurve);
+
+        var fresh = new PlayerMatchItemViewModel();
+        Assert.NotNull(fresh.GoldDiffChartPoints);
+        Assert.NotNull(fresh.PlayerGoldChartPoints);
+        Assert.Empty(fresh.GoldDiffChartPoints);
+        Assert.Empty(fresh.PlayerGoldChartPoints);
+    }
+
+    [Fact]
     public void NormalizeChampionName_HandlesEdgeCasesAndSpecialCharacters()
     {
         Assert.Equal("MonkeyKing", PlayerMatchItemViewModel.NormalizeChampionName("Wukong"));

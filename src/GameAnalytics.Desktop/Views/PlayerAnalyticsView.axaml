@@ -1690,10 +1690,10 @@
                                                             <!-- Zero line -->
                                                             <Border Height="1" Background="#2A2F45" VerticalAlignment="Center" Margin="0,0,0,0" />
                                                             <Canvas Width="560" Height="100" HorizontalAlignment="Stretch">
-                                                                <Polyline Points="{Binding GoldDiffChartPoints}"
+                                                                <Polyline Points="{Binding GoldDiffChartPoints, FallbackValue={}, TargetNullValue={}}"
                                                                            Stroke="#A78BFA"
                                                                            StrokeThickness="2.2" />
-                                                                <Polyline Points="{Binding PlayerGoldChartPoints}"
+                                                                <Polyline Points="{Binding PlayerGoldChartPoints, FallbackValue={}, TargetNullValue={}}"
                                                                            Stroke="#2DD4BF"
                                                                            StrokeThickness="1.6"
                                                                            Opacity="0.85" />
