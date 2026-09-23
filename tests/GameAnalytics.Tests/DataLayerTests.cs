@@ -789,9 +789,9 @@ public class DataLayerTests
 
         // Check pillars
         Assert.NotNull(report.Combat);
-        Assert.Equal("⚔️", report.Combat.Icon);
+        Assert.Equal("CMB", report.Combat.Icon);
         Assert.NotNull(report.Economy);
-        Assert.Equal("🌾", report.Economy.Icon);
+        Assert.Equal("ECO", report.Economy.Icon);
         Assert.True(report.Economy.Score > 70, "7.3 CS/M exceeds 6.8 benchmark");
         Assert.NotNull(report.Objectives);
         Assert.NotNull(report.Survival);
