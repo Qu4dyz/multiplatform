@@ -56,6 +56,7 @@ public class ModelTrainer
             var blueWr = 45f + (float)rand.NextDouble() * 10f;
             var redWr = 45f + (float)rand.NextDouble() * 10f;
             var rankScore = 1f + (float)rand.NextDouble() * 9f;
+            var hasKnownRank = 1f;
             var goldPace = 45f + (float)rand.NextDouble() * 12f;
             var topGold = (float)rand.Next(-1200, 1201);
             var jglGold = (float)rand.Next(-1200, 1201);
@@ -151,6 +152,7 @@ public class ModelTrainer
                 EarlyPowerDiff = earlyDiff,
                 LatePowerDiff = lateDiff,
                 AvgRankScore = rankScore,
+                HasKnownRank = hasKnownRank,
                 GoldPace15 = goldPace,
                 TopGoldDiff15 = topGold,
                 JungleGoldDiff15 = jglGold,
