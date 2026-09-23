@@ -549,8 +549,10 @@ public class RealMatchDatasetCollector
 
         foreach (var match in ordered)
         {
+            // Remakes / sub-5' games never belong in the 15' win model.
             if (match.IsRemake || match.GameDurationSeconds < 300) continue;
-            if (match.QueueId != 420 && match.QueueId != 440 && match.QueueId != 400 && match.QueueId != 0) continue;
+            // Solo/Duo only (QueueId 0 kept for unit fixtures that omit queue).
+            if (match.QueueId != 420 && match.QueueId != 0) continue;
 
             var blue = match.Teams.FirstOrDefault(t => t.TeamSide == TeamSide.Blue);
             var red = match.Teams.FirstOrDefault(t => t.TeamSide == TeamSide.Red);
@@ -558,6 +560,8 @@ public class RealMatchDatasetCollector
 
             // Require a real MATCH-V5 timeline apply — placeholder GoldAt15 must never train the model.
             if (!match.HasMinute15Objectives) continue;
+            // Prefer complete 10' CS/XP + vision/death rows (heuristic fallbacks add noise).
+            if (!match.HasCsXp10Features || !match.HasVisionDeathFeatures) continue;
             if (blue.GoldAt15 <= 0 && red.GoldAt15 <= 0) continue;
 
             var goldDiff15 = (float)(blue.GoldAt15 - red.GoldAt15);
@@ -584,7 +588,9 @@ public class RealMatchDatasetCollector
             var (engageDiff, tankDiff, adApDiff) = ChampionCompositionHelper.ComputeDiffs(blueChamps, redChamps);
             var laneMatchupDiff = ComputeLaneMatchupDiff(match, matchupWins, matchupGames);
 
-            var rankScore = match.ApproxRankScore > 0 ? match.ApproxRankScore : RankScoreHelper.DefaultMixedLobby;
+            // Keep unknown rank as 0 — never impute DefaultMixedLobby (5.5) into MidElo specialist band.
+            var knownRank = match.ApproxRankScore > 0;
+            var rankScore = knownRank ? match.ApproxRankScore : 0f;
             var goldPace = (blue.GoldAt15 + red.GoldAt15) / 1000f;
             var objectiveScore =
                 towerDiff * 1.5f +
@@ -592,8 +598,10 @@ public class RealMatchDatasetCollector
                 voidgrubDiff * 0.35f +
                 heraldDiff * 1.0f;
 
-            // High-elo lobbies convert leads more cleanly; low-elo is noisier.
-            var rankAdjustedGold = goldDiff15 * (rankScore / RankScoreHelper.DefaultMixedLobby);
+            // High-elo lobbies convert leads more cleanly; unknown rank → neutral multiplier (1.0).
+            var rankAdjustedGold = knownRank
+                ? goldDiff15 * (rankScore / RankScoreHelper.DefaultMixedLobby)
+                : goldDiff15;
 
             var levelDiff = match.LevelDiff15 != 0
                 ? match.LevelDiff15
@@ -633,6 +641,7 @@ public class RealMatchDatasetCollector
                 EarlyPowerDiff = earlyDiff,
                 LatePowerDiff = lateDiff,
                 AvgRankScore = rankScore,
+                HasKnownRank = knownRank ? 1f : 0f,
                 GoldPace15 = goldPace,
                 TopGoldDiff15 = match.TopGoldDiff15,
                 JungleGoldDiff15 = match.JungleGoldDiff15,

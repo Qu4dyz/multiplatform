@@ -23,6 +23,8 @@ public class MatchPredictionEngine : IPredictionEngine
     private PredictionEngine<MatchInputData, MatchPrediction>? _midEloEngine;
     private PredictionEngine<MatchInputData, MatchPrediction>? _lowEloEngine;
     private float _ensembleTreeWeight = 0.55f;
+    private float _specialistBlendWeight = ModelBenchmarkService.SpecialistBlendDefault;
+    private float _ensembleTemperature = 1f;
     private readonly Dictionary<string, double> _ablationEma = new(StringComparer.Ordinal);
     private readonly object _lock = new();
 
@@ -215,7 +217,9 @@ public class MatchPredictionEngine : IPredictionEngine
                 LatePowerDiff = features.LatePowerDiff != 0
                     ? features.LatePowerDiff
                     : (float)features.BlueScalingAdvantage,
-                AvgRankScore = features.AvgRankScore > 0 ? features.AvgRankScore : 5.5f,
+                // Keep unknown as 0 so rank specialists do not fire on imputed mid-elo.
+                AvgRankScore = features.AvgRankScore > 0 ? features.AvgRankScore : 0f,
+                HasKnownRank = features.AvgRankScore > 0 ? 1f : 0f,
                 GoldPace15 = (Math.Abs(features.GoldDiffAt15) + 48000) / 1000f,
                 TopGoldDiff15 = features.TopGoldDiff15,
                 JungleGoldDiff15 = features.JungleGoldDiff15,
@@ -230,7 +234,7 @@ public class MatchPredictionEngine : IPredictionEngine
                     features.VoidgrubDiff * 0.35f +
                     features.HeraldDiff,
                 RankAdjustedGoldDiff = features.GoldDiffAt15 *
-                    ((features.AvgRankScore > 0 ? features.AvgRankScore : 5.5f) / 5.5f),
+                    ((features.AvgRankScore > 0 ? features.AvgRankScore : RankScoreHelper.DefaultMixedLobby) / RankScoreHelper.DefaultMixedLobby),
                 GoldDiff10 = features.GoldDiff10 != 0
                     ? features.GoldDiff10
                     : features.GoldDiffAt15 * 0.65f,
@@ -276,32 +280,41 @@ public class MatchPredictionEngine : IPredictionEngine
             if (_ensembleForestEngine != null)
             {
                 var forestProb = Math.Clamp(_ensembleForestEngine.Predict(input).Probability, 0.05f, 0.95f);
-                var tw = Math.Clamp(_ensembleTreeWeight, 0.25f, 0.75f);
+                var tw = Math.Clamp(_ensembleTreeWeight, ModelBenchmarkService.TreeWeightMin, ModelBenchmarkService.TreeWeightMax);
                 blueProb = Math.Clamp(blueProb * tw + forestProb * (1f - tw), 0.05f, 0.95f);
             }
+
+            var specW = Math.Clamp(_specialistBlendWeight, ModelBenchmarkService.SpecialistBlendMin, ModelBenchmarkService.SpecialistBlendMax);
+            var baseW = 1f - specW;
 
             // Diamond+ lobbies: blend in the high-elo specialist (ranks convert leads differently).
             if (_highEloEngine != null && input.AvgRankScore >= ModelBenchmarkService.HighEloRankThreshold)
             {
                 var highProb = Math.Clamp(_highEloEngine.Predict(input).Probability, 0.05f, 0.95f);
-                blueProb = Math.Clamp(blueProb * 0.40f + highProb * 0.60f, 0.05f, 0.95f);
+                blueProb = Math.Clamp(blueProb * baseW + highProb * specW, 0.05f, 0.95f);
             }
-            // Gold–Emerald: mid-elo specialist — different snowball / throw rates than high or low.
+            // Gold–Emerald: mid-elo specialist — only when rank is known (never imputed).
             else if (_midEloEngine != null
+                     && input.HasKnownRank > 0.5f
                      && input.AvgRankScore >= ModelBenchmarkService.MidEloRankMin
                      && input.AvgRankScore < ModelBenchmarkService.MidEloRankMax)
             {
                 var midProb = Math.Clamp(_midEloEngine.Predict(input).Probability, 0.05f, 0.95f);
-                blueProb = Math.Clamp(blueProb * 0.45f + midProb * 0.55f, 0.05f, 0.95f);
+                blueProb = Math.Clamp(blueProb * baseW + midProb * specW, 0.05f, 0.95f);
             }
             // Iron–Silver: low-elo specialist — leads throw more often, variance is higher.
             else if (_lowEloEngine != null
+                     && input.HasKnownRank > 0.5f
                      && input.AvgRankScore > 0
                      && input.AvgRankScore < ModelBenchmarkService.LowEloRankMax)
             {
                 var lowProb = Math.Clamp(_lowEloEngine.Predict(input).Probability, 0.05f, 0.95f);
-                blueProb = Math.Clamp(blueProb * 0.45f + lowProb * 0.55f, 0.05f, 0.95f);
+                blueProb = Math.Clamp(blueProb * baseW + lowProb * specW, 0.05f, 0.95f);
             }
+
+            blueProb = Math.Clamp(
+                ModelBenchmarkService.ApplyTemperature(blueProb, _ensembleTemperature),
+                0.05f, 0.95f);
 
             var redProb = 1.0f - blueProb;
             var predictedWinner = blueProb >= 0.5f ? TeamSide.Blue : TeamSide.Red;
@@ -479,7 +492,8 @@ public class MatchPredictionEngine : IPredictionEngine
 
                         PredictionEngine<MatchInputData, MatchPrediction>? highEloEngine = null;
                         var highTrain = trainSet
-                            .Where(r => r.AvgRankScore >= ModelBenchmarkService.HighEloRankThreshold)
+                            .Where(r => r.HasKnownRank > 0.5f
+                                        && r.AvgRankScore >= ModelBenchmarkService.HighEloRankThreshold)
                             .ToList();
                         if (highTrain.Count >= 180)
                         {
@@ -490,7 +504,8 @@ public class MatchPredictionEngine : IPredictionEngine
 
                         PredictionEngine<MatchInputData, MatchPrediction>? midEloEngine = null;
                         var midTrain = trainSet
-                            .Where(r => r.AvgRankScore >= ModelBenchmarkService.MidEloRankMin
+                            .Where(r => r.HasKnownRank > 0.5f
+                                        && r.AvgRankScore >= ModelBenchmarkService.MidEloRankMin
                                         && r.AvgRankScore < ModelBenchmarkService.MidEloRankMax)
                             .ToList();
                         if (midTrain.Count >= 220)
@@ -502,7 +517,8 @@ public class MatchPredictionEngine : IPredictionEngine
 
                         PredictionEngine<MatchInputData, MatchPrediction>? lowEloEngine = null;
                         var lowTrain = trainSet
-                            .Where(r => r.AvgRankScore > 0
+                            .Where(r => r.HasKnownRank > 0.5f
+                                        && r.AvgRankScore > 0
                                         && r.AvgRankScore < ModelBenchmarkService.LowEloRankMax)
                             .ToList();
                         if (lowTrain.Count >= 180)
@@ -512,9 +528,52 @@ public class MatchPredictionEngine : IPredictionEngine
                             lowEloEngine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(lowModel);
                         }
 
+                        _specialistBlendWeight = ModelBenchmarkService.OptimizeSpecialistBlendWeight(
+                            treeEngine, forestEngine, highEloEngine, midEloEngine, lowEloEngine,
+                            calSet, _ensembleTreeWeight, previousBlend: _specialistBlendWeight);
+
+                        // Fit temperature on calibration probs AFTER tree/forest + specialist blend.
+                        var calProbs = new List<(bool Label, float Prob)>(calSet.Count);
+                        var calSpecW = Math.Clamp(_specialistBlendWeight, ModelBenchmarkService.SpecialistBlendMin, ModelBenchmarkService.SpecialistBlendMax);
+                        var calBaseW = 1f - calSpecW;
+                        var calTw = Math.Clamp(_ensembleTreeWeight, ModelBenchmarkService.TreeWeightMin, ModelBenchmarkService.TreeWeightMax);
+                        var calFw = 1f - calTw;
+                        foreach (var row in calSet)
+                        {
+                            var p = Math.Clamp(treeEngine.Predict(row).Probability, 0.01f, 0.99f) * calTw
+                                    + Math.Clamp(forestEngine.Predict(row).Probability, 0.01f, 0.99f) * calFw;
+                            if (highEloEngine != null && row.AvgRankScore >= ModelBenchmarkService.HighEloRankThreshold)
+                            {
+                                var ph = Math.Clamp(highEloEngine.Predict(row).Probability, 0.01f, 0.99f);
+                                p = p * calBaseW + ph * calSpecW;
+                            }
+                            else if (midEloEngine != null
+                                     && row.HasKnownRank > 0.5f
+                                     && row.AvgRankScore >= ModelBenchmarkService.MidEloRankMin
+                                     && row.AvgRankScore < ModelBenchmarkService.MidEloRankMax)
+                            {
+                                var pm = Math.Clamp(midEloEngine.Predict(row).Probability, 0.01f, 0.99f);
+                                p = p * calBaseW + pm * calSpecW;
+                            }
+                            else if (lowEloEngine != null
+                                     && row.HasKnownRank > 0.5f
+                                     && row.AvgRankScore > 0
+                                     && row.AvgRankScore < ModelBenchmarkService.LowEloRankMax)
+                            {
+                                var pl = Math.Clamp(lowEloEngine.Predict(row).Probability, 0.01f, 0.99f);
+                                p = p * calBaseW + pl * calSpecW;
+                            }
+
+                            calProbs.Add((row.Label, p));
+                        }
+
+                        _ensembleTemperature = ModelBenchmarkService.OptimizeTemperature(
+                            calProbs, previousTemperature: _ensembleTemperature);
+
                         CurrentModelMetrics = ModelBenchmarkService.EvaluateSoftEnsemble(
                             _mlContext, treeEngine, forestEngine, testSet,
-                            highEloEngine, midEloEngine, lowEloEngine, _ensembleTreeWeight);
+                            highEloEngine, midEloEngine, lowEloEngine,
+                            _ensembleTreeWeight, _specialistBlendWeight, _ensembleTemperature);
 
                         _completedTrainPasses++;
                         var runAblation = AblationIntervalEpochs <= 1
@@ -554,14 +613,16 @@ public class MatchPredictionEngine : IPredictionEngine
                         _ensembleForestModel = forestPipeline.Fit(dataView);
 
                         var highFull = matchDataList
-                            .Where(r => r.AvgRankScore >= ModelBenchmarkService.HighEloRankThreshold)
+                            .Where(r => r.HasKnownRank > 0.5f
+                                        && r.AvgRankScore >= ModelBenchmarkService.HighEloRankThreshold)
                             .ToList();
                         _highEloModel = highFull.Count >= 180
                             ? treePipeline.Fit(_mlContext.Data.LoadFromEnumerable(highFull))
                             : null;
 
                         var midFull = matchDataList
-                            .Where(r => r.AvgRankScore >= ModelBenchmarkService.MidEloRankMin
+                            .Where(r => r.HasKnownRank > 0.5f
+                                        && r.AvgRankScore >= ModelBenchmarkService.MidEloRankMin
                                         && r.AvgRankScore < ModelBenchmarkService.MidEloRankMax)
                             .ToList();
                         _midEloModel = midFull.Count >= 220
@@ -569,7 +630,8 @@ public class MatchPredictionEngine : IPredictionEngine
                             : null;
 
                         var lowFull = matchDataList
-                            .Where(r => r.AvgRankScore > 0
+                            .Where(r => r.HasKnownRank > 0.5f
+                                        && r.AvgRankScore > 0
                                         && r.AvgRankScore < ModelBenchmarkService.LowEloRankMax)
                             .ToList();
                         _lowEloModel = lowFull.Count >= 180
