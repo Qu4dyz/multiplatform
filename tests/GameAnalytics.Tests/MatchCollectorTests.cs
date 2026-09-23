@@ -13,6 +13,7 @@ public class MatchCollectorTests
         public Dictionary<string, List<string>> MatchIdsByPuuid { get; } = new(StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, Match> Matches { get; } = new(StringComparer.OrdinalIgnoreCase);
         public List<string> LadderPuuids { get; } = new();
+        public bool TimelineReturnsNull { get; set; }
 
         public Task<SummonerProfile?> GetSummonerByRiotIdAsync(string gameName, string tagLine, CancellationToken ct = default)
             => Task.FromResult<SummonerProfile?>(null);
@@ -24,7 +25,11 @@ public class MatchCollectorTests
             => Task.FromResult(Matches.TryGetValue(matchId, out var m) ? m : null);
 
         public Task<MatchTimelineData?> GetMatchTimelineAsync(string matchId, CancellationToken ct = default)
-            => Task.FromResult<MatchTimelineData?>(new MatchTimelineData
+        {
+            if (TimelineReturnsNull)
+                return Task.FromResult<MatchTimelineData?>(null);
+
+            return Task.FromResult<MatchTimelineData?>(new MatchTimelineData
             {
                 MatchId = matchId,
                 GoldAt15Blue = 25000,
@@ -43,7 +48,7 @@ public class MatchCollectorTests
                 BlueFirstTower = true,
                 BlueFirstDragon = false
             });
-
+        }
         public Task<IReadOnlyList<ChampionMasteryInfo>> GetTopChampionMasteriesAsync(string puuid, int count = 10, CancellationToken ct = default)
             => Task.FromResult<IReadOnlyList<ChampionMasteryInfo>>(Array.Empty<ChampionMasteryInfo>());
 
@@ -108,11 +113,13 @@ public class MatchCollectorTests
 
         public Task<IReadOnlyList<string>> GetMatchIdsNeedingTimelineBackfillAsync(int limit = 50, CancellationToken ct = default)
         {
-            var ids = Stored.Values
+            var incomplete = Stored.Values
+                .Where(m => !m.HasMinute15Objectives && !m.IsRemake && m.GameDurationSeconds >= 300)
+                .Select(m => m.MatchId);
+            var featureGaps = Stored.Values
                 .Where(m => m.HasMinute15Objectives && (!m.HasCsXp10Features || !m.HasVisionDeathFeatures))
-                .Select(m => m.MatchId)
-                .Take(limit)
-                .ToList();
+                .Select(m => m.MatchId);
+            var ids = incomplete.Concat(featureGaps).Take(limit).ToList();
             return Task.FromResult<IReadOnlyList<string>>(ids);
         }
 
@@ -182,6 +189,9 @@ public class MatchCollectorTests
             QueueId = 420,
             GameDurationSeconds = 1800,
             WinningTeam = TeamSide.Blue,
+            HasMinute15Objectives = true,
+            HasCsXp10Features = true,
+            HasVisionDeathFeatures = true,
             Participants = participants,
             Teams = new List<TeamStats>
             {
@@ -195,6 +205,9 @@ public class MatchCollectorTests
     {
         var m = MakeStoredMatch(matchId, puuids);
         // Fresh API match has no 15-min gold yet — collector fills from timeline
+        m.HasMinute15Objectives = false;
+        m.HasCsXp10Features = false;
+        m.HasVisionDeathFeatures = false;
         foreach (var t in m.Teams) t.GoldAt15 = 0;
         return m;
     }
@@ -260,5 +273,54 @@ public class MatchCollectorTests
 
         Assert.True(repo.Stored["EUW1_UNTAGGED"].ApproxRankScore > 0);
         Assert.True((await repo.GetPlayerRankHintsAsync()).ContainsKey("p1"));
+    }
+
+    [Fact]
+    public void ExtractFeatures_SkipsMatchesWithoutRealTimelineFlag()
+    {
+        var leaky = MakeStoredMatch("EUW1_PLACEHOLDER", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j");
+        leaky.HasMinute15Objectives = false; // placeholder gold must not train
+        leaky.GameCreation = DateTime.UtcNow.AddDays(-1);
+
+        var honest = MakeStoredMatch("EUW1_REAL", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j");
+        honest.HasMinute15Objectives = true;
+        honest.GameCreation = DateTime.UtcNow.AddDays(-2);
+
+        var rows = RealMatchDatasetCollector.ExtractFeaturesFromMatches(new[] { leaky, honest });
+        Assert.Single(rows);
+    }
+
+    [Fact]
+    public async Task CollectRankedMatches_RepairsStoredMatchesMissingTimeline()
+    {
+        var api = new FakeRiotApi();
+        var repo = new FakeMatchRepo();
+
+        var incomplete = MakeStoredMatch("EUW1_BROKEN", "seed-puuid", "m2", "m3", "m4", "m5", "m6", "m7", "m8", "m9", "m10");
+        incomplete.HasMinute15Objectives = false;
+        foreach (var t in incomplete.Teams) t.GoldAt15 = 25000; // stale placeholder
+        repo.Stored[incomplete.MatchId] = incomplete;
+
+        api.MatchIdsByPuuid["seed-puuid"] = new List<string> { "EUW1_BROKEN" };
+
+        var collector = new RealMatchDatasetCollector(api, repo);
+        await collector.CollectRankedMatchesAsync("seed-puuid", targetNewMatches: 1);
+
+        Assert.True(repo.Stored["EUW1_BROKEN"].HasMinute15Objectives);
+    }
+
+    [Fact]
+    public async Task CollectRankedMatches_DoesNotPersistWhenTimelineMissing()
+    {
+        var api = new FakeRiotApi { TimelineReturnsNull = true };
+        var repo = new FakeMatchRepo();
+        api.MatchIdsByPuuid["seed-puuid"] = new List<string> { "EUW1_NOTIMELINE" };
+        api.Matches["EUW1_NOTIMELINE"] = MakeFreshMatch("EUW1_NOTIMELINE", "seed-puuid", "a", "b", "c", "d", "e", "f", "g", "h", "i");
+
+        var collector = new RealMatchDatasetCollector(api, repo);
+        var added = await collector.CollectRankedMatchesAsync("seed-puuid", targetNewMatches: 3);
+
+        Assert.Equal(0, added);
+        Assert.DoesNotContain("EUW1_NOTIMELINE", (IDictionary<string, Match>)repo.Stored);
     }
 }

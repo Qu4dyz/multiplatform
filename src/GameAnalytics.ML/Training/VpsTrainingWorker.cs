@@ -48,6 +48,7 @@ public class VpsTrainingWorker
         {
             try
             {
+                var epochStarted = DateTime.UtcNow;
                 log($"[VPS ML Trainer] === Епоха #{epoch} розпочата: збір реальних матчів ===");
                 var newMatches = await collector.CollectRankedMatchesAsync(seedPuuid, batchSize, log, ct);
 
@@ -107,8 +108,14 @@ public class VpsTrainingWorker
 
                 epoch++;
                 CurrentEpoch = epoch;
-                log($"[VPS ML Trainer] Очікування {delay.TotalMinutes} хв до наступного циклу навчання...");
-                await Task.Delay(delay, ct);
+
+                // If crawl already burned most of the 2-minute Riot window, don't stack a full idle delay on top.
+                var elapsed = DateTime.UtcNow - epochStarted;
+                var remaining = delay - elapsed;
+                if (remaining < TimeSpan.FromSeconds(15))
+                    remaining = TimeSpan.FromSeconds(15);
+                log($"[VPS ML Trainer] Очікування {remaining.TotalMinutes:F1} хв до наступного циклу (епоха тривала {elapsed.TotalMinutes:F1} хв)...");
+                await Task.Delay(remaining, ct);
             }
             catch (OperationCanceledException)
             {
