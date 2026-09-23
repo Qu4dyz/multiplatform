@@ -125,15 +125,15 @@ sealed class Program
 
         // Near personal-key ceiling: app limit is 20/1s + 100/120s per region
         // (confirmed via X-App-Rate-Limit). Match crawl uses europe; rank uses euw1 —
-        // separate buckets. Rate limiter paces requests; keep only a short idle gap.
+        // separate buckets. Worker subtracts crawl time from this idle target.
         if (predictionEngine is MatchPredictionEngine mpe)
             mpe.AblationIntervalEpochs = 4;
 
         // Wrap training with post-epoch match-count refresh for the status API
         await worker.RunContinuousTrainingAsync(
             seedPuuid,
-            batchSize: 50,
-            epochDelay: TimeSpan.FromMinutes(1),
+            batchSize: 48,
+            epochDelay: TimeSpan.FromMinutes(2),
             logger: msg =>
             {
                 Console.WriteLine(msg);

@@ -1328,6 +1328,7 @@ public class DataLayerTests
                 MatchId = "EUW1_1",
                 GameDurationSeconds = 1500,
                 WinningTeam = TeamSide.Blue,
+                HasMinute15Objectives = true,
                 Teams = new List<TeamStats>
                 {
                     new TeamStats { TeamSide = TeamSide.Blue, GoldAt15 = 26000, KillsAt15 = 10, CsAt15 = 240, XpAt15 = 18000, VoidgrubKills = 5, RiftHeraldKills = 1, FirstBlood = true, FirstTower = true, FirstDragon = true, TowersAt15 = 2, DragonsAt15 = 1, TowerKills = 7, DragonKills = 3 },
@@ -1369,6 +1370,7 @@ public class DataLayerTests
                 GameDurationSeconds = 1600,
                 WinningTeam = TeamSide.Blue,
                 ApproxRankScore = 8f,
+                HasMinute15Objectives = true,
                 Teams =
                 {
                     new TeamStats { TeamSide = TeamSide.Blue, GoldAt15 = 27000, KillsAt15 = 9, CsAt15 = 230, XpAt15 = 17500, TowersAt15 = 1, DragonsAt15 = 1 },
@@ -1436,6 +1438,7 @@ public class DataLayerTests
                 MatchId = "EUW1_LEAK",
                 GameDurationSeconds = 2000,
                 WinningTeam = TeamSide.Red,
+                HasMinute15Objectives = true,
                 Teams = new List<TeamStats>
                 {
                     // Blue slightly ahead at 15', but crushed end-game scoreboard — must not leak.
