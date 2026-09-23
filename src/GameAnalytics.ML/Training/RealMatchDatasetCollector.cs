@@ -549,8 +549,8 @@ public class RealMatchDatasetCollector
 
         foreach (var match in ordered)
         {
-            // Remakes / sub-16' games: 15' snapshot is end-of-game-adjacent noise.
-            if (match.IsRemake || match.GameDurationSeconds < 960) continue;
+            // Remakes / sub-5' games never belong in the 15' win model.
+            if (match.IsRemake || match.GameDurationSeconds < 300) continue;
             // Solo/Duo only (QueueId 0 kept for unit fixtures that omit queue).
             if (match.QueueId != 420 && match.QueueId != 0) continue;
 
