@@ -51,9 +51,12 @@ public class MatchInputData
     [LoadColumn(14)]
     public float LatePowerDiff { get; set; }
 
-    /// <summary>Lobby skill 1–10 (Iron…Challenger).</summary>
+    /// <summary>Lobby skill 1–10 (Iron…Challenger). 0 = unknown (do not impute into mid-elo).</summary>
     [LoadColumn(15)]
     public float AvgRankScore { get; set; }
+
+    /// <summary>1 when ApproxRankScore was known; 0 when missing (model can distrust rank-scaled features).</summary>
+    public float HasKnownRank { get; set; }
 
     /// <summary>Total team gold at 15' / 1000 — game pace proxy.</summary>
     [LoadColumn(16)]

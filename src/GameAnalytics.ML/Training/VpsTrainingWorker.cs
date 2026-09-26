@@ -48,6 +48,7 @@ public class VpsTrainingWorker
         {
             try
             {
+                var epochStarted = DateTime.UtcNow;
                 log($"[VPS ML Trainer] === Епоха #{epoch} розпочата: збір реальних матчів ===");
                 var newMatches = await collector.CollectRankedMatchesAsync(seedPuuid, batchSize, log, ct);
 
@@ -72,7 +73,7 @@ public class VpsTrainingWorker
                             if (m.UsedMidEloSpecialist) specialists.Add("MidElo");
                             if (m.UsedLowEloSpecialist) specialists.Add("LowElo");
                             var specTxt = specialists.Count > 0 ? $" | Specialists: {string.Join("+", specialists)}" : "";
-                            log($"[VPS ML Trainer] Впевнені предикти (|p-0.5|≥0.15): Accuracy = {m.AccuracyWhenConfident:P1} на {m.ConfidentCoverage:P0} тест-вибірки | Brier = {m.BrierScore:F3} | TreeW={m.EnsembleTreeWeight:F2}{specTxt}");
+                            log($"[VPS ML Trainer] Впевнені предикти (|p-0.5|≥0.15): Accuracy = {m.AccuracyWhenConfident:P1} на {m.ConfidentCoverage:P0} тест-вибірки | Brier = {m.BrierScore:F3} | TreeW={m.EnsembleTreeWeight:F2} | SpecW={m.SpecialistBlendWeight:F2} | Temp={m.EnsembleTemperature:F2}{specTxt}");
                         }
                         if (m.SoftPrunedGroups.Count > 0)
                         {
@@ -107,8 +108,14 @@ public class VpsTrainingWorker
 
                 epoch++;
                 CurrentEpoch = epoch;
-                log($"[VPS ML Trainer] Очікування {delay.TotalMinutes} хв до наступного циклу навчання...");
-                await Task.Delay(delay, ct);
+
+                // If crawl already burned most of the 2-minute Riot window, don't stack a full idle delay on top.
+                var elapsed = DateTime.UtcNow - epochStarted;
+                var remaining = delay - elapsed;
+                if (remaining < TimeSpan.FromSeconds(15))
+                    remaining = TimeSpan.FromSeconds(15);
+                log($"[VPS ML Trainer] Очікування {remaining.TotalMinutes:F1} хв до наступного циклу (епоха тривала {elapsed.TotalMinutes:F1} хв)...");
+                await Task.Delay(remaining, ct);
             }
             catch (OperationCanceledException)
             {
