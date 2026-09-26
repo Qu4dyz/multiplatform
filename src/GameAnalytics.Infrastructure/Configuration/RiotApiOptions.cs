@@ -22,7 +22,7 @@ public class RiotApiOptions
     public string PlatformRegion { get; set; } = "euw1";
     public string RoutingRegion { get; set; } = "europe";
     public bool UseMockFallback { get; set; } = true;
-    public string VpsServerUrl { get; set; } = "http://45.77.53.46:5050";
+    public string VpsServerUrl { get; set; } = "http://209.74.79.152:5050";
 
     // Configurable demo stats when offline / without Riot API key
     public GameAnalytics.Core.Enums.GameTier DemoTier { get; set; } = GameAnalytics.Core.Enums.GameTier.Gold;

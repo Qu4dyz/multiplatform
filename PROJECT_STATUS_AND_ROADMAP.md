@@ -113,10 +113,10 @@
 
 ```powershell
 # Завантажити свіжу модель з VPS за допомогою SSH-ключа або пароля
-scp -i "$HOME\.ssh\av_vps_ed25519" root@45.77.53.46:/root/multiplatform/src/GameAnalytics.Desktop/bin/Release/net9.0/models/fasttree_model.zip src\GameAnalytics.Desktop\models\fasttree_model.zip
+scp -i "$HOME\.ssh\av_vps_ed25519" root@209.74.79.152:/root/multiplatform/src/GameAnalytics.Desktop/bin/Release/net9.0/models/fasttree_model.zip src\GameAnalytics.Desktop\models\fasttree_model.zip
 
 # Або завантажити базу з 580+ іграми:
-scp -i "$HOME\.ssh\av_vps_ed25519" root@45.77.53.46:/root/multiplatform/src/GameAnalytics.Desktop/bin/Release/net9.0/game_analytics.db src\GameAnalytics.Desktop\game_analytics.db
+scp -i "$HOME\.ssh\av_vps_ed25519" root@209.74.79.152:/root/multiplatform/src/GameAnalytics.Desktop/bin/Release/net9.0/game_analytics.db src\GameAnalytics.Desktop\game_analytics.db
 ```
 
 ---
@@ -172,23 +172,23 @@ multiplatform/
 
 ### Перевірка статусу демона на VPS:
 ```bash
-ssh -i $HOME\.ssh\av_vps_ed25519 root@45.77.53.46 "systemctl status gameanalytics-trainer"
+ssh -i $HOME\.ssh\av_vps_ed25519 root@209.74.79.152 "systemctl status gameanalytics-trainer"
 ```
 
 ### Перегляд останніх логів навчання на VPS:
 ```bash
-ssh -i $HOME\.ssh\av_vps_ed25519 root@45.77.53.46 "tail -n 40 /var/log/gameanalytics-trainer.log"
+ssh -i $HOME\.ssh\av_vps_ed25519 root@209.74.79.152 "tail -n 40 /var/log/gameanalytics-trainer.log"
 ```
 
 ### Перевірка кількості матчів у SQLite базі на VPS:
 ```bash
-ssh -i $HOME\.ssh\av_vps_ed25519 root@45.77.53.46 "sqlite3 /root/multiplatform/src/GameAnalytics.Desktop/bin/Release/net9.0/game_analytics.db 'SELECT COUNT(*) FROM Matches; SELECT COUNT(*) FROM TeamStats;'"
+ssh -i $HOME\.ssh\av_vps_ed25519 root@209.74.79.152 "sqlite3 /root/multiplatform/src/GameAnalytics.Desktop/bin/Release/net9.0/game_analytics.db 'SELECT COUNT(*) FROM Matches; SELECT COUNT(*) FROM TeamStats;'"
 ```
 
 ### Перезапуск або зупинка служби на VPS:
 ```bash
-ssh -i $HOME\.ssh\av_vps_ed25519 root@45.77.53.46 "systemctl restart gameanalytics-trainer"
-ssh -i $HOME\.ssh\av_vps_ed25519 root@45.77.53.46 "systemctl stop gameanalytics-trainer"
+ssh -i $HOME\.ssh\av_vps_ed25519 root@209.74.79.152 "systemctl restart gameanalytics-trainer"
+ssh -i $HOME\.ssh\av_vps_ed25519 root@209.74.79.152 "systemctl stop gameanalytics-trainer"
 ```
 
 ### Локальний запуск десктопного додатку (на Windows):
