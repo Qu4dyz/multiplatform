@@ -79,7 +79,16 @@ public class MatchRepository : IMatchRepository
             "ALTER TABLE Participants ADD COLUMN TeamDamagePercentage REAL NOT NULL DEFAULT 0;",
             "ALTER TABLE Participants ADD COLUMN ControlWardsPlaced INTEGER NOT NULL DEFAULT 0;",
             "ALTER TABLE Participants ADD COLUMN EffectiveHealAndShielding INTEGER NOT NULL DEFAULT 0;",
-            "ALTER TABLE Participants ADD COLUMN DamageDealtToObjectivesChallenge INTEGER NOT NULL DEFAULT 0;"
+            "ALTER TABLE Participants ADD COLUMN DamageDealtToObjectivesChallenge INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN ChallengesJson TEXT NOT NULL DEFAULT '';",
+            "ALTER TABLE Participants ADD COLUMN JungleCsBefore10Minutes REAL NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN LaneMinionsFirst10Minutes REAL NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN SkillshotsDodged INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN SkillshotsHit INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN TakedownsFirstXMinutes INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN EpicMonsterSteals INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN SoloBaronKills INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN KdaChallenge REAL NOT NULL DEFAULT 0;"
         };
 
         foreach (var sql in itemColumns)
@@ -165,13 +174,40 @@ public class MatchRepository : IMatchRepository
             "ALTER TABLE Matches ADD COLUMN HasVisionDeathFeatures INTEGER NOT NULL DEFAULT 0;",
             "ALTER TABLE Matches ADD COLUMN CsDiff10 REAL NOT NULL DEFAULT 0;",
             "ALTER TABLE Matches ADD COLUMN XpDiff10 REAL NOT NULL DEFAULT 0;",
-            "ALTER TABLE Matches ADD COLUMN HasCsXp10Features INTEGER NOT NULL DEFAULT 0;"
+            "ALTER TABLE Matches ADD COLUMN HasCsXp10Features INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE Matches ADD COLUMN HasChallenges INTEGER NOT NULL DEFAULT 0;"
         };
         foreach (var sql in matchMlColumns)
         {
             try { _context.Database.ExecuteSqlRaw(sql); }
             catch { /* Column already exists */ }
         }
+
+        // One-shot: mark matches that already have challenge signals from earlier crawls.
+        try
+        {
+            _context.Database.ExecuteSqlRaw(@"
+                UPDATE Matches
+                SET HasChallenges = 1
+                WHERE HasChallenges = 0
+                  AND Id IN (
+                    SELECT DISTINCT MatchEntityId FROM Participants
+                    WHERE KillParticipation > 0
+                       OR GoldPerMinute > 0
+                       OR VisionScorePerMinute > 0
+                       OR TeamDamagePercentage > 0
+                       OR DamagePerMinute > 0
+                       OR ControlWardsPlaced > 0
+                       OR EffectiveHealAndShielding > 0
+                       OR DamageDealtToObjectivesChallenge > 0
+                       OR SoloKills > 0
+                       OR TurretPlatesTaken > 0
+                       OR JungleCsBefore10Minutes > 0
+                       OR LaneMinionsFirst10Minutes > 0
+                       OR (ChallengesJson IS NOT NULL AND ChallengesJson != '')
+                  );");
+        }
+        catch { /* Best-effort migration */ }
 
         try
         {
@@ -354,6 +390,51 @@ public class MatchRepository : IMatchRepository
 
         return ids
             .OrderBy(_ => Random.Shared.Next())
+            .Take(limit)
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<string>> GetMatchIdsNeedingChallengesBackfillAsync(int limit = 40, CancellationToken ct = default)
+    {
+        var ids = await _context.Matches
+            .AsNoTracking()
+            .Where(m => !m.HasChallenges
+                        && (m.QueueId == 420 || m.QueueId == 440)
+                        && m.GameDurationSeconds >= 300
+                        && !m.IsRemake)
+            .OrderByDescending(m => m.GameCreation)
+            .Select(m => m.MatchId)
+            .Take(Math.Max(limit * 3, limit))
+            .ToListAsync(ct);
+
+        return ids
+            .OrderBy(_ => Random.Shared.Next())
+            .Take(limit)
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<string>> GetMatchIdsMissingTimelineCacheAsync(int limit = 12, CancellationToken ct = default)
+    {
+        var cached = await _context.MatchTimelineCaches
+            .AsNoTracking()
+            .Select(c => c.MatchId)
+            .ToListAsync(ct);
+        var cachedSet = new HashSet<string>(cached, StringComparer.OrdinalIgnoreCase);
+
+        // Prefer recent complete matches so gold curves / moment replay light up first.
+        var candidates = await _context.Matches
+            .AsNoTracking()
+            .Where(m => m.HasMinute15Objectives
+                        && (m.QueueId == 420 || m.QueueId == 440)
+                        && m.GameDurationSeconds >= 300
+                        && !m.IsRemake)
+            .OrderByDescending(m => m.GameCreation)
+            .Select(m => m.MatchId)
+            .Take(Math.Max(limit * 20, 200))
+            .ToListAsync(ct);
+
+        return candidates
+            .Where(id => !cachedSet.Contains(id))
             .Take(limit)
             .ToList();
     }

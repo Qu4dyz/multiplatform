@@ -146,6 +146,12 @@ public class RealMatchDatasetCollector
         // Dedicated pass: close CS/XP@10 + vision gaps on older rows (not only those hit by crawl).
         await BackfillStaleTimelineFeaturesAsync(logger, ct);
 
+        // Match-v5 challenges for coach/UI (no ML wire — end-game leakage risk).
+        await BackfillMissingChallengesAsync(logger, ct);
+
+        // Cheap timeline-cache fill for gold curves / moment replay (small cap under rate limits).
+        await BackfillMissingTimelineCachesAsync(logger, ct);
+
         int newlySavedMatches = 0;
 
         logger?.Invoke($"[Collector] Початок збору реальних Ranked Solo матчів для навчання ML (Ціль: {targetNewMatches})...");
@@ -225,6 +231,7 @@ public class RealMatchDatasetCollector
                         var timelineRepair = await _apiClient.GetMatchTimelineAsync(matchId, ct);
                         if (timelineRepair != null && ApplyTimelineSnapshot(existing, timelineRepair))
                         {
+                            await TryPersistTimelineCacheAsync(matchId, timelineRepair, ct);
                             TagMatchRankScore(existing, puuidRankHints);
                             await _matchRepo.UpsertMatchAsync(existing, ct);
                             objectiveBackfills++;
@@ -256,6 +263,7 @@ public class RealMatchDatasetCollector
                                 var timelineBackfill = await _apiClient.GetMatchTimelineAsync(matchId, ct);
                                 if (timelineBackfill != null && ApplyTimelineSnapshot(existing, timelineBackfill))
                                 {
+                                    await TryPersistTimelineCacheAsync(matchId, timelineBackfill, ct);
                                     await _matchRepo.UpsertMatchAsync(existing, ct);
                                     objectiveBackfills++;
                                     if (needsCsXp) csXpBackfills++;
@@ -294,6 +302,8 @@ public class RealMatchDatasetCollector
                     continue;
                 }
 
+                await TryPersistTimelineCacheAsync(matchId, timeline, ct);
+                ParticipantChallengeHelper.RefreshHasChallengesFlag(match);
                 TagMatchRankScore(match, puuidRankHints);
 
                 await _matchRepo.UpsertMatchAsync(match, ct);
@@ -510,6 +520,7 @@ public class RealMatchDatasetCollector
                 if (timeline == null) continue;
                 if (!ApplyTimelineSnapshot(existing, timeline)) continue;
 
+                await TryPersistTimelineCacheAsync(matchId, timeline, ct);
                 await _matchRepo.UpsertMatchAsync(existing, ct);
                 done++;
                 if (done == 1 || done % 10 == 0 || done == ids.Count)
@@ -526,11 +537,124 @@ public class RealMatchDatasetCollector
     }
 
     /// <summary>
+    /// Re-fetch match-v5 details for rows missing challenges (coach/UI only — not ML features).
+    /// </summary>
+    private async Task BackfillMissingChallengesAsync(Action<string>? logger, CancellationToken ct)
+    {
+        const int challengeCap = 36;
+        IReadOnlyList<string> ids;
+        try
+        {
+            ids = await _matchRepo.GetMatchIdsNeedingChallengesBackfillAsync(challengeCap, ct);
+        }
+        catch (Exception ex)
+        {
+            logger?.Invoke($"[Collector] Challenges backfill skip: {ex.Message}");
+            return;
+        }
+
+        if (ids.Count == 0) return;
+
+        var done = 0;
+        foreach (var matchId in ids)
+        {
+            if (ct.IsCancellationRequested || done >= challengeCap) break;
+            try
+            {
+                var existing = await _matchRepo.GetMatchByMatchIdAsync(matchId, ct);
+                if (existing == null || existing.HasChallenges) continue;
+
+                var details = await _apiClient.GetMatchDetailsAsync(matchId, ct);
+                if (details == null) continue;
+                if (!ParticipantChallengeHelper.MergeChallengesFromDetails(existing, details))
+                    continue;
+
+                await _matchRepo.UpsertMatchAsync(existing, ct);
+                done++;
+                if (done == 1 || done % 12 == 0 || done == ids.Count)
+                    logger?.Invoke($"[Collector] Challenges backfill: {done}/{ids.Count}");
+            }
+            catch
+            {
+                // Rate limits / transient — resume next epoch.
+            }
+        }
+
+        if (done > 0)
+            logger?.Invoke($"[Collector] Challenges backfill завершено: {done} матчів.");
+    }
+
+    /// <summary>
+    /// Fill MatchTimelineCaches for recent complete matches (gold curve / moment replay).
+    /// Small per-epoch cap — timeline calls share the europe rate bucket with crawl.
+    /// </summary>
+    private async Task BackfillMissingTimelineCachesAsync(Action<string>? logger, CancellationToken ct)
+    {
+        const int cacheCap = 10;
+        IReadOnlyList<string> ids;
+        try
+        {
+            ids = await _matchRepo.GetMatchIdsMissingTimelineCacheAsync(cacheCap, ct);
+        }
+        catch (Exception ex)
+        {
+            logger?.Invoke($"[Collector] Timeline-cache backfill skip: {ex.Message}");
+            return;
+        }
+
+        if (ids.Count == 0) return;
+
+        var done = 0;
+        foreach (var matchId in ids)
+        {
+            if (ct.IsCancellationRequested || done >= cacheCap) break;
+            try
+            {
+                var cached = await _matchRepo.GetCachedTimelineAsync(matchId, ct);
+                if (cached != null) continue;
+
+                var timeline = await _apiClient.GetMatchTimelineAsync(matchId, ct);
+                if (timeline == null) continue;
+
+                // Refresh @15 features if the parse still improves the row.
+                var existing = await _matchRepo.GetMatchByMatchIdAsync(matchId, ct);
+                if (existing != null && ApplyTimelineSnapshot(existing, timeline))
+                    await _matchRepo.UpsertMatchAsync(existing, ct);
+
+                await TryPersistTimelineCacheAsync(matchId, timeline, ct);
+                done++;
+                if (done == 1 || done == ids.Count)
+                    logger?.Invoke($"[Collector] Timeline-cache backfill: {done}/{ids.Count}");
+            }
+            catch
+            {
+                // Rate limits / transient — resume next epoch.
+            }
+        }
+
+        if (done > 0)
+            logger?.Invoke($"[Collector] Timeline-cache backfill завершено: {done} матчів.");
+    }
+
+    private async Task TryPersistTimelineCacheAsync(string matchId, MatchTimelineData timeline, CancellationToken ct)
+    {
+        try
+        {
+            await _matchRepo.SaveTimelineCacheAsync(matchId, timeline, ct);
+        }
+        catch
+        {
+            // Cache write must never fail the crawl / training epoch.
+        }
+    }
+
+    /// <summary>
     /// Converts stored historical matches into honest minute-15 ML features.
     /// Skips matches without a real 15' gold snapshot and never falls back to end-of-game towers/kills/CS.
     /// Champion win rates are chronological past-only (no future label leakage).
     /// Adds draft scaling, composition tags, gold@10 momentum, lane gold, and rank-aware gold conversion.
     /// Preserves chronological order when the input is ordered by GameCreation.
+    /// End-game challenge rates are intentionally excluded (label leakage).
     /// </summary>
     public static List<MatchInputData> ExtractFeaturesFromMatches(IEnumerable<Match> matches)
     {

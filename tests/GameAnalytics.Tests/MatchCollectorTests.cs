@@ -1,5 +1,6 @@
 using GameAnalytics.Core.Entities;
 using GameAnalytics.Core.Enums;
+using GameAnalytics.Core.Helpers;
 using GameAnalytics.Core.Interfaces;
 using GameAnalytics.ML.Training;
 using Xunit;
@@ -46,7 +47,28 @@ public class MatchCollectorTests
                 HeraldsAt15Red = 0,
                 BlueFirstBlood = true,
                 BlueFirstTower = true,
-                BlueFirstDragon = false
+                BlueFirstDragon = false,
+                Frames =
+                {
+                    new TimelineFrameSnapshot
+                    {
+                        TimestampMs = 600_000,
+                        Participants =
+                        {
+                            new TimelineParticipantPos { ParticipantId = 1, TotalGold = 4000, Level = 8 },
+                            new TimelineParticipantPos { ParticipantId = 6, TotalGold = 3800, Level = 8 }
+                        }
+                    },
+                    new TimelineFrameSnapshot
+                    {
+                        TimestampMs = 900_000,
+                        Participants =
+                        {
+                            new TimelineParticipantPos { ParticipantId = 1, TotalGold = 5500, Level = 11 },
+                            new TimelineParticipantPos { ParticipantId = 6, TotalGold = 5200, Level = 10 }
+                        }
+                    }
+                }
             });
         }
         public Task<IReadOnlyList<ChampionMasteryInfo>> GetTopChampionMasteriesAsync(string puuid, int count = 10, CancellationToken ct = default)
@@ -127,6 +149,26 @@ public class MatchCollectorTests
         {
             var ids = Stored.Values
                 .Where(m => m.ApproxRankScore <= 0 && (m.QueueId == 420 || m.QueueId == 440))
+                .Select(m => m.MatchId)
+                .Take(limit)
+                .ToList();
+            return Task.FromResult<IReadOnlyList<string>>(ids);
+        }
+
+        public Task<IReadOnlyList<string>> GetMatchIdsNeedingChallengesBackfillAsync(int limit = 40, CancellationToken ct = default)
+        {
+            var ids = Stored.Values
+                .Where(m => !m.HasChallenges && (m.QueueId == 420 || m.QueueId == 440) && !m.IsRemake)
+                .Select(m => m.MatchId)
+                .Take(limit)
+                .ToList();
+            return Task.FromResult<IReadOnlyList<string>>(ids);
+        }
+
+        public Task<IReadOnlyList<string>> GetMatchIdsMissingTimelineCacheAsync(int limit = 12, CancellationToken ct = default)
+        {
+            var ids = Stored.Values
+                .Where(m => m.HasMinute15Objectives && !_timelines.ContainsKey(m.MatchId))
                 .Select(m => m.MatchId)
                 .Take(limit)
                 .ToList();
@@ -322,5 +364,92 @@ public class MatchCollectorTests
 
         Assert.Equal(0, added);
         Assert.DoesNotContain("EUW1_NOTIMELINE", (IDictionary<string, Match>)repo.Stored);
+    }
+
+    [Fact]
+    public async Task CollectRankedMatches_PersistsTimelineCacheForNewMatches()
+    {
+        var api = new FakeRiotApi();
+        var repo = new FakeMatchRepo();
+        api.MatchIdsByPuuid["seed-puuid"] = new List<string> { "EUW1_CACHE" };
+        api.Matches["EUW1_CACHE"] = MakeFreshMatch("EUW1_CACHE", "seed-puuid", "a", "b", "c", "d", "e", "f", "g", "h", "i");
+
+        var collector = new RealMatchDatasetCollector(api, repo);
+        var added = await collector.CollectRankedMatchesAsync("seed-puuid", targetNewMatches: 1);
+
+        Assert.Equal(1, added);
+        var cached = await repo.GetCachedTimelineAsync("EUW1_CACHE");
+        Assert.NotNull(cached);
+        Assert.True(cached!.Frames.Count >= 2);
+        Assert.True(cached.GoldAt15Blue > 0);
+    }
+
+    [Fact]
+    public async Task CollectRankedMatches_BackfillsChallengesWithoutWipingTimelineFlags()
+    {
+        var api = new FakeRiotApi();
+        var repo = new FakeMatchRepo();
+
+        var stored = MakeStoredMatch("EUW1_NOCHAL", "seed-puuid", "a", "b", "c", "d", "e", "f", "g", "h", "i");
+        stored.HasChallenges = false;
+        stored.HasMinute15Objectives = true;
+        stored.HasCsXp10Features = true;
+        stored.HasVisionDeathFeatures = true;
+        stored.GoldDiff10 = 400;
+        foreach (var p in stored.Participants)
+        {
+            p.KillParticipation = 0;
+            p.GoldPerMinute = 0;
+            p.ChallengesJson = string.Empty;
+        }
+        repo.Stored[stored.MatchId] = stored;
+
+        var details = MakeStoredMatch("EUW1_NOCHAL", "seed-puuid", "a", "b", "c", "d", "e", "f", "g", "h", "i");
+        for (var i = 0; i < details.Participants.Count; i++)
+        {
+            details.Participants[i].ParticipantId = i + 1;
+            details.Participants[i].KillParticipation = 0.55f;
+            details.Participants[i].GoldPerMinute = 380;
+            details.Participants[i].ChallengesJson = "{\"killParticipation\":0.55}";
+            details.Participants[i].LaneMinionsFirst10Minutes = 70;
+        }
+        ParticipantChallengeHelper.RefreshHasChallengesFlag(details);
+        api.Matches["EUW1_NOCHAL"] = details;
+        api.MatchIdsByPuuid["seed-puuid"] = new List<string>();
+
+        // Align stored participant IDs for merge
+        for (var i = 0; i < stored.Participants.Count; i++)
+            stored.Participants[i].ParticipantId = i + 1;
+
+        var collector = new RealMatchDatasetCollector(api, repo);
+        await collector.CollectRankedMatchesAsync("seed-puuid", targetNewMatches: 1);
+
+        var updated = repo.Stored["EUW1_NOCHAL"];
+        Assert.True(updated.HasChallenges);
+        Assert.True(updated.HasMinute15Objectives);
+        Assert.True(updated.HasCsXp10Features);
+        Assert.True(updated.HasVisionDeathFeatures);
+        Assert.Contains(updated.Participants, p => p.KillParticipation > 0);
+        Assert.Contains(updated.Participants, p => !string.IsNullOrEmpty(p.ChallengesJson));
+    }
+
+    [Fact]
+    public void ParticipantChallengeHelper_DoesNotTreatEndGameRatesAsMlReady()
+    {
+        // Guardrail: ExtractFeatures must not gain challenge fields — end-game leakage.
+        var m = MakeStoredMatch("EUW1_CHAL", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j");
+        foreach (var p in m.Participants)
+        {
+            p.KillParticipation = 0.8f;
+            p.GoldPerMinute = 500;
+            p.ChallengesJson = "{\"goldPerMinute\":500}";
+        }
+        ParticipantChallengeHelper.RefreshHasChallengesFlag(m);
+        Assert.True(m.HasChallenges);
+
+        var rows = RealMatchDatasetCollector.ExtractFeaturesFromMatches(new[] { m });
+        Assert.Single(rows);
+        // MatchInputData has no challenge properties — compile-time + this smoke check.
+        Assert.True(rows[0].GoldDiff15 != 0 || rows[0].GoldPace15 > 0);
     }
 }

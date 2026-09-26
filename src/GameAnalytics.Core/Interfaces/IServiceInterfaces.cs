@@ -33,6 +33,10 @@ public interface IMatchRepository
     Task<IReadOnlyList<string>> GetMatchIdsNeedingTimelineBackfillAsync(int limit = 50, CancellationToken ct = default);
     /// <summary>Ranked matches still missing ApproxRankScore (lobby skill tag).</summary>
     Task<IReadOnlyList<string>> GetMatchIdsNeedingRankBackfillAsync(int limit = 80, CancellationToken ct = default);
+    /// <summary>Ranked matches still missing match-v5 challenges payload.</summary>
+    Task<IReadOnlyList<string>> GetMatchIdsNeedingChallengesBackfillAsync(int limit = 40, CancellationToken ct = default);
+    /// <summary>Matches with 15' features but no MatchTimelineCaches row (gold curve / replay).</summary>
+    Task<IReadOnlyList<string>> GetMatchIdsMissingTimelineCacheAsync(int limit = 12, CancellationToken ct = default);
     /// <summary>Cached PUUID → solo rank score (1–10) for lobby tagging across epochs.</summary>
     Task<IReadOnlyDictionary<string, float>> GetPlayerRankHintsAsync(CancellationToken ct = default);
     Task UpsertPlayerRankHintsAsync(IReadOnlyDictionary<string, float> hints, CancellationToken ct = default);

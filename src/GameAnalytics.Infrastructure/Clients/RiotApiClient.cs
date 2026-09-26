@@ -640,12 +640,35 @@ public class RiotApiClient : IRiotApiClient
                     TeamDamagePercentage = (float)(p.Challenges?.TeamDamagePercentage ?? 0),
                     ControlWardsPlaced = p.Challenges?.ControlWardsPlaced ?? 0,
                     EffectiveHealAndShielding = (int)(p.Challenges?.EffectiveHealAndShielding ?? 0),
-                    DamageDealtToObjectivesChallenge = (int)(p.Challenges?.DamageDealtToObjectives ?? 0)
+                    DamageDealtToObjectivesChallenge = (int)(p.Challenges?.DamageDealtToObjectives ?? 0),
+                    ChallengesJson = SerializeChallenges(p.Challenges),
+                    JungleCsBefore10Minutes = (float)(p.Challenges?.JungleCsBefore10Minutes ?? 0),
+                    LaneMinionsFirst10Minutes = (float)(p.Challenges?.LaneMinionsFirst10Minutes ?? 0),
+                    SkillshotsDodged = p.Challenges?.SkillshotsDodged ?? 0,
+                    SkillshotsHit = p.Challenges?.SkillshotsHit ?? 0,
+                    TakedownsFirstXMinutes = p.Challenges?.TakedownsFirstXMinutes ?? 0,
+                    EpicMonsterSteals = p.Challenges?.EpicMonsterSteals ?? 0,
+                    SoloBaronKills = p.Challenges?.SoloBaronKills ?? 0,
+                    KdaChallenge = (float)(p.Challenges?.Kda ?? 0)
                 });
             }
         }
 
+        ParticipantChallengeHelper.RefreshHasChallengesFlag(match);
         return match;
+    }
+
+    private static string SerializeChallenges(RiotChallengesDto? challenges)
+    {
+        if (challenges == null) return string.Empty;
+        try
+        {
+            return System.Text.Json.JsonSerializer.Serialize(challenges);
+        }
+        catch
+        {
+            return string.Empty;
+        }
     }
 
     private MatchTimelineData ParseRealTimeline(string matchId, JsonElement root)
@@ -1208,10 +1231,17 @@ public class RiotApiClient : IRiotApiClient
                 TeamDamagePercentage = (float)(random.NextDouble() * 0.2 + 0.15),
                 ControlWardsPlaced = random.Next(1, 8),
                 EffectiveHealAndShielding = random.Next(500, 8000),
-                DamageDealtToObjectivesChallenge = random.Next(2000, 18000)
+                DamageDealtToObjectivesChallenge = random.Next(2000, 18000),
+                JungleCsBefore10Minutes = champ.Item2 == Position.Jungle ? random.Next(40, 80) : 0,
+                LaneMinionsFirst10Minutes = champ.Item2 == Position.Jungle ? 0 : random.Next(50, 90),
+                SkillshotsDodged = random.Next(5, 40),
+                SkillshotsHit = random.Next(10, 60),
+                TakedownsFirstXMinutes = random.Next(0, 6),
+                ChallengesJson = "{\"mock\":true}"
             });
         }
 
+        ParticipantChallengeHelper.RefreshHasChallengesFlag(match);
         return match;
     }
 
@@ -1534,6 +1564,34 @@ public class RiotApiClient : IRiotApiClient
 
         [JsonPropertyName("damageDealtToObjectives")]
         public double? DamageDealtToObjectives { get; set; }
+
+        [JsonPropertyName("jungleCsBefore10Minutes")]
+        public double? JungleCsBefore10Minutes { get; set; }
+
+        [JsonPropertyName("laneMinionsFirst10Minutes")]
+        public double? LaneMinionsFirst10Minutes { get; set; }
+
+        [JsonPropertyName("skillshotsDodged")]
+        public int? SkillshotsDodged { get; set; }
+
+        [JsonPropertyName("skillshotsHit")]
+        public int? SkillshotsHit { get; set; }
+
+        [JsonPropertyName("takedownsFirstXMinutes")]
+        public int? TakedownsFirstXMinutes { get; set; }
+
+        [JsonPropertyName("epicMonsterSteals")]
+        public int? EpicMonsterSteals { get; set; }
+
+        [JsonPropertyName("soloBaronKills")]
+        public int? SoloBaronKills { get; set; }
+
+        [JsonPropertyName("kda")]
+        public double? Kda { get; set; }
+
+        /// <summary>Captures every other challenge key Riot returns (full fidelity → ChallengesJson).</summary>
+        [JsonExtensionData]
+        public Dictionary<string, JsonElement>? AdditionalProperties { get; set; }
     }
 
     public class RiotChampionMasteryDto
