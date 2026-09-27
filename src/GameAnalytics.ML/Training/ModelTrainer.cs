@@ -87,6 +87,13 @@ public class ModelTrainer
             var controlDiff = (float)rand.Next(-6, 7);
             var cs10 = csDiff * 0.65f + (float)rand.Next(-8, 9);
             var xp10 = xpDiff * 0.65f + (float)rand.Next(-400, 401);
+            var hasEarlyCh = rand.NextDouble() < 0.85 ? 1f : 0f;
+            var chJgl = hasEarlyCh * (float)rand.Next(-40, 41);
+            var chLane = hasEarlyCh * (float)rand.Next(-50, 51);
+            var earlyTd = hasEarlyCh * (float)rand.Next(-8, 9);
+            var soulRace = dragonDiff / 4f;
+            var sideLead = (firstBlood + firstTower + firstDragon) - 1.5f;
+            var botDuoMu = (float)(rand.NextDouble() * 8 - 4);
 
             double z = 0.0;
             z += goldDiff * 0.00055;
@@ -129,6 +136,12 @@ public class ModelTrainer
             z += controlDiff * 0.04;
             z += cs10 * 0.01;
             z += xp10 * 0.0002;
+            z += earlyTd * 0.05;
+            z += chJgl * 0.008;
+            z += chLane * 0.006;
+            z += soulRace * 0.20;
+            z += sideLead * 0.08;
+            z += botDuoMu * 0.03;
             z += Math.Abs(goldDiff) * (rankScore - 5.5) * 0.00002;
 
             var probability = 1.0 / (1.0 + Math.Exp(-z));
@@ -183,6 +196,13 @@ public class ModelTrainer
                 ControlWardDiff15 = controlDiff,
                 CsDiff10 = cs10,
                 XpDiff10 = xp10,
+                HasEarlyChallenges = hasEarlyCh,
+                ChallengeJungleCs10Diff = chJgl,
+                ChallengeLaneCs10Diff = chLane,
+                EarlyTakedownDiff = earlyTd,
+                DragonSoulRace = soulRace,
+                SideObjectiveLead = sideLead,
+                BotDuoMatchupDiff = botDuoMu,
                 Label = win
             });
         }

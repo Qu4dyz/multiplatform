@@ -3,8 +3,9 @@ using GameAnalytics.Core.Entities;
 namespace GameAnalytics.Core.Helpers;
 
 /// <summary>
-/// Match-v5 challenges helpers. Challenges are mostly end-of-game stats —
-/// persist for coach/UI, never train the 15' win model on them.
+/// Match-v5 challenges helpers. Most challenge keys are end-of-game rates —
+/// persist for coach/UI. Only early-window keys (see
+/// <see cref="EarlyChallengeFeatureHelper"/>) may feed the 15' win model.
 /// </summary>
 public static class ParticipantChallengeHelper
 {

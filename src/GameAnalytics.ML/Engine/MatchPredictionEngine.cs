@@ -270,7 +270,19 @@ public class MatchPredictionEngine : IPredictionEngine
                     : features.CsDiffAt15 * 0.65f,
                 XpDiff10 = features.XpDiff10 != 0
                     ? features.XpDiff10
-                    : features.XpDiffAt15 * 0.65f
+                    : features.XpDiffAt15 * 0.65f,
+                HasEarlyChallenges = features.HasEarlyChallenges,
+                ChallengeJungleCs10Diff = features.ChallengeJungleCs10Diff,
+                ChallengeLaneCs10Diff = features.ChallengeLaneCs10Diff,
+                EarlyTakedownDiff = features.EarlyTakedownDiff,
+                DragonSoulRace = features.DragonSoulRace != 0
+                    ? features.DragonSoulRace
+                    : (features.BlueDragonCount - features.RedDragonCount) / 4f,
+                SideObjectiveLead = features.SideObjectiveLead != 0
+                    ? features.SideObjectiveLead
+                    : EarlyChallengeFeatureHelper.SideObjectiveLead(
+                        features.BlueFirstBlood, features.BlueFirstTower, features.BlueFirstDragon),
+                BotDuoMatchupDiff = features.BotDuoMatchupDiff
             };
 
             var prediction = _predictionEngine!.Predict(input);

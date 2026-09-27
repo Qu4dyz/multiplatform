@@ -123,17 +123,17 @@ sealed class Program
             Console.WriteLine("[VPS ML Trainer] Отримано сигнал завершення роботи (SIGINT/Ctrl+C)...");
         };
 
-        // Near personal-key ceiling: app limit is 20/1s + 100/120s per region
-        // (confirmed via X-App-Rate-Limit). Match crawl uses europe; rank uses euw1 —
-        // separate buckets. Worker subtracts crawl time from this idle target.
+        // 2GB VPS knobs (personal Riot app still caps at 20/1s + 100/120s per region).
+        // Modest raise vs old 1GB: larger batches, shorter idle, slightly heavier backfill.
+        // Documented in docs/vps-deploy.md — do not push past app limits without a production key.
         if (predictionEngine is MatchPredictionEngine mpe)
             mpe.AblationIntervalEpochs = 4;
 
         // Wrap training with post-epoch match-count refresh for the status API
         await worker.RunContinuousTrainingAsync(
             seedPuuid,
-            batchSize: 48,
-            epochDelay: TimeSpan.FromMinutes(2),
+            batchSize: 56,
+            epochDelay: TimeSpan.FromSeconds(90),
             logger: msg =>
             {
                 Console.WriteLine(msg);

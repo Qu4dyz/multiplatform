@@ -121,7 +121,14 @@ public class ModelBenchmarkService
                 nameof(MatchInputData.VisionWardDiff15),
                 nameof(MatchInputData.ControlWardDiff15),
                 nameof(MatchInputData.CsDiff10),
-                nameof(MatchInputData.XpDiff10))
+                nameof(MatchInputData.XpDiff10),
+                nameof(MatchInputData.HasEarlyChallenges),
+                nameof(MatchInputData.ChallengeJungleCs10Diff),
+                nameof(MatchInputData.ChallengeLaneCs10Diff),
+                nameof(MatchInputData.EarlyTakedownDiff),
+                nameof(MatchInputData.DragonSoulRace),
+                nameof(MatchInputData.SideObjectiveLead),
+                nameof(MatchInputData.BotDuoMatchupDiff))
             .Append(_mlContext.Transforms.NormalizeMinMax("Features"));
 
         return algorithmType switch
@@ -172,9 +179,13 @@ public class ModelBenchmarkService
     public const float TreeWeightMax = 0.80f;
     public const float SpecialistBlendMin = 0.25f;
     public const float SpecialistBlendMax = 0.55f; // keep base ensemble dominant — SpecW>0.60 hurt temporal holdout
-    public const float SpecialistBlendDefault = 0.45f;
+    public const float SpecialistBlendDefault = 0.40f; // slightly lower default; cal can raise toward 0.55
     public const float TemperatureMin = 0.55f;
     public const float TemperatureMax = 1.80f;
+    /// <summary>Extra weight on mid-band cal rows when fitting SpecW (mid was the weak bucket).</summary>
+    public const double MidBandSpecWCalWeight = 1.75;
+    /// <summary>Minimum mid-band cal rows before SpecW may exceed the default.</summary>
+    public const int MidBandSpecWRaiseMinSamples = 40;
 
     public static ModelMetrics EvaluateSoftEnsemble(
         MLContext mlContext,
@@ -366,16 +377,24 @@ public class ModelBenchmarkService
         double bestAcc = 0;
         double bestCenterDist = double.MaxValue;
 
-        var candidates = new[]
-        {
-            0.25f, 0.30f, 0.35f, 0.40f, 0.45f, 0.50f, 0.55f
-        };
+        var midCalCount = calibrationSet.Count(r =>
+            r.HasKnownRank > 0.5f
+            && r.AvgRankScore >= MidEloRankMin
+            && r.AvgRankScore < MidEloRankMax);
+        // Without enough mid cal signal, keep SpecW ≤ default to avoid high/low overfitting.
+        var allowRaiseAboveDefault = midCalCount >= MidBandSpecWRaiseMinSamples;
+
+        var candidates = allowRaiseAboveDefault
+            ? new[] { 0.25f, 0.30f, 0.35f, 0.40f, 0.45f, 0.50f, 0.55f }
+            : new[] { 0.25f, 0.30f, 0.35f, 0.40f };
 
         foreach (var w in candidates)
         {
             var baseW = 1f - w;
             double brierSum = 0;
+            double weightSum = 0;
             var correct = 0;
+            double correctWeight = 0;
             var n = 0;
             foreach (var row in calibrationSet)
             {
@@ -384,12 +403,12 @@ public class ModelBenchmarkService
                 var p = p1 * treeWeight + p2 * forestWeight;
 
                 float? spec = null;
+                var isMid = row.HasKnownRank > 0.5f
+                            && row.AvgRankScore >= MidEloRankMin
+                            && row.AvgRankScore < MidEloRankMax;
                 if (highEloEngine != null && row.AvgRankScore >= HighEloRankThreshold)
                     spec = Math.Clamp(highEloEngine.Predict(row).Probability, 0.01f, 0.99f);
-                else if (midEloEngine != null
-                         && row.HasKnownRank > 0.5f
-                         && row.AvgRankScore >= MidEloRankMin
-                         && row.AvgRankScore < MidEloRankMax)
+                else if (midEloEngine != null && isMid)
                     spec = Math.Clamp(midEloEngine.Predict(row).Probability, 0.01f, 0.99f);
                 else if (lowEloEngine != null
                          && row.HasKnownRank > 0.5f
@@ -400,16 +419,23 @@ public class ModelBenchmarkService
                 if (spec.HasValue)
                     p = p * baseW + spec.Value * w;
 
+                // Watch mid bucket: overweight mid cal rows when scoring SpecW.
+                var sampleWeight = isMid ? MidBandSpecWCalWeight : 1.0;
                 n++;
                 var y = row.Label ? 1.0 : 0.0;
                 var d = p - y;
-                brierSum += d * d;
-                if ((p >= 0.5f) == row.Label) correct++;
+                brierSum += sampleWeight * d * d;
+                weightSum += sampleWeight;
+                if ((p >= 0.5f) == row.Label)
+                {
+                    correct++;
+                    correctWeight += sampleWeight;
+                }
             }
 
-            if (n == 0) continue;
-            var brier = brierSum / n;
-            var acc = correct / (double)n;
+            if (n == 0 || weightSum <= 0) continue;
+            var brier = brierSum / weightSum;
+            var acc = correctWeight / weightSum;
             var centerDist = Math.Abs(w - SpecialistBlendDefault);
             var better =
                 brier < bestBrier - 0.002 ||
@@ -432,7 +458,10 @@ public class ModelBenchmarkService
             bestW = MathF.Round(bestW * 20f) / 20f;
         }
 
-        return Math.Clamp(bestW, SpecialistBlendMin, SpecialistBlendMax);
+        var capped = Math.Clamp(bestW, SpecialistBlendMin, SpecialistBlendMax);
+        if (!allowRaiseAboveDefault)
+            capped = Math.Min(capped, SpecialistBlendDefault);
+        return capped;
     }
 
     /// <summary>
@@ -571,7 +600,7 @@ public class ModelBenchmarkService
                 r.TowerDiff *= scale; r.DragonDiff *= scale; r.VoidgrubDiff *= scale; r.HeraldDiff *= scale;
                 r.ObjectiveScoreDiff *= scale; r.FirstTower *= scale; r.FirstDragon *= scale;
                 r.FirstTowerTempo *= scale; r.FirstDragonTempo *= scale; r.FirstDragonValue *= scale;
-                r.PlatesDiff15 *= scale;
+                r.PlatesDiff15 *= scale; r.DragonSoulRace *= scale; r.SideObjectiveLead *= scale;
                 break;
             case "Vision":
                 r.VisionWardDiff15 *= scale; r.ControlWardDiff15 *= scale;
@@ -579,7 +608,7 @@ public class ModelBenchmarkService
             case "Draft":
                 r.EarlyPowerDiff *= scale; r.LatePowerDiff *= scale; r.EngageDiff *= scale;
                 r.TankDiff *= scale; r.AdApBalanceDiff *= scale; r.WinRateDiff *= scale;
-                r.LaneMatchupDiff *= scale;
+                r.LaneMatchupDiff *= scale; r.BotDuoMatchupDiff *= scale;
                 r.BlueAvgWinRate = 50f + (r.BlueAvgWinRate - 50f) * scale;
                 r.RedAvgWinRate = 50f + (r.RedAvgWinRate - 50f) * scale;
                 break;
@@ -587,6 +616,11 @@ public class ModelBenchmarkService
                 r.TopGoldDiff15 *= scale; r.JungleGoldDiff15 *= scale; r.MidGoldDiff15 *= scale;
                 r.BotDuoGoldDiff15 *= scale; r.LevelDiff15 *= scale; r.CsDiff15 *= scale;
                 r.XpDiff15 *= scale; r.CsDiff10 *= scale; r.XpDiff10 *= scale;
+                break;
+            case "EarlyChallenges":
+                r.HasEarlyChallenges *= scale;
+                r.ChallengeJungleCs10Diff *= scale; r.ChallengeLaneCs10Diff *= scale;
+                r.EarlyTakedownDiff *= scale;
                 break;
         }
     }
@@ -597,8 +631,8 @@ public class ModelBenchmarkService
         static string? Bucket(float rank)
         {
             if (rank <= 0) return null; // unknown rank — exclude from specialist lab buckets
-            if (rank <= 3.5f) return "Low (Iron–Silver)";
-            if (rank <= 6.5f) return "Mid (Gold–Emerald)";
+            if (rank < MidEloRankMin) return "Low (Iron–Silver)";
+            if (rank < MidEloRankMax) return "Mid (Gold–Emerald)";
             return "High (Diamond+)";
         }
 
@@ -681,7 +715,14 @@ public class ModelBenchmarkService
             ["VisionWardDiff15"] = 0.04,
             ["ControlWardDiff15"] = 0.04,
             ["CsDiff10"] = 0.04,
-            ["XpDiff10"] = 0.03
+            ["XpDiff10"] = 0.03,
+            ["EarlyTakedownDiff"] = 0.04,
+            ["ChallengeJungleCs10Diff"] = 0.03,
+            ["ChallengeLaneCs10Diff"] = 0.03,
+            ["DragonSoulRace"] = 0.04,
+            ["SideObjectiveLead"] = 0.03,
+            ["BotDuoMatchupDiff"] = 0.03,
+            ["HasEarlyChallenges"] = 0.01
         };
 
         return result.OrderByDescending(kv => kv.Value).ToDictionary(kv => kv.Key, kv => kv.Value);
@@ -717,7 +758,7 @@ public class ModelBenchmarkService
                 r.TowerDiff = 0; r.DragonDiff = 0; r.VoidgrubDiff = 0; r.HeraldDiff = 0;
                 r.ObjectiveScoreDiff = 0; r.FirstTower = 0; r.FirstDragon = 0;
                 r.FirstTowerTempo = 0; r.FirstDragonTempo = 0; r.FirstDragonValue = 0;
-                r.PlatesDiff15 = 0;
+                r.PlatesDiff15 = 0; r.DragonSoulRace = 0; r.SideObjectiveLead = 0;
             }),
             ("Vision", r =>
             {
@@ -727,13 +768,20 @@ public class ModelBenchmarkService
             {
                 r.EarlyPowerDiff = 0; r.LatePowerDiff = 0; r.EngageDiff = 0;
                 r.TankDiff = 0; r.AdApBalanceDiff = 0; r.WinRateDiff = 0;
-                r.LaneMatchupDiff = 0; r.BlueAvgWinRate = 50; r.RedAvgWinRate = 50;
+                r.LaneMatchupDiff = 0; r.BotDuoMatchupDiff = 0;
+                r.BlueAvgWinRate = 50; r.RedAvgWinRate = 50;
             }),
             ("Lanes", r =>
             {
                 r.TopGoldDiff15 = 0; r.JungleGoldDiff15 = 0; r.MidGoldDiff15 = 0;
                 r.BotDuoGoldDiff15 = 0; r.LevelDiff15 = 0; r.CsDiff15 = 0; r.XpDiff15 = 0;
                 r.CsDiff10 = 0; r.XpDiff10 = 0;
+            }),
+            ("EarlyChallenges", r =>
+            {
+                r.HasEarlyChallenges = 0;
+                r.ChallengeJungleCs10Diff = 0; r.ChallengeLaneCs10Diff = 0;
+                r.EarlyTakedownDiff = 0;
             })
         };
 
@@ -823,6 +871,13 @@ public class ModelBenchmarkService
         ControlWardDiff15 = r.ControlWardDiff15,
         CsDiff10 = r.CsDiff10,
         XpDiff10 = r.XpDiff10,
+        HasEarlyChallenges = r.HasEarlyChallenges,
+        ChallengeJungleCs10Diff = r.ChallengeJungleCs10Diff,
+        ChallengeLaneCs10Diff = r.ChallengeLaneCs10Diff,
+        EarlyTakedownDiff = r.EarlyTakedownDiff,
+        DragonSoulRace = r.DragonSoulRace,
+        SideObjectiveLead = r.SideObjectiveLead,
+        BotDuoMatchupDiff = r.BotDuoMatchupDiff,
         Label = r.Label
     };
 }

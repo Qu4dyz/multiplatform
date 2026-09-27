@@ -490,7 +490,7 @@ public class RealMatchDatasetCollector
     /// </summary>
     private async Task BackfillStaleTimelineFeaturesAsync(Action<string>? logger, CancellationToken ct)
     {
-        const int dedicatedCap = 32;
+        const int dedicatedCap = 40;
         IReadOnlyList<string> ids;
         try
         {
@@ -541,7 +541,7 @@ public class RealMatchDatasetCollector
     /// </summary>
     private async Task BackfillMissingChallengesAsync(Action<string>? logger, CancellationToken ct)
     {
-        const int challengeCap = 36;
+        const int challengeCap = 48;
         IReadOnlyList<string> ids;
         try
         {
@@ -590,7 +590,7 @@ public class RealMatchDatasetCollector
     /// </summary>
     private async Task BackfillMissingTimelineCachesAsync(Action<string>? logger, CancellationToken ct)
     {
-        const int cacheCap = 10;
+        const int cacheCap = 16;
         IReadOnlyList<string> ids;
         try
         {
@@ -654,7 +654,8 @@ public class RealMatchDatasetCollector
     /// Champion win rates are chronological past-only (no future label leakage).
     /// Adds draft scaling, composition tags, gold@10 momentum, lane gold, and rank-aware gold conversion.
     /// Preserves chronological order when the input is ordered by GameCreation.
-    /// End-game challenge rates are intentionally excluded (label leakage).
+    /// End-game challenge rates (GPM/KP/KDA/baron/steals) stay out of the model;
+    /// only early-window challenge keys via <see cref="EarlyChallengeFeatureHelper"/> are allowed.
     /// </summary>
     public static List<MatchInputData> ExtractFeaturesFromMatches(IEnumerable<Match> matches)
     {
@@ -669,6 +670,8 @@ public class RealMatchDatasetCollector
         var champGames = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var matchupWins = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var matchupGames = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var botDuoWins = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var botDuoGames = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var result = new List<MatchInputData>();
 
         foreach (var match in ordered)
@@ -711,6 +714,8 @@ public class RealMatchDatasetCollector
             var (blueWr, redWr) = ComputeTeamChampionWinRates(blueChamps, redChamps, pastRates);
             var (engageDiff, tankDiff, adApDiff) = ChampionCompositionHelper.ComputeDiffs(blueChamps, redChamps);
             var laneMatchupDiff = ComputeLaneMatchupDiff(match, matchupWins, matchupGames);
+            var botDuoMatchupDiff = ComputeBotDuoMatchupDiff(match, botDuoWins, botDuoGames);
+            var earlyChallenges = EarlyChallengeFeatureHelper.Extract(match);
 
             // Keep unknown rank as 0 — never impute DefaultMixedLobby (5.5) into MidElo specialist band.
             var knownRank = match.ApproxRankScore > 0;
@@ -746,6 +751,11 @@ public class RealMatchDatasetCollector
             var carryGold = match.CarryGoldDiff15 != 0
                 ? match.CarryGoldDiff15
                 : goldDiff15 * 0.35f;
+
+            // Timeline plates preferred; challenge plates only fill when timeline plates are missing.
+            var platesDiff = match.PlatesDiff15 != 0
+                ? match.PlatesDiff15
+                : earlyChallenges.ChallengePlatesDiff;
 
             result.Add(new MatchInputData
             {
@@ -794,12 +804,20 @@ public class RealMatchDatasetCollector
                 FirstDragonTempo = match.FirstDragonTempo,
                 FirstDragonValue = match.FirstDragonValue,
                 LaneMatchupDiff = laneMatchupDiff,
-                PlatesDiff15 = match.PlatesDiff15,
+                PlatesDiff15 = platesDiff,
                 KillMomentum15 = killMomentum,
                 LeadVsScaling = leadVsScaling,
                 DeathDiff15 = match.DeathDiff15,
                 VisionWardDiff15 = match.VisionWardDiff15,
                 ControlWardDiff15 = match.ControlWardDiff15,
+                HasEarlyChallenges = earlyChallenges.HasEarlyChallenges,
+                ChallengeJungleCs10Diff = earlyChallenges.ChallengeJungleCs10Diff,
+                ChallengeLaneCs10Diff = earlyChallenges.ChallengeLaneCs10Diff,
+                EarlyTakedownDiff = earlyChallenges.EarlyTakedownDiff,
+                DragonSoulRace = EarlyChallengeFeatureHelper.DragonSoulRace(blue.DragonsAt15, red.DragonsAt15),
+                SideObjectiveLead = EarlyChallengeFeatureHelper.SideObjectiveLead(
+                    blue.FirstBlood, blue.FirstTower, blue.FirstDragon),
+                BotDuoMatchupDiff = botDuoMatchupDiff,
                 Label = match.WinningTeam == TeamSide.Blue
             });
 
@@ -817,6 +835,7 @@ public class RealMatchDatasetCollector
             }
 
             UpdateLaneMatchups(match, matchupWins, matchupGames);
+            UpdateBotDuoMatchups(match, botDuoWins, botDuoGames);
         }
 
         return result;
@@ -854,6 +873,29 @@ public class RealMatchDatasetCollector
         return n == 0 ? 0f : sum / n;
     }
 
+    private static float ComputeBotDuoMatchupDiff(
+        Match match,
+        IReadOnlyDictionary<string, int> botDuoWins,
+        IReadOnlyDictionary<string, int> botDuoGames)
+    {
+        var blueAdc = match.Participants.FirstOrDefault(p => p.TeamSide == TeamSide.Blue && p.Position == Position.Bottom);
+        var blueSup = match.Participants.FirstOrDefault(p => p.TeamSide == TeamSide.Blue && p.Position == Position.Utility);
+        var redAdc = match.Participants.FirstOrDefault(p => p.TeamSide == TeamSide.Red && p.Position == Position.Bottom);
+        var redSup = match.Participants.FirstOrDefault(p => p.TeamSide == TeamSide.Red && p.Position == Position.Utility);
+        if (blueAdc == null || blueSup == null || redAdc == null || redSup == null) return 0f;
+        if (string.IsNullOrWhiteSpace(blueAdc.ChampionName) || string.IsNullOrWhiteSpace(blueSup.ChampionName)
+            || string.IsNullOrWhiteSpace(redAdc.ChampionName) || string.IsNullOrWhiteSpace(redSup.ChampionName))
+            return 0f;
+
+        var key = BotDuoKey(blueAdc.ChampionName, blueSup.ChampionName, redAdc.ChampionName, redSup.ChampionName);
+        if (!botDuoGames.TryGetValue(key, out var games) || games < 5) return 0f;
+
+        var wins = botDuoWins.TryGetValue(key, out var w) ? w : 0;
+        var raw = 100f * wins / games;
+        var weight = Math.Min(1f, games / 18f);
+        return (50f + (raw - 50f) * weight) - 50f;
+    }
+
     private static void UpdateLaneMatchups(
         Match match,
         Dictionary<string, int> matchupWins,
@@ -878,8 +920,35 @@ public class RealMatchDatasetCollector
         }
     }
 
+    private static void UpdateBotDuoMatchups(
+        Match match,
+        Dictionary<string, int> botDuoWins,
+        Dictionary<string, int> botDuoGames)
+    {
+        var blueAdc = match.Participants.FirstOrDefault(p => p.TeamSide == TeamSide.Blue && p.Position == Position.Bottom);
+        var blueSup = match.Participants.FirstOrDefault(p => p.TeamSide == TeamSide.Blue && p.Position == Position.Utility);
+        var redAdc = match.Participants.FirstOrDefault(p => p.TeamSide == TeamSide.Red && p.Position == Position.Bottom);
+        var redSup = match.Participants.FirstOrDefault(p => p.TeamSide == TeamSide.Red && p.Position == Position.Utility);
+        if (blueAdc == null || blueSup == null || redAdc == null || redSup == null) return;
+        if (string.IsNullOrWhiteSpace(blueAdc.ChampionName) || string.IsNullOrWhiteSpace(blueSup.ChampionName)
+            || string.IsNullOrWhiteSpace(redAdc.ChampionName) || string.IsNullOrWhiteSpace(redSup.ChampionName))
+            return;
+
+        var key = BotDuoKey(blueAdc.ChampionName, blueSup.ChampionName, redAdc.ChampionName, redSup.ChampionName);
+        botDuoGames.TryGetValue(key, out var g);
+        botDuoGames[key] = g + 1;
+        if (match.WinningTeam == TeamSide.Blue)
+        {
+            botDuoWins.TryGetValue(key, out var w);
+            botDuoWins[key] = w + 1;
+        }
+    }
+
     private static string MatchupKey(Position role, string blueChamp, string redChamp) =>
         $"{role}|{blueChamp.Trim()}|{redChamp.Trim()}";
+
+    private static string BotDuoKey(string blueAdc, string blueSup, string redAdc, string redSup) =>
+        $"BOT|{blueAdc.Trim()}+{blueSup.Trim()}|{redAdc.Trim()}+{redSup.Trim()}";
 
     private static Dictionary<string, float> SnapshotWinRates(
         IReadOnlyDictionary<string, int> wins,
