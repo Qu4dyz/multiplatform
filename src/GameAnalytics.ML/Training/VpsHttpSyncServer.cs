@@ -108,26 +108,17 @@ public class VpsHttpSyncServer
                 resp.StatusCode = (int)HttpStatusCode.OK;
                 await resp.OutputStream.WriteAsync(bytes);
             }
-            else if (path == "/api/model")
+            else if (path == "/api/model" || path == "/api/model/m15")
             {
-                var modelFile = Path.Combine(_modelDirectory, "fasttree_model.zip");
-                if (File.Exists(modelFile))
-                {
-                    resp.ContentType = "application/zip";
-                    resp.AddHeader("Content-Disposition", "attachment; filename=\"fasttree_model.zip\"");
-                    using var fs = File.OpenRead(modelFile);
-                    resp.ContentLength64 = fs.Length;
-                    resp.StatusCode = (int)HttpStatusCode.OK;
-                    await fs.CopyToAsync(resp.OutputStream);
-                    log($"[VPS Sync Server] Успішно передано модель клієнту: {req.RemoteEndPoint?.Address}");
-                }
-                else
-                {
-                    resp.StatusCode = (int)HttpStatusCode.NotFound;
-                    var msg = Encoding.UTF8.GetBytes("{\"error\": \"Model file not found yet.\"}");
-                    resp.ContentType = "application/json";
-                    await resp.OutputStream.WriteAsync(msg);
-                }
+                await ServeModelFileAsync(resp, "fasttree_model.zip", req, log);
+            }
+            else if (path == "/api/model/m25")
+            {
+                await ServeModelFileAsync(resp, PredictionHorizons.ModelFileName(PredictionHorizons.Mid), req, log);
+            }
+            else if (path == "/api/model/m35")
+            {
+                await ServeModelFileAsync(resp, PredictionHorizons.ModelFileName(PredictionHorizons.Late), req, log);
             }
             else if (path == "/api/database")
             {
@@ -162,6 +153,32 @@ public class VpsHttpSyncServer
         finally
         {
             try { resp.Close(); } catch { }
+        }
+    }
+
+    private async Task ServeModelFileAsync(
+        HttpListenerResponse resp,
+        string fileName,
+        HttpListenerRequest req,
+        Action<string> log)
+    {
+        var modelFile = Path.Combine(_modelDirectory, fileName);
+        if (File.Exists(modelFile))
+        {
+            resp.ContentType = "application/zip";
+            resp.AddHeader("Content-Disposition", $"attachment; filename=\"{fileName}\"");
+            using var fs = File.OpenRead(modelFile);
+            resp.ContentLength64 = fs.Length;
+            resp.StatusCode = (int)HttpStatusCode.OK;
+            await fs.CopyToAsync(resp.OutputStream);
+            log($"[VPS Sync Server] Передано {fileName} → {req.RemoteEndPoint?.Address}");
+        }
+        else
+        {
+            resp.StatusCode = (int)HttpStatusCode.NotFound;
+            var msg = Encoding.UTF8.GetBytes($"{{\"error\": \"Model file {fileName} not found yet.\"}}");
+            resp.ContentType = "application/json";
+            await resp.OutputStream.WriteAsync(msg);
         }
     }
 

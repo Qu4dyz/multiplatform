@@ -145,5 +145,9 @@ public class TimelineParticipantPos
     public int Y { get; set; }
     public int TotalGold { get; set; }
     public int Level { get; set; }
+    /// <summary>Lane + jungle CS at this frame (0 on older timeline caches).</summary>
+    public int Cs { get; set; }
+    /// <summary>XP at this frame (0 on older timeline caches).</summary>
+    public int Xp { get; set; }
 }
 

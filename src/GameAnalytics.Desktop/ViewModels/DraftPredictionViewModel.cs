@@ -6,6 +6,7 @@ using GameAnalytics.Core.Enums;
 using GameAnalytics.Core.Helpers;
 using GameAnalytics.Core.Interfaces;
 using GameAnalytics.ML.Engine;
+using GameAnalytics.ML.Training;
 
 namespace GameAnalytics.Desktop.ViewModels;
 
@@ -576,5 +577,182 @@ public partial class DraftPredictionViewModel : ViewModelBase
         {
             IsCheckingLiveGame = false;
         }
+    }
+
+    // ── Lab multi-horizon (add-on; does not replace production 15' section) ──
+
+    [ObservableProperty]
+    private int _labSelectedPhaseMinute = PredictionHorizons.Early;
+
+    public int[] LabPhaseMinutes { get; } = PredictionHorizons.All;
+
+    [ObservableProperty]
+    private string _labEarlyProbText = "—";
+
+    [ObservableProperty]
+    private string _labMidProbText = "—";
+
+    [ObservableProperty]
+    private string _labLateProbText = "—";
+
+    [ObservableProperty]
+    private string _labPhaseStatsText = "Оберіть матч з історії або натисніть «Оновити lab».";
+
+    [ObservableProperty]
+    private string _labStatusText = "Lab mid/late — окремі FastTree-моделі; 15′ лишається production.";
+
+    [ObservableProperty]
+    private string? _labMatchId;
+
+    [ObservableProperty]
+    private ObservableCollection<string> _labMatchIds = new();
+
+    [ObservableProperty]
+    private bool _labIsBusy;
+
+    partial void OnLabSelectedPhaseMinuteChanged(int value) => UpdateLabPhaseStatsPanel();
+    partial void OnLabMatchIdChanged(string? value) => _ = RefreshLabHorizonsAsync();
+
+    private TimelineHorizonSnapshot? _labSnap15;
+    private TimelineHorizonSnapshot? _labSnap25;
+    private TimelineHorizonSnapshot? _labSnap35;
+
+    [RelayCommand]
+    private async Task LoadLabMatchListAsync()
+    {
+        try
+        {
+            LabIsBusy = true;
+            var matches = await _analyticsService.GetSavedMatchHistoryAsync();
+            var ids = matches
+                .Where(m => !m.IsRemake && m.GameDurationSeconds >= PredictionHorizons.Late * 60)
+                .OrderByDescending(m => m.GameCreation)
+                .Select(m => m.MatchId)
+                .Take(40)
+                .ToList();
+            LabMatchIds = new ObservableCollection<string>(ids);
+            LabStatusText = ids.Count == 0
+                ? "Немає збережених матчів ≥35′ — lab покаже оцінки з поточних слайдерів 15′."
+                : $"Завантажено {ids.Count} матчів для lab. Оберіть MatchId.";
+            if (ids.Count > 0 && string.IsNullOrWhiteSpace(LabMatchId))
+                LabMatchId = ids[0];
+        }
+        catch (Exception ex)
+        {
+            LabStatusText = $"Не вдалося завантажити історію: {ex.Message}";
+        }
+        finally
+        {
+            LabIsBusy = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task RefreshLabHorizonsAsync()
+    {
+        try
+        {
+            LabIsBusy = true;
+            _labSnap15 = _labSnap25 = _labSnap35 = null;
+
+            MatchTimelineData? timeline = null;
+            Match? match = null;
+            if (!string.IsNullOrWhiteSpace(LabMatchId))
+            {
+                var all = await _analyticsService.GetSavedMatchHistoryAsync();
+                match = all.FirstOrDefault(m => m.MatchId == LabMatchId);
+                timeline = await _analyticsService.GetMatchTimelineAsync(LabMatchId);
+            }
+
+            if (timeline != null && timeline.Frames.Count > 0)
+            {
+                _labSnap15 = MatchTimelineSnapshotBuilder.Build(timeline, PredictionHorizons.Early, match);
+                _labSnap25 = MatchTimelineSnapshotBuilder.Build(timeline, PredictionHorizons.Mid, match);
+                _labSnap35 = MatchTimelineSnapshotBuilder.Build(timeline, PredictionHorizons.Late, match);
+
+                LabEarlyProbText = FormatLabProb(_labSnap15, PredictionHorizons.Early);
+                LabMidProbText = FormatLabProb(_labSnap25, PredictionHorizons.Mid);
+                LabLateProbText = FormatLabProb(_labSnap35, PredictionHorizons.Late);
+
+                var has25 = _analyticsService.HasHorizonModel(PredictionHorizons.Mid);
+                var has35 = _analyticsService.HasHorizonModel(PredictionHorizons.Late);
+                LabStatusText =
+                    $"Match {LabMatchId}: snapshots " +
+                    $"15={(_labSnap15 != null ? "ok" : "n/a")} " +
+                    $"25={(_labSnap25 != null ? "ok" : "n/a")} " +
+                    $"35={(_labSnap35 != null ? "ok" : "n/a")} | " +
+                    $"models m25={(has25 ? "loaded" : "missing")} m35={(has35 ? "loaded" : "missing")}";
+            }
+            else
+            {
+                // No timeline: reuse current section-2 metrics for early only.
+                CalculatePrediction();
+                LabEarlyProbText = Prediction != null
+                    ? $"{Prediction.BlueWinProbability * 100:F1}% blue"
+                    : "—";
+                LabMidProbText = "немає timeline";
+                LabLateProbText = "немає timeline";
+                LabStatusText = "Немає timeline-кадру — early з секції 2; mid/late недоступні.";
+            }
+
+            UpdateLabPhaseStatsPanel();
+        }
+        catch (Exception ex)
+        {
+            LabStatusText = $"Lab error: {ex.Message}";
+        }
+        finally
+        {
+            LabIsBusy = false;
+        }
+    }
+
+    private string FormatLabProb(TimelineHorizonSnapshot? snap, int minute)
+    {
+        if (snap == null) return "n/a";
+        var features = RealMatchDatasetCollector.SnapshotToInputFeatures(
+            snap,
+            BlueTeamAvgWinRate,
+            RedTeamAvgWinRate,
+            RankScoreHelper.FromTier(SelectedLobbyTier),
+            (float)(PowerSpikes?.EarlyAdvantage ?? 0),
+            (float)(PowerSpikes?.LateAdvantage ?? 0));
+        var result = _analyticsService.PredictOutcome(features, minute);
+        return $"{result.BlueWinProbability * 100:F1}% blue";
+    }
+
+    private void UpdateLabPhaseStatsPanel()
+    {
+        var snap = LabSelectedPhaseMinute switch
+        {
+            PredictionHorizons.Mid => _labSnap25,
+            PredictionHorizons.Late => _labSnap35,
+            _ => _labSnap15
+        };
+
+        if (snap == null)
+        {
+            if (LabSelectedPhaseMinute == PredictionHorizons.Early)
+            {
+                LabPhaseStatsText =
+                    $"Фаза 15′ (секція 2 / snapshot): Gold {GoldDiffAt15:+0;-#;0} | " +
+                    $"Kills {KillDiffAt15:+0;-#;0} | CS {CsDiffAt15:+0;-#;0} | " +
+                    $"Towers {BlueTowerCount}-{RedTowerCount} | Dragons {BlueDragonCount}-{RedDragonCount}";
+            }
+            else
+            {
+                LabPhaseStatsText = $"Немає чесного кадру ≤{LabSelectedPhaseMinute}' для цього матчу.";
+            }
+            return;
+        }
+
+        LabPhaseStatsText =
+            $"@{snap.AnchorMinute}' (frame {snap.FrameTimestampMs / 1000}s) — окремий stats-блок:\n" +
+            $"Gold {snap.GoldDiff:+0;-#;0} (B {snap.GoldBlue} / R {snap.GoldRed}) | " +
+            $"Kills {snap.KillDiff:+0;-#;0} | CS {snap.CsDiff:+0;-#;0} | XP {snap.XpDiff:+0;-#;0}\n" +
+            $"Towers {snap.TowersBlue}-{snap.TowersRed} | Dragons {snap.DragonsBlue}-{snap.DragonsRed} | " +
+            $"Grubs {snap.VoidgrubsBlue}-{snap.VoidgrubsRed} | Herald {snap.HeraldsBlue}-{snap.HeraldsRed}\n" +
+            $"Plates {snap.PlatesDiff:+0;-#;0} | Deaths {snap.DeathDiff:+0;-#;0} | " +
+            $"Vision {snap.VisionWardDiff:+0;-#;0} / Control {snap.ControlWardDiff:+0;-#;0}";
     }
 }

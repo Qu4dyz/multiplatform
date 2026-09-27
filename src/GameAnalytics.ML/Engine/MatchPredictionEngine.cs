@@ -22,6 +22,8 @@ public class MatchPredictionEngine : IPredictionEngine
     private PredictionEngine<MatchInputData, MatchPrediction>? _highEloEngine;
     private PredictionEngine<MatchInputData, MatchPrediction>? _midEloEngine;
     private PredictionEngine<MatchInputData, MatchPrediction>? _lowEloEngine;
+    private PredictionEngine<MatchInputData, MatchPrediction>? _m25Engine;
+    private PredictionEngine<MatchInputData, MatchPrediction>? _m35Engine;
     private float _ensembleTreeWeight = 0.55f;
     private float _specialistBlendWeight = ModelBenchmarkService.SpecialistBlendDefault;
     private float _ensembleTemperature = 1f;
@@ -101,6 +103,9 @@ public class MatchPredictionEngine : IPredictionEngine
                         _lowEloEngine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(_lowEloModel);
                     }
 
+                    TryLoadHorizonEngine(PredictionHorizons.Mid, out _m25Engine);
+                    TryLoadHorizonEngine(PredictionHorizons.Late, out _m35Engine);
+
                     IsTrainedOnRealData = true;
                     return;
                 }
@@ -129,6 +134,39 @@ public class MatchPredictionEngine : IPredictionEngine
             }
 
             _predictionEngine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(_model);
+        }
+    }
+
+    private bool TryLoadHorizonEngine(int minute, out PredictionEngine<MatchInputData, MatchPrediction>? engine)
+    {
+        engine = null;
+        if (minute is not (PredictionHorizons.Mid or PredictionHorizons.Late)) return false;
+        var path = Path.Combine(_modelDirectory, PredictionHorizons.ModelFileName(minute));
+        if (!File.Exists(path)) return false;
+        try
+        {
+            var model = _mlContext.Model.Load(path, out _);
+            engine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(model);
+            return true;
+        }
+        catch
+        {
+            engine = null;
+            return false;
+        }
+    }
+
+    public bool HasHorizonModel(int predictionMinute)
+    {
+        lock (_lock)
+        {
+            return predictionMinute switch
+            {
+                PredictionHorizons.Early => _predictionEngine != null,
+                PredictionHorizons.Mid => _m25Engine != null,
+                PredictionHorizons.Late => _m35Engine != null,
+                _ => false
+            };
         }
     }
 
@@ -188,6 +226,9 @@ public class MatchPredictionEngine : IPredictionEngine
     }
 
     public PredictionResult PredictMatchOutcome(MatchInputFeatures features)
+        => PredictMatchOutcome(features, PredictionHorizons.Early);
+
+    public PredictionResult PredictMatchOutcome(MatchInputFeatures features, int predictionMinute)
     {
         lock (_lock)
         {
@@ -284,6 +325,40 @@ public class MatchPredictionEngine : IPredictionEngine
                         features.BlueFirstBlood, features.BlueFirstTower, features.BlueFirstDragon),
                 BotDuoMatchupDiff = features.BotDuoMatchupDiff
             };
+
+            // Lab mid/late: dedicated FastTree only (no forest/specialists) when zip is present.
+            if (predictionMinute is PredictionHorizons.Mid or PredictionHorizons.Late)
+            {
+                var horizonEngine = predictionMinute == PredictionHorizons.Mid ? _m25Engine : _m35Engine;
+                float labProb;
+                var labFactors = new List<string> { $"Lab horizon {predictionMinute}' (add-on, not production 15')" };
+                if (horizonEngine != null)
+                {
+                    labProb = Math.Clamp(horizonEngine.Predict(input).Probability, 0.05f, 0.95f);
+                }
+                else
+                {
+                    labProb = Math.Clamp(_predictionEngine!.Predict(input).Probability, 0.05f, 0.95f);
+                    labFactors.Insert(0, $"Lab {predictionMinute}' model missing — placeholder via production FastTree.");
+                }
+
+                if (Math.Abs(features.GoldDiffAt15) >= 1500)
+                {
+                    labFactors.Add(features.GoldDiffAt15 > 0
+                        ? $"Gold @{predictionMinute}': +{features.GoldDiffAt15:N0} blue"
+                        : $"Gold @{predictionMinute}': {features.GoldDiffAt15:N0} (red lead)");
+                }
+
+                return new PredictionResult
+                {
+                    BlueWinProbability = labProb,
+                    RedWinProbability = 1.0f - labProb,
+                    PredictedWinner = labProb >= 0.5f ? TeamSide.Blue : TeamSide.Red,
+                    ConfidenceScore = Math.Abs(labProb - 0.5f) * 2.0,
+                    KeyFactors = labFactors,
+                    Timestamp = DateTime.UtcNow
+                };
+            }
 
             var prediction = _predictionEngine!.Predict(input);
             var blueProb = Math.Clamp(prediction.Probability, 0.05f, 0.95f);
@@ -699,6 +774,51 @@ public class MatchPredictionEngine : IPredictionEngine
                     TrainingDatasetSize = matchDataList.Count;
                     LastTrainedAt = DateTime.UtcNow;
                 }
+            }
+        }, ct);
+    }
+
+    /// <summary>
+    /// Lab mid/late FastTree-only train. Reuses MatchInputData schema (*15 columns = at-horizon).
+    /// No elo specialists / ablation — keeps 2GB VPS RAM in check. Call less often than early train.
+    /// </summary>
+    public Task TrainHorizonModelAsync(
+        IEnumerable<Match> historicalMatches,
+        int predictionMinute,
+        Func<string, MatchTimelineData?> timelineLookup,
+        int? maxRows = 12_000,
+        CancellationToken ct = default)
+    {
+        if (predictionMinute is not (PredictionHorizons.Mid or PredictionHorizons.Late))
+            return Task.CompletedTask;
+
+        return Task.Run(() =>
+        {
+            var orderedMatches = historicalMatches
+                .OrderBy(m => m.GameCreation)
+                .ThenBy(m => m.MatchId, StringComparer.Ordinal)
+                .ToList();
+
+            var matchDataList = RealMatchDatasetCollector.ExtractFeaturesFromMatches(
+                orderedMatches, predictionMinute, timelineLookup, maxRows);
+
+            if (matchDataList.Count < 10) return;
+
+            lock (_lock)
+            {
+                Directory.CreateDirectory(_modelDirectory);
+                var dataView = _mlContext.Data.LoadFromEnumerable(matchDataList);
+                var benchmark = new ModelBenchmarkService();
+                var treePipeline = benchmark.BuildPipeline(MLAlgorithmType.FastTree);
+                var model = treePipeline.Fit(dataView);
+                var engine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(model);
+                var path = Path.Combine(_modelDirectory, PredictionHorizons.ModelFileName(predictionMinute));
+                new ModelTrainer().SaveModel(model, dataView.Schema, path);
+
+                if (predictionMinute == PredictionHorizons.Mid)
+                    _m25Engine = engine;
+                else
+                    _m35Engine = engine;
             }
         }, ct);
     }

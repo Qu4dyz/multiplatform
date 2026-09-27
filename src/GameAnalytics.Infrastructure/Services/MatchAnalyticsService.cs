@@ -226,6 +226,12 @@ public class MatchAnalyticsService : IMatchAnalyticsService
         return _predictionEngine.PredictMatchOutcome(features);
     }
 
+    public PredictionResult PredictOutcome(MatchInputFeatures features, int predictionMinute)
+        => _predictionEngine.PredictMatchOutcome(features, predictionMinute);
+
+    public bool HasHorizonModel(int predictionMinute)
+        => _predictionEngine.HasHorizonModel(predictionMinute);
+
     public ModelBenchmarkReport RunBenchmark(int sampleCount = 2000)
     {
         return _predictionEngine.RunAlgorithmsBenchmark(sampleCount);

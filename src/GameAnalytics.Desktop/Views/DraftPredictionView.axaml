@@ -891,6 +891,107 @@
                     </StackPanel>
                 </Border>
             </Grid>
+
+            <!-- SECTION 3: LAB MULTI-HORIZON (add-on; production 15' section above stays intact) -->
+            <Border Background="#10141F"
+                    CornerRadius="12"
+                    Padding="20"
+                    Margin="0,16,0,0"
+                    BorderBrush="#3D4A63"
+                    BorderThickness="1">
+                <StackPanel Spacing="12">
+                    <Grid ColumnDefinitions="*, Auto, Auto">
+                        <StackPanel Grid.Column="0" Spacing="2">
+                            <TextBlock Text="LAB — MULTI-HORIZON (15′ / 25′ / 35′)"
+                                       FontWeight="Bold"
+                                       FontSize="14"
+                                       Foreground="#93C5FD"
+                                       LetterSpacing="1.1" />
+                            <TextBlock Text="Окремі FastTree-моделі mid/late. Production 15′ вище не змінюється. Stats — окремий блок по фазі."
+                                       FontSize="11"
+                                       Foreground="#8A93A5"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                        <Button Grid.Column="1"
+                                Command="{Binding LoadLabMatchListCommand}"
+                                Content="📋 Матчі"
+                                Margin="8,0,0,0"
+                                Padding="12,6"
+                                FontSize="11"
+                                Background="#1E283A"
+                                Foreground="#F0E6D2"
+                                IsEnabled="{Binding !LabIsBusy}"
+                                Cursor="Hand" />
+                        <Button Grid.Column="2"
+                                Command="{Binding RefreshLabHorizonsCommand}"
+                                Content="🔄 Оновити lab"
+                                Margin="8,0,0,0"
+                                Padding="12,6"
+                                FontSize="11"
+                                Background="#2563EB"
+                                Foreground="White"
+                                IsEnabled="{Binding !LabIsBusy}"
+                                Cursor="Hand" />
+                    </Grid>
+
+                    <TextBlock Text="{Binding LabStatusText}" FontSize="11" Foreground="#A5B4FC" TextWrapping="Wrap" />
+
+                    <Grid ColumnDefinitions="*, Auto">
+                        <StackPanel Grid.Column="0" Spacing="4">
+                            <TextBlock Text="MatchId (з історії ≥35′):" FontSize="11" Foreground="#A09B8C" />
+                            <ComboBox ItemsSource="{Binding LabMatchIds}"
+                                      SelectedItem="{Binding LabMatchId}"
+                                      HorizontalAlignment="Stretch"
+                                      Height="32"
+                                      FontSize="11" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Margin="12,0,0,0" Spacing="4" MinWidth="120">
+                            <TextBlock Text="Фаза stats:" FontSize="11" Foreground="#A09B8C" />
+                            <ComboBox ItemsSource="{Binding LabPhaseMinutes}"
+                                      SelectedItem="{Binding LabSelectedPhaseMinute}"
+                                      HorizontalAlignment="Stretch"
+                                      Height="32" />
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid ColumnDefinitions="*, *, *">
+                        <Border Grid.Column="0" Background="#0F172A" CornerRadius="8" Padding="12" Margin="0,0,6,0" BorderBrush="#38BDF8" BorderThickness="1">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="EARLY ~15′" FontSize="11" FontWeight="Bold" Foreground="#38BDF8" />
+                                <TextBlock Text="{Binding LabEarlyProbText}" FontSize="18" FontWeight="Bold" Foreground="#E2E8F0" />
+                                <TextBlock Text="production / lab" FontSize="10" Foreground="#64748B" />
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="1" Background="#0F172A" CornerRadius="8" Padding="12" Margin="6,0" BorderBrush="#FBBF24" BorderThickness="1">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="MID ~25′" FontSize="11" FontWeight="Bold" Foreground="#FBBF24" />
+                                <TextBlock Text="{Binding LabMidProbText}" FontSize="18" FontWeight="Bold" Foreground="#E2E8F0" />
+                                <TextBlock Text="lab FastTree" FontSize="10" Foreground="#64748B" />
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="2" Background="#0F172A" CornerRadius="8" Padding="12" Margin="6,0,0,0" BorderBrush="#F472B6" BorderThickness="1">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="LATE ~35′" FontSize="11" FontWeight="Bold" Foreground="#F472B6" />
+                                <TextBlock Text="{Binding LabLateProbText}" FontSize="18" FontWeight="Bold" Foreground="#E2E8F0" />
+                                <TextBlock Text="lab FastTree" FontSize="10" Foreground="#64748B" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <Border Background="#0B1220" CornerRadius="8" Padding="14" BorderBrush="#334155" BorderThickness="1">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="STATS PANEL (обрана фаза — не змішано з фічами моделі)"
+                                       FontSize="11"
+                                       FontWeight="Bold"
+                                       Foreground="#94A3B8" />
+                            <TextBlock Text="{Binding LabPhaseStatsText}"
+                                       FontSize="12"
+                                       Foreground="#E2E8F0"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Border>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

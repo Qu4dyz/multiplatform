@@ -727,13 +727,17 @@ public class RiotApiClient : IRiotApiClient
                                 y = posElem.TryGetProperty("y", out var yProp) ? yProp.GetInt32() : 0;
                             }
 
+                            var minions = pf.TryGetProperty("minionsKilled", out var mProp) ? mProp.GetInt32() : 0;
+                            var jgMinions = pf.TryGetProperty("jungleMinionsKilled", out var jmProp) ? jmProp.GetInt32() : 0;
                             snapshot.Participants.Add(new TimelineParticipantPos
                             {
                                 ParticipantId = i,
                                 X = x,
                                 Y = y,
                                 TotalGold = pf.TryGetProperty("totalGold", out var gProp) ? gProp.GetInt32() : 0,
-                                Level = pf.TryGetProperty("level", out var lvlProp) ? lvlProp.GetInt32() : 1
+                                Level = pf.TryGetProperty("level", out var lvlProp) ? lvlProp.GetInt32() : 1,
+                                Cs = minions + jgMinions,
+                                Xp = pf.TryGetProperty("xp", out var xpProp) ? xpProp.GetInt32() : 0
                             });
                         }
 
@@ -814,12 +818,20 @@ public class RiotApiClient : IRiotApiClient
                         }
                         else if (evType == "WARD_PLACED")
                         {
-                            if (ts > fifteenMinMs) continue;
                             var creatorId = ev.TryGetProperty("creatorId", out var cProp) ? cProp.GetInt32() : 0;
                             if (creatorId <= 0) continue;
                             var wardType = ev.TryGetProperty("wardType", out var wProp)
                                 ? wProp.GetString() ?? string.Empty
                                 : string.Empty;
+                            // Persist for multi-horizon recount; At15 counters still capped at 15'.
+                            result.RealEvents.Add(new TimelineEventRecord
+                            {
+                                TimestampMs = ts,
+                                EventType = evType,
+                                KillerId = creatorId,
+                                MonsterSubType = wardType
+                            });
+                            if (ts > fifteenMinMs) continue;
                             var isBlue = creatorId <= 5;
                             var isControl = wardType.Contains("CONTROL", StringComparison.OrdinalIgnoreCase);
                             if (isControl)
@@ -901,13 +913,14 @@ public class RiotApiClient : IRiotApiClient
                                 TimestampMs = ts,
                                 EventType = evType,
                                 KillerId = killerId,
+                                KillerTeamId = teamId, // owner (victim) team of the building
                                 BuildingType = buildingType,
                                 LaneType = laneType
                             });
 
                             if (buildingType.Contains("TOWER", StringComparison.OrdinalIgnoreCase))
                             {
-                                var blueDestroyed = teamId == 200 || killerId <= 5;
+                                var blueDestroyed = teamId == 200 || (teamId == 0 && killerId > 0 && killerId <= 5);
                                 if (!firstTowerSet)
                                 {
                                     result.BlueFirstTower = blueDestroyed;
@@ -927,6 +940,15 @@ public class RiotApiClient : IRiotApiClient
                             // teamId = team that OWNED the turret (lost the plate). Killer takes it.
                             var killerId = ev.TryGetProperty("killerId", out var kProp) ? kProp.GetInt32() : 0;
                             var teamId = ev.TryGetProperty("teamId", out var tProp) ? tProp.GetInt32() : 0;
+
+                            result.RealEvents.Add(new TimelineEventRecord
+                            {
+                                TimestampMs = ts,
+                                EventType = evType,
+                                KillerId = killerId,
+                                KillerTeamId = teamId
+                            });
+
                             if (ts > fifteenMinMs) continue;
 
                             var blueTookPlate = killerId > 0

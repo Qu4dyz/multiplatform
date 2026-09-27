@@ -97,9 +97,28 @@ public class VpsTrainingWorker
                     }
                     log($"[VPS ML Trainer] Модель успішно експортована в директорію models/{_predictionEngine.ActiveAlgorithm.ToString().ToLower()}_model.zip.");
 
-                    // Release training graphs ASAP on 1GB VPS hosts.
+                    // Release training graphs ASAP on 1–2GB VPS hosts.
                     GC.Collect(2, GCCollectionMode.Aggressive, blocking: true, compacting: true);
                     GC.WaitForPendingFinalizers();
+
+                    // Lab mid/late: every 10th epoch only, Tree-only, subsampled — avoid OOM on 2GB.
+                    if (epoch % 10 == 0)
+                    {
+                        Func<string, MatchTimelineData?> timelineLookup = id =>
+                            _matchRepo.GetCachedTimelineAsync(id).GetAwaiter().GetResult();
+
+                        foreach (var minute in new[] { PredictionHorizons.Mid, PredictionHorizons.Late })
+                        {
+                            log($"[VPS ML Trainer] Lab horizon train @{minute}' (FastTree only, max 12k rows)...");
+                            await _predictionEngine.TrainHorizonModelAsync(
+                                allMatches, minute, timelineLookup, maxRows: 12_000, ct);
+                            GC.Collect(2, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+                            GC.WaitForPendingFinalizers();
+                            log(_predictionEngine.HasHorizonModel(minute)
+                                ? $"[VPS ML Trainer] Lab model ready: {PredictionHorizons.ModelFileName(minute)}"
+                                : $"[VPS ML Trainer] Lab @{minute}' skipped (insufficient horizon rows / timelines).");
+                        }
+                    }
                 }
                 else if (allMatches.Count >= 5)
                 {

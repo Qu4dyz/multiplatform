@@ -51,7 +51,19 @@ public interface IMatchRepository
 public interface IPredictionEngine
 {
     PredictionResult PredictMatchOutcome(MatchInputFeatures features);
+    /// <summary>Lab multi-horizon predict. Minute 15 = production ensemble; 25/35 = lab FastTree zips when present.</summary>
+    PredictionResult PredictMatchOutcome(MatchInputFeatures features, int predictionMinute);
+    bool HasHorizonModel(int predictionMinute);
     Task TrainModelAsync(IEnumerable<Match> historicalMatches, CancellationToken ct = default);
+    /// <summary>
+    /// Lab-only FastTree train for mid/late horizons (no elo specialists). Skips when rows &lt; 10.
+    /// </summary>
+    Task TrainHorizonModelAsync(
+        IEnumerable<Match> historicalMatches,
+        int predictionMinute,
+        Func<string, MatchTimelineData?> timelineLookup,
+        int? maxRows = 12_000,
+        CancellationToken ct = default);
     ModelBenchmarkReport RunAlgorithmsBenchmark(int sampleCount = 2000);
     void SetActiveAlgorithm(GameAnalytics.Core.Enums.MLAlgorithmType algorithm);
     bool ReloadModel();
@@ -72,6 +84,8 @@ public interface IMatchAnalyticsService
     Task<MatchTimelineData?> GetMatchTimelineAsync(string matchId, CancellationToken ct = default);
     Task<bool> RetrainModelOnSavedMatchesAsync(CancellationToken ct = default);
     PredictionResult PredictOutcome(MatchInputFeatures features);
+    PredictionResult PredictOutcome(MatchInputFeatures features, int predictionMinute);
+    bool HasHorizonModel(int predictionMinute);
     ModelBenchmarkReport RunBenchmark(int sampleCount = 2000);
     void SetActiveMLAlgorithm(GameAnalytics.Core.Enums.MLAlgorithmType algorithm);
     bool ReloadModel();
