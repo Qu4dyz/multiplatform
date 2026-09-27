@@ -47,10 +47,10 @@ public partial class SettingsViewModel : ViewModelBase
     private string _dotnetVersion;
 
     [ObservableProperty]
-    private string _vpsHostInfo = "45.77.53.46 (Ubuntu 24.04 LTS Noble, x86_64, .NET 9.0.318)";
+    private string _vpsHostInfo = "209.74.79.152 (Debian 12, 2GB, x86_64, .NET 9.0.318)";
 
     [ObservableProperty]
-    private string _vpsServerUrl = "http://45.77.53.46:5050";
+    private string _vpsServerUrl = "http://209.74.79.152:5050";
 
     [ObservableProperty]
     private string _vpsStatusBadge = "⚪ Натисніть 'Перевірити статус' для підключення до хмари";
@@ -81,7 +81,7 @@ public partial class SettingsViewModel : ViewModelBase
         _analyticsService = analyticsService;
 
         ApiKey = options.ApiKey;
-        VpsServerUrl = string.IsNullOrWhiteSpace(options.VpsServerUrl) ? "http://45.77.53.46:5050" : options.VpsServerUrl;
+        VpsServerUrl = string.IsNullOrWhiteSpace(options.VpsServerUrl) ? "http://209.74.79.152:5050" : options.VpsServerUrl;
         SelectedRegion = AvailableRegions.FirstOrDefault(r => r.PlatformId.Equals(options.PlatformRegion, StringComparison.OrdinalIgnoreCase))
                          ?? AvailableRegions[0];
         SelectedDemoTier = options.DemoTier;
