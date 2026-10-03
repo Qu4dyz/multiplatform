@@ -124,10 +124,14 @@ sealed class Program
         };
 
         // 2GB VPS knobs (personal Riot app still caps at 20/1s + 100/120s per region).
-        // Modest raise vs old 1GB: larger batches, shorter idle, slightly heavier backfill.
+        // Early retrain is every 4th epoch in VpsTrainingWorker; ablation/specialists rarer still.
         // Documented in docs/vps-deploy.md — do not push past app limits without a production key.
         if (predictionEngine is MatchPredictionEngine mpe)
-            mpe.AblationIntervalEpochs = 4;
+        {
+            mpe.AblationIntervalEpochs = 3;      // ~every 12 epochs with retrain%/4
+            mpe.SpecialistIntervalEpochs = 2;    // ~every 8 epochs; reuse prior specialist zips otherwise
+            mpe.MaxTrainRows = VpsTrainingWorker.EarlyTrainMaxRows;
+        }
 
         // Wrap training with post-epoch match-count refresh for the status API
         await worker.RunContinuousTrainingAsync(

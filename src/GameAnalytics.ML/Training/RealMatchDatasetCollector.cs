@@ -673,8 +673,9 @@ public class RealMatchDatasetCollector
             .ThenBy(m => m.MatchId, StringComparer.Ordinal)
             .ToList();
 
-        // Mid/late on 2GB VPS: optionally keep only the newest N rows' source matches (still chronological).
-        if (maxRows is > 0 && ordered.Count > maxRows.Value && predictionMinute != PredictionHorizons.Early)
+        // 2GB VPS: optionally keep only the newest N source matches (still chronological for rolling WR).
+        // Used for lab mid/late (12k) and early retrain cap (~20k) when set by the trainer.
+        if (maxRows is > 0 && ordered.Count > maxRows.Value)
             ordered = ordered.Skip(ordered.Count - maxRows.Value).ToList();
 
         var champWins = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);

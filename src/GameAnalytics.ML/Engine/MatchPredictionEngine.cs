@@ -37,6 +37,10 @@ public class MatchPredictionEngine : IPredictionEngine
     public DateTime? LastTrainedAt { get; private set; }
     /// <summary>Run leave-one-group ablation every N train passes (1 = every time). Higher = lighter VPS load.</summary>
     public int AblationIntervalEpochs { get; set; } = 1;
+    /// <summary>Retrain elo specialists every N train passes (1 = every time). Reuses prior zips when skipped.</summary>
+    public int SpecialistIntervalEpochs { get; set; } = 1;
+    /// <summary>Optional newest-N cap for early train rows (null = no cap). 2GB VPS sets ~20k.</summary>
+    public int? MaxTrainRows { get; set; }
     private int _completedTrainPasses;
 
     public MatchPredictionEngine()
@@ -545,7 +549,9 @@ public class MatchPredictionEngine : IPredictionEngine
                 .ThenBy(m => m.MatchId, StringComparer.Ordinal)
                 .ToList();
 
-            var matchDataList = RealMatchDatasetCollector.ExtractFeaturesFromMatches(orderedMatches);
+            // Optional newest-N cap (2GB VPS) — same ExtractFeatures maxRows path as lab horizons.
+            var matchDataList = RealMatchDatasetCollector.ExtractFeaturesFromMatches(
+                orderedMatches, PredictionHorizons.Early, timelineLookup: null, maxRows: MaxTrainRows);
 
             if (matchDataList.Count >= 10)
             {
@@ -577,42 +583,59 @@ public class MatchPredictionEngine : IPredictionEngine
                         _ensembleTreeWeight = ModelBenchmarkService.OptimizeEnsembleTreeWeight(
                             treeEngine, forestEngine, calSet, previousWeight: _ensembleTreeWeight);
 
+                        // Decide specialist refresh before holdout fits (pass counter bumps with ablation below).
+                        var nextPass = _completedTrainPasses + 1;
+                        var runSpecialists = SpecialistIntervalEpochs <= 1
+                            || nextPass == 1
+                            || (nextPass % SpecialistIntervalEpochs == 0);
+
                         PredictionEngine<MatchInputData, MatchPrediction>? highEloEngine = null;
-                        var highTrain = trainSet
-                            .Where(r => r.HasKnownRank > 0.5f
-                                        && r.AvgRankScore >= ModelBenchmarkService.HighEloRankThreshold)
-                            .ToList();
-                        if (highTrain.Count >= 180)
-                        {
-                            var highView = _mlContext.Data.LoadFromEnumerable(highTrain);
-                            var highModel = treePipeline.Fit(highView);
-                            highEloEngine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(highModel);
-                        }
-
                         PredictionEngine<MatchInputData, MatchPrediction>? midEloEngine = null;
-                        var midTrain = trainSet
-                            .Where(r => r.HasKnownRank > 0.5f
-                                        && r.AvgRankScore >= ModelBenchmarkService.MidEloRankMin
-                                        && r.AvgRankScore < ModelBenchmarkService.MidEloRankMax)
-                            .ToList();
-                        if (midTrain.Count >= 220)
-                        {
-                            var midView = _mlContext.Data.LoadFromEnumerable(midTrain);
-                            var midModel = treePipeline.Fit(midView);
-                            midEloEngine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(midModel);
-                        }
-
                         PredictionEngine<MatchInputData, MatchPrediction>? lowEloEngine = null;
-                        var lowTrain = trainSet
-                            .Where(r => r.HasKnownRank > 0.5f
-                                        && r.AvgRankScore > 0
-                                        && r.AvgRankScore < ModelBenchmarkService.LowEloRankMax)
-                            .ToList();
-                        if (lowTrain.Count >= 180)
+
+                        if (runSpecialists)
                         {
-                            var lowView = _mlContext.Data.LoadFromEnumerable(lowTrain);
-                            var lowModel = treePipeline.Fit(lowView);
-                            lowEloEngine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(lowModel);
+                            var highTrain = trainSet
+                                .Where(r => r.HasKnownRank > 0.5f
+                                            && r.AvgRankScore >= ModelBenchmarkService.HighEloRankThreshold)
+                                .ToList();
+                            if (highTrain.Count >= 180)
+                            {
+                                var highView = _mlContext.Data.LoadFromEnumerable(highTrain);
+                                var highModel = treePipeline.Fit(highView);
+                                highEloEngine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(highModel);
+                            }
+
+                            var midTrain = trainSet
+                                .Where(r => r.HasKnownRank > 0.5f
+                                            && r.AvgRankScore >= ModelBenchmarkService.MidEloRankMin
+                                            && r.AvgRankScore < ModelBenchmarkService.MidEloRankMax)
+                                .ToList();
+                            if (midTrain.Count >= 220)
+                            {
+                                var midView = _mlContext.Data.LoadFromEnumerable(midTrain);
+                                var midModel = treePipeline.Fit(midView);
+                                midEloEngine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(midModel);
+                            }
+
+                            var lowTrain = trainSet
+                                .Where(r => r.HasKnownRank > 0.5f
+                                            && r.AvgRankScore > 0
+                                            && r.AvgRankScore < ModelBenchmarkService.LowEloRankMax)
+                                .ToList();
+                            if (lowTrain.Count >= 180)
+                            {
+                                var lowView = _mlContext.Data.LoadFromEnumerable(lowTrain);
+                                var lowModel = treePipeline.Fit(lowView);
+                                lowEloEngine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(lowModel);
+                            }
+                        }
+                        else
+                        {
+                            // Keep prior specialist engines for metrics / blend; skip 3× FastTree fits.
+                            highEloEngine = _highEloEngine;
+                            midEloEngine = _midEloEngine;
+                            lowEloEngine = _lowEloEngine;
                         }
 
                         _specialistBlendWeight = ModelBenchmarkService.OptimizeSpecialistBlendWeight(
@@ -699,31 +722,35 @@ public class MatchPredictionEngine : IPredictionEngine
                         _model = treePipeline.Fit(dataView);
                         _ensembleForestModel = forestPipeline.Fit(dataView);
 
-                        var highFull = matchDataList
-                            .Where(r => r.HasKnownRank > 0.5f
-                                        && r.AvgRankScore >= ModelBenchmarkService.HighEloRankThreshold)
-                            .ToList();
-                        _highEloModel = highFull.Count >= 180
-                            ? treePipeline.Fit(_mlContext.Data.LoadFromEnumerable(highFull))
-                            : null;
+                        if (runSpecialists)
+                        {
+                            var highFull = matchDataList
+                                .Where(r => r.HasKnownRank > 0.5f
+                                            && r.AvgRankScore >= ModelBenchmarkService.HighEloRankThreshold)
+                                .ToList();
+                            _highEloModel = highFull.Count >= 180
+                                ? treePipeline.Fit(_mlContext.Data.LoadFromEnumerable(highFull))
+                                : null;
 
-                        var midFull = matchDataList
-                            .Where(r => r.HasKnownRank > 0.5f
-                                        && r.AvgRankScore >= ModelBenchmarkService.MidEloRankMin
-                                        && r.AvgRankScore < ModelBenchmarkService.MidEloRankMax)
-                            .ToList();
-                        _midEloModel = midFull.Count >= 220
-                            ? treePipeline.Fit(_mlContext.Data.LoadFromEnumerable(midFull))
-                            : null;
+                            var midFull = matchDataList
+                                .Where(r => r.HasKnownRank > 0.5f
+                                            && r.AvgRankScore >= ModelBenchmarkService.MidEloRankMin
+                                            && r.AvgRankScore < ModelBenchmarkService.MidEloRankMax)
+                                .ToList();
+                            _midEloModel = midFull.Count >= 220
+                                ? treePipeline.Fit(_mlContext.Data.LoadFromEnumerable(midFull))
+                                : null;
 
-                        var lowFull = matchDataList
-                            .Where(r => r.HasKnownRank > 0.5f
-                                        && r.AvgRankScore > 0
-                                        && r.AvgRankScore < ModelBenchmarkService.LowEloRankMax)
-                            .ToList();
-                        _lowEloModel = lowFull.Count >= 180
-                            ? treePipeline.Fit(_mlContext.Data.LoadFromEnumerable(lowFull))
-                            : null;
+                            var lowFull = matchDataList
+                                .Where(r => r.HasKnownRank > 0.5f
+                                            && r.AvgRankScore > 0
+                                            && r.AvgRankScore < ModelBenchmarkService.LowEloRankMax)
+                                .ToList();
+                            _lowEloModel = lowFull.Count >= 180
+                                ? treePipeline.Fit(_mlContext.Data.LoadFromEnumerable(lowFull))
+                                : null;
+                        }
+                        // else: keep prior _high/_mid/_low elo models + zips (lighter 2GB path).
                     }
                     else
                     {

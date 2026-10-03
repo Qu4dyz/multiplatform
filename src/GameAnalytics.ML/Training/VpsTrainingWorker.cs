@@ -1,11 +1,18 @@
 using GameAnalytics.Core.Entities;
 using GameAnalytics.Core.Interfaces;
-using GameAnalytics.ML.Training;
+using GameAnalytics.ML.Engine;
 
 namespace GameAnalytics.ML.Training;
 
 public class VpsTrainingWorker
 {
+    /// <summary>Full early FastTree/ensemble retrain cadence on 2GB VPS (crawl still every epoch).</summary>
+    public const int RetrainIntervalEpochs = 4;
+    /// <summary>Lab mid/late (m25/m35) cadence — Tree-only, kept rarer than early retrain.</summary>
+    public const int LabHorizonIntervalEpochs = 10;
+    /// <summary>Newest-N cap for early train rows on 2GB hosts (same style as horizon maxRows).</summary>
+    public const int EarlyTrainMaxRows = 20_000;
+
     private readonly IRiotApiClient _apiClient;
     private readonly IMatchRepository _matchRepo;
     private readonly IPredictionEngine _predictionEngine;
@@ -43,6 +50,7 @@ public class VpsTrainingWorker
         CurrentEpoch = epoch;
         log($"[VPS ML Trainer] Запуск автономного тренувального демона на VPS...");
         log($"[VPS ML Trainer] Початковий гравець (seed PUUID): {seedPuuid}");
+        log($"[VPS ML Trainer] 2GB cadence: crawl кожен цикл; early retrain epoch 1 / %{RetrainIntervalEpochs}; lab m25/m35 %{LabHorizonIntervalEpochs}.");
 
         while (!ct.IsCancellationRequested)
         {
@@ -52,14 +60,32 @@ public class VpsTrainingWorker
                 log($"[VPS ML Trainer] === Епоха #{epoch} розпочата: збір реальних матчів ===");
                 var newMatches = await collector.CollectRankedMatchesAsync(seedPuuid, batchSize, log, ct);
 
-                var allMatches = await _matchRepo.GetAllMatchesAsync(ct);
-                log($"[VPS ML Trainer] Всього матчів у базі даних: {allMatches.Count} (нових у цій епосі: {newMatches})");
+                // Retrain schedule is independent of +N crawl hits — otherwise +50/epoch forces full RAM train every cycle.
+                var shouldRetrain = epoch == 1 || epoch % RetrainIntervalEpochs == 0;
+                var shouldLabHorizons = epoch % LabHorizonIntervalEpochs == 0;
+                var needMatchGraph = shouldRetrain || shouldLabHorizons;
 
-                // On tiny VPS: skip full retrain when crawl added nothing (still refresh every 4th epoch).
-                var shouldTrain = newMatches > 0 || epoch == 1 || epoch % 4 == 0;
-                if (allMatches.Count >= 5 && shouldTrain)
+                int totalMatches;
+                IReadOnlyList<Match>? allMatches = null;
+                if (needMatchGraph)
                 {
-                    log($"[VPS ML Trainer] Навчання моделі {_predictionEngine.ActiveAlgorithm} на реальних даних...");
+                    allMatches = await _matchRepo.GetAllMatchesAsync(ct);
+                    totalMatches = allMatches.Count;
+                }
+                else
+                {
+                    // Count-only path: avoid materializing ~47k matches + participants into RAM.
+                    totalMatches = await _matchRepo.GetTotalMatchesCountAsync(ct);
+                }
+
+                log($"[VPS ML Trainer] Всього матчів у базі даних: {totalMatches} (нових у цій епосі: {newMatches})");
+
+                if (totalMatches >= 5 && shouldRetrain && allMatches != null)
+                {
+                    log($"[VPS ML Trainer] Навчання моделі {_predictionEngine.ActiveAlgorithm} на реальних даних (cap {EarlyTrainMaxRows} newest)...");
+                    if (_predictionEngine is MatchPredictionEngine mpe)
+                        mpe.MaxTrainRows = EarlyTrainMaxRows;
+
                     await _predictionEngine.TrainModelAsync(allMatches, ct);
 
                     if (_predictionEngine.CurrentModelMetrics != null)
@@ -100,29 +126,29 @@ public class VpsTrainingWorker
                     // Release training graphs ASAP on 1–2GB VPS hosts.
                     GC.Collect(2, GCCollectionMode.Aggressive, blocking: true, compacting: true);
                     GC.WaitForPendingFinalizers();
-
-                    // Lab mid/late: every 10th epoch only, Tree-only, subsampled — avoid OOM on 2GB.
-                    if (epoch % 10 == 0)
-                    {
-                        Func<string, MatchTimelineData?> timelineLookup = id =>
-                            _matchRepo.GetCachedTimelineAsync(id).GetAwaiter().GetResult();
-
-                        foreach (var minute in new[] { PredictionHorizons.Mid, PredictionHorizons.Late })
-                        {
-                            log($"[VPS ML Trainer] Lab horizon train @{minute}' (FastTree only, max 12k rows)...");
-                            await _predictionEngine.TrainHorizonModelAsync(
-                                allMatches, minute, timelineLookup, maxRows: 12_000, ct);
-                            GC.Collect(2, GCCollectionMode.Aggressive, blocking: true, compacting: true);
-                            GC.WaitForPendingFinalizers();
-                            log(_predictionEngine.HasHorizonModel(minute)
-                                ? $"[VPS ML Trainer] Lab model ready: {PredictionHorizons.ModelFileName(minute)}"
-                                : $"[VPS ML Trainer] Lab @{minute}' skipped (insufficient horizon rows / timelines).");
-                        }
-                    }
                 }
-                else if (allMatches.Count >= 5)
+                else if (totalMatches >= 5 && !shouldRetrain)
                 {
-                    log($"[VPS ML Trainer] Пропуск retrain (нових матчів немає) — економія CPU/RAM на VPS.");
+                    log($"[VPS ML Trainer] Пропуск early retrain (епоха #{epoch}; наступний на 1/%{RetrainIntervalEpochs}) — crawl продовжується, RAM збережено.");
+                }
+
+                // Lab mid/late: every 10th epoch only, Tree-only, subsampled — independent of early retrain schedule.
+                if (totalMatches >= 5 && shouldLabHorizons && allMatches != null)
+                {
+                    Func<string, MatchTimelineData?> timelineLookup = id =>
+                        _matchRepo.GetCachedTimelineAsync(id).GetAwaiter().GetResult();
+
+                    foreach (var minute in new[] { PredictionHorizons.Mid, PredictionHorizons.Late })
+                    {
+                        log($"[VPS ML Trainer] Lab horizon train @{minute}' (FastTree only, max 12k rows)...");
+                        await _predictionEngine.TrainHorizonModelAsync(
+                            allMatches, minute, timelineLookup, maxRows: 12_000, ct);
+                        GC.Collect(2, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+                        GC.WaitForPendingFinalizers();
+                        log(_predictionEngine.HasHorizonModel(minute)
+                            ? $"[VPS ML Trainer] Lab model ready: {PredictionHorizons.ModelFileName(minute)}"
+                            : $"[VPS ML Trainer] Lab @{minute}' skipped (insufficient horizon rows / timelines).");
+                    }
                 }
 
                 epoch++;
@@ -149,4 +175,3 @@ public class VpsTrainingWorker
         }
     }
 }
-
