@@ -673,10 +673,30 @@ public class RealMatchDatasetCollector
             .ThenBy(m => m.MatchId, StringComparer.Ordinal)
             .ToList();
 
-        // 2GB VPS: optionally keep only the newest N source matches (still chronological for rolling WR).
-        // Used for lab mid/late (12k) and early retrain cap (~20k) when set by the trainer.
-        if (maxRows is > 0 && ordered.Count > maxRows.Value)
-            ordered = ordered.Skip(ordered.Count - maxRows.Value).ToList();
+        var minDuration = predictionMinute * 60;
+        var isLabHorizon = predictionMinute is PredictionHorizons.Mid or PredictionHorizons.Late;
+
+        // 2GB VPS caps:
+        // - early: newest N source matches (HasMinute15 filter still applies below)
+        // - lab mid/late: newest N duration/queue-eligible matches (avoids short games eating the budget)
+        if (maxRows is > 0)
+        {
+            if (isLabHorizon)
+            {
+                var durationEligible = ordered
+                    .Where(m => !m.IsRemake
+                                && m.GameDurationSeconds >= Math.Max(300, minDuration)
+                                && (m.QueueId == 420 || m.QueueId == 0))
+                    .ToList();
+                ordered = durationEligible.Count > maxRows.Value
+                    ? durationEligible.Skip(durationEligible.Count - maxRows.Value).ToList()
+                    : durationEligible;
+            }
+            else if (ordered.Count > maxRows.Value)
+            {
+                ordered = ordered.Skip(ordered.Count - maxRows.Value).ToList();
+            }
+        }
 
         var champWins = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var champGames = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -685,7 +705,6 @@ public class RealMatchDatasetCollector
         var botDuoWins = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var botDuoGames = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var result = new List<MatchInputData>();
-        var minDuration = predictionMinute * 60;
 
         foreach (var match in ordered)
         {

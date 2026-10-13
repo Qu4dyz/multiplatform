@@ -62,7 +62,7 @@ public interface IPredictionEngine
         IEnumerable<Match> historicalMatches,
         int predictionMinute,
         Func<string, MatchTimelineData?> timelineLookup,
-        int? maxRows = 12_000,
+        int? maxRows = 5_000,
         CancellationToken ct = default);
     ModelBenchmarkReport RunAlgorithmsBenchmark(int sampleCount = 2000);
     void SetActiveAlgorithm(GameAnalytics.Core.Enums.MLAlgorithmType algorithm);

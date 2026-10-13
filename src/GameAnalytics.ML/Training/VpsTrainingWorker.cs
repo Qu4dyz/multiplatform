@@ -8,10 +8,12 @@ public class VpsTrainingWorker
 {
     /// <summary>Full early FastTree/ensemble retrain cadence on 2GB VPS (crawl still every epoch).</summary>
     public const int RetrainIntervalEpochs = 4;
-    /// <summary>Lab mid/late (m25/m35) cadence — Tree-only, kept rarer than early retrain.</summary>
-    public const int LabHorizonIntervalEpochs = 10;
+    /// <summary>Lab mid/late (m25/m35) cadence — rarer than early; Tree-only + hard row cap.</summary>
+    public const int LabHorizonIntervalEpochs = 20;
     /// <summary>Newest-N cap for early train rows on 2GB hosts (same style as horizon maxRows).</summary>
     public const int EarlyTrainMaxRows = 20_000;
+    /// <summary>Newest duration-eligible rows for lab m25/m35 (was 12k — hung the 2GB host after epoch 60).</summary>
+    public const int LabHorizonMaxRows = 5_000;
 
     private readonly IRiotApiClient _apiClient;
     private readonly IMatchRepository _matchRepo;
@@ -50,7 +52,7 @@ public class VpsTrainingWorker
         CurrentEpoch = epoch;
         log($"[VPS ML Trainer] Запуск автономного тренувального демона на VPS...");
         log($"[VPS ML Trainer] Початковий гравець (seed PUUID): {seedPuuid}");
-        log($"[VPS ML Trainer] 2GB cadence: crawl кожен цикл; early retrain epoch 1 / %{RetrainIntervalEpochs}; lab m25/m35 %{LabHorizonIntervalEpochs}.");
+        log($"[VPS ML Trainer] 2GB cadence: crawl кожен цикл; early retrain epoch 1 / %{RetrainIntervalEpochs}; lab m25/m35 %{LabHorizonIntervalEpochs} (cap {LabHorizonMaxRows} rows + memory guard).");
 
         while (!ct.IsCancellationRequested)
         {
@@ -124,32 +126,23 @@ public class VpsTrainingWorker
                     log($"[VPS ML Trainer] Модель успішно експортована в директорію models/{_predictionEngine.ActiveAlgorithm.ToString().ToLower()}_model.zip.");
 
                     // Release training graphs ASAP on 1–2GB VPS hosts.
-                    GC.Collect(2, GCCollectionMode.Aggressive, blocking: true, compacting: true);
-                    GC.WaitForPendingFinalizers();
+                    ForceGc();
                 }
                 else if (totalMatches >= 5 && !shouldRetrain)
                 {
                     log($"[VPS ML Trainer] Пропуск early retrain (епоха #{epoch}; наступний на 1/%{RetrainIntervalEpochs}) — crawl продовжується, RAM збережено.");
                 }
 
-                // Lab mid/late: every 10th epoch only, Tree-only, subsampled — independent of early retrain schedule.
+                // Lab mid/late: rare Tree-only trains; memory-guarded; never abort the crawl loop on OOM.
                 if (totalMatches >= 5 && shouldLabHorizons && allMatches != null)
                 {
-                    Func<string, MatchTimelineData?> timelineLookup = id =>
-                        _matchRepo.GetCachedTimelineAsync(id).GetAwaiter().GetResult();
-
-                    foreach (var minute in new[] { PredictionHorizons.Mid, PredictionHorizons.Late })
-                    {
-                        log($"[VPS ML Trainer] Lab horizon train @{minute}' (FastTree only, max 12k rows)...");
-                        await _predictionEngine.TrainHorizonModelAsync(
-                            allMatches, minute, timelineLookup, maxRows: 12_000, ct);
-                        GC.Collect(2, GCCollectionMode.Aggressive, blocking: true, compacting: true);
-                        GC.WaitForPendingFinalizers();
-                        log(_predictionEngine.HasHorizonModel(minute)
-                            ? $"[VPS ML Trainer] Lab model ready: {PredictionHorizons.ModelFileName(minute)}"
-                            : $"[VPS ML Trainer] Lab @{minute}' skipped (insufficient horizon rows / timelines).");
-                    }
+                    await RunLabHorizonTrainsAsync(allMatches, log, ct);
                 }
+
+                // Drop match graph before idle wait so HTTP sync has headroom.
+                allMatches = null;
+                if (needMatchGraph)
+                    ForceGc();
 
                 epoch++;
                 CurrentEpoch = epoch;
@@ -173,5 +166,96 @@ public class VpsTrainingWorker
                 try { await Task.Delay(TimeSpan.FromSeconds(30), ct); } catch { break; }
             }
         }
+    }
+
+    /// <summary>
+    /// Lab m25/m35: slim newest-eligible pool, GC, memory guard, per-horizon try/catch skip.
+    /// Keeps prior zip files when a train is skipped. Does not throw — crawl must continue.
+    /// </summary>
+    private async Task RunLabHorizonTrainsAsync(
+        IReadOnlyList<Match> allMatches,
+        Action<string> log,
+        CancellationToken ct)
+    {
+        ForceGc();
+
+        if (!VpsMemoryGuard.ShouldAllowHeavyTrain(out var memReason))
+        {
+            log($"[VPS ML Trainer] Пропуск lab m25/m35 (memory guard): {memReason}. Старі zip лишаються; crawl продовжується.");
+            return;
+        }
+
+        log($"[VPS ML Trainer] Memory guard OK ({memReason}) — lab horizon train (cap {LabHorizonMaxRows} newest eligible).");
+
+        // Slim once: newest long-enough ranked games only — do not feed the full 50k graph into FastTree.
+        var labPool = SlimLabCandidatePool(allMatches, LabHorizonMaxRows);
+        log($"[VPS ML Trainer] Lab candidate pool: {labPool.Count} matches (from {allMatches.Count} total).");
+
+        Func<string, MatchTimelineData?> timelineLookup = id =>
+            _matchRepo.GetCachedTimelineAsync(id).GetAwaiter().GetResult();
+
+        foreach (var minute in new[] { PredictionHorizons.Mid, PredictionHorizons.Late })
+        {
+            ct.ThrowIfCancellationRequested();
+
+            ForceGc();
+            if (!VpsMemoryGuard.ShouldAllowHeavyTrain(out var beforeReason))
+            {
+                log($"[VPS ML Trainer] Пропуск lab @{minute}' (memory guard): {beforeReason}. Старий zip лишається.");
+                continue;
+            }
+
+            try
+            {
+                log($"[VPS ML Trainer] Lab horizon train @{minute}' (FastTree only, max {LabHorizonMaxRows} rows)...");
+                // Yield so HttpListener accept/handlers can run before the CPU-heavy Fit.
+                await Task.Yield();
+                await _predictionEngine.TrainHorizonModelAsync(
+                    labPool, minute, timelineLookup, maxRows: LabHorizonMaxRows, ct);
+                log(_predictionEngine.HasHorizonModel(minute)
+                    ? $"[VPS ML Trainer] Lab model ready: {PredictionHorizons.ModelFileName(minute)}"
+                    : $"[VPS ML Trainer] Lab @{minute}' skipped (insufficient horizon rows / timelines).");
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (OutOfMemoryException ex)
+            {
+                log($"[VPS ML Trainer] Lab @{minute}' OOM — skip, keep old zip: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                log($"[VPS ML Trainer] Lab @{minute}' error — skip, keep old zip: {ex.Message}");
+            }
+            finally
+            {
+                ForceGc();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Newest duration-eligible ranked matches for lab (mid threshold so one pool serves m25+m35).
+    /// Avoids retaining the full GetAllMatchesAsync graph inside FastTree featurization.
+    /// </summary>
+    internal static List<Match> SlimLabCandidatePool(IReadOnlyList<Match> allMatches, int maxRows)
+    {
+        var minDuration = PredictionHorizons.Mid * 60;
+        return allMatches
+            .Where(m => !m.IsRemake
+                        && m.GameDurationSeconds >= Math.Max(300, minDuration)
+                        && (m.QueueId == 420 || m.QueueId == 0))
+            .OrderByDescending(m => m.GameCreation)
+            .ThenByDescending(m => m.MatchId, StringComparer.Ordinal)
+            .Take(maxRows)
+            .ToList();
+    }
+
+    private static void ForceGc()
+    {
+        GC.Collect(2, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+        GC.WaitForPendingFinalizers();
+        GC.Collect(2, GCCollectionMode.Aggressive, blocking: true, compacting: true);
     }
 }

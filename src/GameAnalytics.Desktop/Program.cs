@@ -124,7 +124,7 @@ sealed class Program
         };
 
         // 2GB VPS knobs (personal Riot app still caps at 20/1s + 100/120s per region).
-        // Early retrain is every 4th epoch in VpsTrainingWorker; ablation/specialists rarer still.
+        // Early retrain every 4th epoch; lab m25/m35 every 20th + memory guard + 5k row cap.
         // Documented in docs/vps-deploy.md — do not push past app limits without a production key.
         if (predictionEngine is MatchPredictionEngine mpe)
         {

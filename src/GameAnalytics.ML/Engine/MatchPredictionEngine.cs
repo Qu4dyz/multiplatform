@@ -808,12 +808,13 @@ public class MatchPredictionEngine : IPredictionEngine
     /// <summary>
     /// Lab mid/late FastTree-only train. Reuses MatchInputData schema (*15 columns = at-horizon).
     /// No elo specialists / ablation — keeps 2GB VPS RAM in check. Call less often than early train.
+    /// Caller should pass a pre-slimmed newest-eligible pool; default cap is 5k (was 12k).
     /// </summary>
     public Task TrainHorizonModelAsync(
         IEnumerable<Match> historicalMatches,
         int predictionMinute,
         Func<string, MatchTimelineData?> timelineLookup,
-        int? maxRows = 12_000,
+        int? maxRows = 5_000,
         CancellationToken ct = default)
     {
         if (predictionMinute is not (PredictionHorizons.Mid or PredictionHorizons.Late))
@@ -821,13 +822,11 @@ public class MatchPredictionEngine : IPredictionEngine
 
         return Task.Run(() =>
         {
-            var orderedMatches = historicalMatches
-                .OrderBy(m => m.GameCreation)
-                .ThenBy(m => m.MatchId, StringComparer.Ordinal)
-                .ToList();
+            // Prefer the caller's list as-is when already materialized — avoid a full extra copy of 50k matches.
+            IList<Match> source = historicalMatches as IList<Match> ?? historicalMatches.ToList();
 
             var matchDataList = RealMatchDatasetCollector.ExtractFeaturesFromMatches(
-                orderedMatches, predictionMinute, timelineLookup, maxRows);
+                source, predictionMinute, timelineLookup, maxRows);
 
             if (matchDataList.Count < 10) return;
 
@@ -847,6 +846,9 @@ public class MatchPredictionEngine : IPredictionEngine
                 else
                     _m35Engine = engine;
             }
+
+            // Drop feature rows ASAP; engines keep only the fitted model.
+            matchDataList.Clear();
         }, ct);
     }
 }
