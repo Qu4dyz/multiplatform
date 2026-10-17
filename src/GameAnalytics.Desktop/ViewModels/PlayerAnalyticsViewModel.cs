@@ -140,6 +140,13 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
     [ObservableProperty]
     private bool _hasRankProgress;
 
+    /// <summary>True while the hero card shows a profile rebuilt from cached matches (no Riot data yet).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasLiveProfile))]
+    private bool _isProfilePlaceholder;
+
+    public bool HasLiveProfile => !IsProfilePlaceholder;
+
     [ObservableProperty]
     private GlobalCoachingReport? _coachingReport;
 
@@ -388,6 +395,8 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
 
             if (profile != null)
             {
+                await ResolveMasteryNamesAsync(profile);
+                IsProfilePlaceholder = false;
                 Summoner = profile;
                 TierBadgeColor = GetTierColor(profile.Tier);
                 ProfileIconBitmap = BitmapAssetValueConverter.GetOrLoadBitmap(profile.ProfileIconUrl, bmp => ProfileIconBitmap = bmp);
@@ -524,18 +533,18 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
             var profile = Summoner;
             if (profile == null || !profile.GameName.Equals(gameName, StringComparison.OrdinalIgnoreCase))
             {
+                IsProfilePlaceholder = true;
+                ProfileIconBitmap = null;
                 profile = new SummonerProfile
                 {
+                    // Rank, level and record belong to the previous player here; leave them empty
+                    // and let the view hide them until Riot answers.
                     Puuid = puuid,
                     GameName = gameName,
                     TagLine = tagLine,
-                    SummonerLevel = Summoner?.SummonerLevel ?? 0,
-                    ProfileIconId = Summoner?.ProfileIconId ?? 1,
-                    Tier = Summoner?.Tier ?? GameTier.Unranked,
-                    Rank = Summoner?.Rank ?? string.Empty,
-                    LeaguePoints = Summoner?.LeaguePoints ?? 0,
-                    Wins = Summoner?.Wins ?? 0,
-                    Losses = Summoner?.Losses ?? 0
+                    ProfileIconId = 1,
+                    Tier = GameTier.Unranked,
+                    Rank = string.Empty
                 };
                 Summoner = profile;
                 TierBadgeColor = GetTierColor(profile.Tier);
@@ -894,13 +903,12 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
         SessionNetLpText = netLp > 0 ? $"+{netLp} LP" : (netLp < 0 ? $"{netLp} LP" : "0 LP");
         SessionNetLpColor = netLp > 0 ? "#0AC8B9" : (netLp < 0 ? "#E84057" : "#8A93A5");
 
-        if (Summoner != null)
+        if (Summoner != null && !IsProfilePlaceholder)
         {
-            var lp = Summoner.LeaguePoints;
-            NextTierProgressValue = Math.Clamp(lp, 0, 100);
-            var nextTierName = GetNextTierName(Summoner.Tier, Summoner.Rank);
-            NextTierProgressText = $"{lp} / 100 LP до {nextTierName}";
-            HasRankProgress = true;
+            var (show, value, text) = BuildRankProgress(Summoner.Tier, Summoner.Rank, Summoner.LeaguePoints);
+            HasRankProgress = show;
+            NextTierProgressValue = value;
+            NextTierProgressText = text;
         }
         else
         {
@@ -1009,6 +1017,44 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
         var report = GlobalCoachingAnalyzer.Analyze(list, Summoner?.Puuid ?? GameName);
         CoachingReport = report;
         HasCoachingData = report != null && report.TotalMatchesAnalyzed > 0;
+    }
+
+    /// <summary>
+    /// Progress line under the rank badge. Unranked players have nothing to show; Master and above
+    /// have no divisions, so LP is open-ended there.
+    /// </summary>
+    internal static (bool Show, int Value, string Text) BuildRankProgress(GameTier tier, string? rank, int leaguePoints)
+    {
+        if (tier == GameTier.Unranked)
+            return (false, 0, string.Empty);
+
+        var lp = Math.Max(0, leaguePoints);
+        if (tier >= GameTier.Master)
+            return (true, 100, $"{lp} LP · без дивізіонів");
+
+        return (true, Math.Clamp(lp, 0, 100), $"{lp} / 100 LP до {GetNextTierName(tier, rank ?? string.Empty)}");
+    }
+
+    /// <summary>
+    /// Mastery names come from an id lookup that is only complete after Data Dragon's champion list
+    /// was fetched once; otherwise chips read "Champion 60". Load it and re-resolve.
+    /// </summary>
+    internal async Task ResolveMasteryNamesAsync(SummonerProfile profile)
+    {
+        static bool Unresolved(ChampionMasteryInfo m) =>
+            string.IsNullOrWhiteSpace(m.ChampionName) || m.ChampionName.StartsWith("Champion ", StringComparison.Ordinal);
+
+        if (profile.TopMasteries.Count == 0 || !profile.TopMasteries.Any(Unresolved))
+            return;
+
+        if (_dataDragonService != null)
+        {
+            try { await _dataDragonService.GetAllChampionsAsync(); }
+            catch { /* offline: keep whatever names we have */ }
+        }
+
+        foreach (var m in profile.TopMasteries.Where(Unresolved))
+            m.ChampionName = GameAnalytics.Core.Helpers.ChampionNameHelper.GetChampionNameById((int)m.ChampionId);
     }
 
     private static string GetNextTierName(GameTier tier, string rank)

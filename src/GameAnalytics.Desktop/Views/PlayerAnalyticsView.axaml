@@ -10,10 +10,6 @@
              x:DataType="vm:PlayerAnalyticsViewModel"
              RenderOptions.BitmapInterpolationMode="HighQuality">
 
-    <UserControl.Resources>
-        <conv:BitmapAssetValueConverter x:Key="BitmapAssetConverter" />
-    </UserControl.Resources>
-
     <UserControl.Styles>
         <!-- Button Hover Animation -->
         <Style Selector="Button.action-btn">
@@ -298,9 +294,31 @@
             </Border>
 
             <!-- 2. HERO ROW: SUMMONER PROFILE (LEFT) & AI MOMENTUM WIDGET (RIGHT) -->
-            <Grid ColumnDefinitions="1.5*, *" Margin="0,0,0,16" IsVisible="{Binding Summoner, Converter={x:Static ObjectConverters.IsNotNull}}">
+            <!-- Stacks vertically when the content area is narrow (small window or 115/125% scale). -->
+            <Grid ColumnDefinitions="1.5*, *"
+                  RowDefinitions="Auto, Auto"
+                  Margin="0,0,0,16"
+                  Container.Name="hero"
+                  Container.Sizing="Width"
+                  IsVisible="{Binding Summoner, Converter={x:Static ObjectConverters.IsNotNull}}">
+                <Grid.Styles>
+                    <ContainerQuery Name="hero" Query="max-width:900">
+                        <Style Selector="Border.hero-profile">
+                            <Setter Property="Grid.ColumnSpan" Value="2" />
+                            <Setter Property="Margin" Value="0,0,0,12" />
+                        </Style>
+                        <Style Selector="Border.hero-momentum">
+                            <Setter Property="Grid.Column" Value="0" />
+                            <Setter Property="Grid.Row" Value="1" />
+                            <Setter Property="Grid.ColumnSpan" Value="2" />
+                            <Setter Property="Margin" Value="0" />
+                        </Style>
+                    </ContainerQuery>
+                </Grid.Styles>
+
                 <!-- Left: Summoner Profile Hextech Card -->
                 <Border Grid.Column="0"
+                        Classes="hero-profile"
                         Background="#131522"
                         CornerRadius="14"
                         Padding="18"
@@ -311,17 +329,24 @@
                         <!-- Top Row: Icon, Identity, WinRate -->
                         <Grid Grid.Row="0" ColumnDefinitions="Auto, *, Auto">
                             <!-- Profile Icon with Level Badge -->
-                            <Grid Grid.Column="0" Margin="0,0,16,0" VerticalAlignment="Center">
+                            <Grid Grid.Column="0" Margin="0,0,16,8" VerticalAlignment="Center">
                                 <Border Width="76" Height="76"
                                         CornerRadius="38"
                                         ClipToBounds="True"
                                         Background="#181B2B"
                                         BorderBrush="{Binding TierBadgeColor}"
                                         BorderThickness="2.5">
-                                    <Image Source="{Binding ProfileIconBitmap}"
-                                           Width="76" Height="76"
-                                           Stretch="UniformToFill"
-                                           RenderOptions.BitmapInterpolationMode="HighQuality" />
+                                    <Panel>
+                                        <TextBlock Text="👤"
+                                                   FontSize="30"
+                                                   Opacity="0.35"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"
+                                                   IsVisible="{Binding ProfileIconBitmap, Converter={x:Static ObjectConverters.IsNull}}" />
+                                        <Image Source="{Binding ProfileIconBitmap}"
+                                               Stretch="UniformToFill"
+                                               RenderOptions.BitmapInterpolationMode="HighQuality" />
+                                    </Panel>
                                 </Border>
 
                                 <!-- Level Tag -->
@@ -332,7 +357,8 @@
                                         Padding="7,2"
                                         HorizontalAlignment="Center"
                                         VerticalAlignment="Bottom"
-                                        Margin="0,0,0,-8">
+                                        Margin="0,0,0,-8"
+                                        IsVisible="{Binding HasLiveProfile}">
                                     <TextBlock Text="{Binding Summoner.SummonerLevel, StringFormat='Рівень {0}'}"
                                                FontSize="11"
                                                FontWeight="Bold"
@@ -340,30 +366,34 @@
                                 </Border>
                             </Grid>
 
-                            <!-- Identity & Rank -->
-                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="7">
-                                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <!-- Identity & Rank (wraps instead of running under the win-rate box) -->
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="7" Margin="0,0,12,0">
+                                <WrapPanel Orientation="Horizontal" ItemSpacing="8" LineSpacing="4">
                                     <TextBlock Text="{Binding Summoner.GameName}"
                                                FontSize="22"
                                                FontWeight="Bold"
-                                               Foreground="#F8FAFC" />
+                                               Foreground="#F8FAFC"
+                                               TextTrimming="CharacterEllipsis"
+                                               MaxWidth="260" />
                                     <TextBlock Text="{Binding Summoner.TagLine, StringFormat='#{0}'}"
                                                FontSize="19"
                                                FontWeight="Bold"
-                                               Foreground="#A78BFA" />
+                                               Foreground="#A78BFA"
+                                               VerticalAlignment="Center" />
                                     <Border Background="#181B2B" CornerRadius="4" Padding="6,2" VerticalAlignment="Center" BorderBrush="#252A42" BorderThickness="1">
                                         <TextBlock Text="{Binding SelectedRegion.DisplayName}"
                                                    FontSize="11"
                                                    FontWeight="SemiBold"
                                                    Foreground="#C4B5FD" />
                                     </Border>
-                                </StackPanel>
+                                </WrapPanel>
 
                                 <!-- Ranked Tier & LP -->
-                                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                <WrapPanel Orientation="Horizontal" ItemSpacing="8" LineSpacing="4" IsVisible="{Binding HasLiveProfile}">
                                     <Border Background="{Binding TierBadgeColor}"
                                             CornerRadius="4"
-                                            Padding="7,2">
+                                            Padding="7,2"
+                                            VerticalAlignment="Center">
                                         <TextBlock Text="{Binding Summoner.Tier, StringFormat='{}{0}'}"
                                                    FontSize="12"
                                                    FontWeight="Bold"
@@ -388,25 +418,36 @@
                                                    Foreground="#94A3B8"
                                                    FontWeight="SemiBold" />
                                     </Border>
-                                </StackPanel>
+                                </WrapPanel>
+
+                                <!-- Profile rebuilt from cache: Riot did not answer yet -->
+                                <TextBlock Text="Профіль з локального кешу: ранг, рівень і вінрейт з'являться після відповіді Riot API."
+                                           FontSize="11"
+                                           Foreground="#94A3B8"
+                                           TextWrapping="Wrap"
+                                           IsVisible="{Binding IsProfilePlaceholder}" />
 
                                 <!-- Promo / Next Tier Progress -->
-                                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" IsVisible="{Binding HasRankProgress}">
-                                    <ProgressBar Value="{Binding NextTierProgressValue}"
+                                <Grid ColumnDefinitions="120, *" IsVisible="{Binding HasRankProgress}">
+                                    <ProgressBar Grid.Column="0"
+                                                 Value="{Binding NextTierProgressValue}"
                                                  Minimum="0"
                                                  Maximum="100"
                                                  Height="6"
-                                                 Width="120"
+                                                 MinWidth="0"
                                                  CornerRadius="3"
                                                  Foreground="#8B5CF6"
                                                  Background="#1A1D2E"
                                                  VerticalAlignment="Center" />
-                                    <TextBlock Text="{Binding NextTierProgressText}"
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding NextTierProgressText}"
                                                FontSize="11"
                                                FontWeight="SemiBold"
                                                Foreground="#94A3B8"
+                                               Margin="8,0,0,0"
+                                               TextTrimming="CharacterEllipsis"
                                                VerticalAlignment="Center" />
-                                </StackPanel>
+                                </Grid>
                             </StackPanel>
 
                             <!-- Right: WinRate & Record Badge -->
@@ -416,7 +457,8 @@
                                     Padding="14,10"
                                     BorderBrush="#252A42"
                                     BorderThickness="1"
-                                    VerticalAlignment="Center">
+                                    VerticalAlignment="Center"
+                                    IsVisible="{Binding HasLiveProfile}">
                                 <StackPanel Spacing="4" HorizontalAlignment="Right">
                                     <TextBlock Text="{Binding Summoner.WinRate, StringFormat='Вінрейт: {0}%'}"
                                                FontSize="18"
@@ -443,10 +485,12 @@
                                                  Minimum="0"
                                                  Maximum="{Binding Summoner.TotalGames}"
                                                  Height="5"
+                                                 MinWidth="0"
                                                  Width="120"
                                                  CornerRadius="2.5"
                                                  Foreground="#818CF8"
                                                  Background="#F43F5E"
+                                                 HorizontalAlignment="Right"
                                                  Margin="0,2,0,0" />
                                 </StackPanel>
                             </Border>
@@ -472,7 +516,7 @@
                                 <ItemsControl Grid.Column="1" ItemsSource="{Binding Summoner.TopMasteries}">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
-                                            <StackPanel Orientation="Horizontal" Spacing="8" />
+                                            <WrapPanel Orientation="Horizontal" ItemSpacing="8" LineSpacing="6" />
                                         </ItemsPanelTemplate>
                                     </ItemsControl.ItemsPanel>
                                     <ItemsControl.ItemTemplate>
@@ -485,8 +529,7 @@
                                                     ToolTip.Tip="{Binding FormattedPoints, StringFormat='{}{0} очок майстерності'}">
                                                 <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                                                     <Border Width="20" Height="20" CornerRadius="4" ClipToBounds="True">
-                                                        <Image Source="{Binding ChampionIconUrl, Converter={StaticResource BitmapAssetConverter}}"
-                                                               Width="20" Height="20"
+                                                        <Image conv:RemoteImage.Url="{Binding ChampionIconUrl}"
                                                                Stretch="UniformToFill"
                                                                RenderOptions.BitmapInterpolationMode="HighQuality" />
                                                     </Border>
@@ -496,7 +539,7 @@
                                                                Foreground="#F8FAFC"
                                                                VerticalAlignment="Center"
                                                                TextTrimming="CharacterEllipsis"
-                                                               MaxWidth="88" />
+                                                               MaxWidth="96" />
                                                     <Border Background="#7C3AED"
                                                             CornerRadius="3"
                                                             Padding="5,1"
@@ -520,6 +563,7 @@
 
                 <!-- Right: AI Player Momentum & Tilt Detector Card -->
                 <Border Grid.Column="1"
+                        Classes="hero-momentum"
                         Background="#131522"
                         CornerRadius="14"
                         Padding="18"
@@ -1865,7 +1909,7 @@
                                                                                         Background="#05070D"
                                                                                         BoxShadow="0 10 28 0 #50000000">
                                                                                     <Canvas Width="280" Height="280">
-                                                                                        <Image Source="{Binding Moment.MapImageUrl, Converter={StaticResource BitmapAssetConverter}}"
+                                                                                        <Image conv:RemoteImage.Url="{Binding Moment.MapImageUrl}"
                                                                                                Width="280" Height="280"
                                                                                                Stretch="UniformToFill"
                                                                                                RenderOptions.BitmapInterpolationMode="HighQuality"
@@ -1903,7 +1947,7 @@
                                                                                                             Opacity="{Binding Opacity}"
                                                                                                             BoxShadow="0 2 6 0 #80000000"
                                                                                                             ToolTip.Tip="{Binding RoleLabel}">
-                                                                                                        <Image Source="{Binding ChampionIconUrl, Converter={StaticResource BitmapAssetConverter}}"
+                                                                                                        <Image conv:RemoteImage.Url="{Binding ChampionIconUrl}"
                                                                                                                Stretch="UniformToFill"
                                                                                                                RenderOptions.BitmapInterpolationMode="HighQuality" />
                                                                                                     </Border>
