@@ -5,7 +5,27 @@ namespace GameAnalytics.ML.Engine;
 
 public static class GlobalCoachingAnalyzer
 {
-    public static GlobalCoachingReport Analyze(IReadOnlyList<Match> matches, string searchedPuuidOrName)
+    /// <summary>Queues not played on Summoner's Rift with lanes (ARAM, Arena, URF, One for All...).</summary>
+    private static readonly HashSet<int> NonRiftQueues = new() { 450, 720, 900, 1010, 1020, 1300, 1400, 1700, 1710, 1810, 1820, 1830, 1840, 1900, 2300, 2400 };
+
+    public static bool IsRiftQueue(int queueId) => !NonRiftQueues.Contains(queueId);
+
+    /// <summary>
+    /// Finds the searched player in a match: exact PUUID first, then Riot ID / summoner name.
+    /// Returns null instead of guessing, so other players' games never leak into the coaching stats.
+    /// </summary>
+    public static Participant? FindTargetPlayer(Match match, string? searchedPuuidOrName)
+    {
+        var target = searchedPuuidOrName?.Trim() ?? string.Empty;
+        if (string.IsNullOrEmpty(target) || match.Participants.Count == 0)
+            return null;
+
+        return match.Participants.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x.Puuid) && x.Puuid.Equals(target, StringComparison.OrdinalIgnoreCase))
+            ?? match.Participants.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x.SummonerName) && x.SummonerName.Equals(target, StringComparison.OrdinalIgnoreCase))
+            ?? match.Participants.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x.SummonerName) && x.SummonerName.Contains(target, StringComparison.OrdinalIgnoreCase));
+    }
+
+    public static GlobalCoachingReport Analyze(IReadOnlyList<Match> matches, string searchedPuuidOrName, GameTier tier = GameTier.Unranked)
     {
         var report = new GlobalCoachingReport();
 
@@ -15,16 +35,10 @@ public static class GlobalCoachingAnalyzer
             return report;
         }
 
-        var cleanTarget = searchedPuuidOrName?.Trim() ?? string.Empty;
-
         var playerMatches = new List<(Match Match, Participant Player)>();
         foreach (var m in matches)
         {
-            var p = m.Participants.FirstOrDefault(x =>
-                (!string.IsNullOrWhiteSpace(x.Puuid) && !string.IsNullOrWhiteSpace(cleanTarget) && x.Puuid.Equals(cleanTarget, StringComparison.OrdinalIgnoreCase)) ||
-                (!string.IsNullOrWhiteSpace(x.SummonerName) && !string.IsNullOrWhiteSpace(cleanTarget) && x.SummonerName.Contains(cleanTarget, StringComparison.OrdinalIgnoreCase)));
-
-            p ??= m.Participants.FirstOrDefault();
+            var p = FindTargetPlayer(m, searchedPuuidOrName);
             if (p != null)
             {
                 playerMatches.Add((m, p));
@@ -37,24 +51,31 @@ public static class GlobalCoachingAnalyzer
             return report;
         }
 
-        var validGames = playerMatches.Where(pm => !pm.Match.IsRemake && pm.Match.GameDurationSeconds >= 300).ToList();
-        if (validGames.Count == 0)
+        var playedGames = playerMatches.Where(pm => !pm.Match.IsRemake && pm.Match.GameDurationSeconds >= 300).ToList();
+        var riftGames = playedGames.Where(pm => IsRiftQueue(pm.Match.QueueId)).ToList();
+        var otherModeGames = playedGames.Count - riftGames.Count;
+
+        if (riftGames.Count == 0)
         {
-            validGames = playerMatches;
+            report.CoachAdvice = "Коучинг за ролями працює лише для ігор на Summoner's Rift (ARAM та інші режими не оцінюються).";
+            return report;
         }
 
-        report.TotalMatchesAnalyzed = validGames.Count;
-
-        // Determine Primary Role
-        var roleGroup = validGames
-            .Where(x => x.Match.QueueId != 450)
+        // Stats are only comparable against one role's benchmark, so analyse the main role's games only.
+        var primaryPos = riftGames
             .GroupBy(x => x.Player.Position)
             .OrderByDescending(g => g.Count())
-            .FirstOrDefault();
+            .ThenByDescending(g => g.Max(x => x.Match.GameCreation))
+            .First().Key;
+        var validGames = riftGames.Where(x => x.Player.Position == primaryPos).ToList();
+        var offRoleGames = riftGames.Count - validGames.Count;
 
-        var primaryPos = roleGroup?.Key ?? validGames.FirstOrDefault().Player.Position;
+        report.TotalMatchesAnalyzed = validGames.Count;
         report.PrimaryRole = primaryPos;
-        var benchmark = RoleBenchmark.GetBenchmark(primaryPos);
+        var benchmark = RoleBenchmark.GetBenchmark(primaryPos, tier);
+        var benchLabel = benchmark.Baseline == null
+            ? "Еталон"
+            : benchmark.Baseline.Tier is { } baselineTier ? $"Медіана {baselineTier}" : "Медіана всіх рангів";
 
         var (roleName, roleIcon) = primaryPos switch
         {
@@ -68,6 +89,13 @@ public static class GlobalCoachingAnalyzer
         report.RoleName = roleName;
         report.RoleIcon = roleIcon;
 
+        var excluded = new List<string>();
+        if (offRoleGames > 0) excluded.Add($"{offRoleGames} на інших ролях");
+        if (otherModeGames > 0) excluded.Add($"{otherModeGames} ARAM/інші режими");
+        report.SampleNote = excluded.Count > 0
+            ? $"Аналіз за {validGames.Count} іграми на {roleName} (не враховано: {string.Join(", ", excluded)})."
+            : $"Аналіз за {validGames.Count} іграми на {roleName}.";
+
         // Collect aggregate stats
         double totalCs = 0;
         double totalDurationMinutes = 0;
@@ -77,6 +105,9 @@ public static class GlobalCoachingAnalyzer
         double totalKp = 0;
         double totalVision = 0;
         double totalControlWards = 0;
+        double visionMinutes = 0;
+        int visionGames = 0;
+        int objectiveGames = 0;
         int dragonKills = 0;
         int baronKills = 0;
         int towerKills = 0;
@@ -90,8 +121,15 @@ public static class GlobalCoachingAnalyzer
             totalD += p.Deaths;
             totalA += p.Assists;
             totalCs += p.TotalMinionsKilled;
-            totalVision += p.VisionScore;
-            totalControlWards += Math.Max(p.ControlWardsPlaced, p.ControlWardsBought);
+            // Riot (or an old local cache) sometimes has no vision fields at all; a zero there means
+            // "unknown", not "placed nothing", so those games are left out of the vision average.
+            if (p.VisionScore > 0 || p.WardsPlaced > 0 || p.ControlWardsBought > 0 || p.ControlWardsPlaced > 0)
+            {
+                visionGames++;
+                visionMinutes += durMin;
+                totalVision += p.VisionScore;
+                totalControlWards += Math.Max(p.ControlWardsPlaced, p.ControlWardsBought);
+            }
 
             var dpm = p.DamagePerMinute > 0
                 ? p.DamagePerMinute
@@ -115,6 +153,7 @@ public static class GlobalCoachingAnalyzer
             var teamStats = m.Teams.FirstOrDefault(t => t.TeamSide == p.TeamSide);
             if (teamStats != null)
             {
+                objectiveGames++;
                 dragonKills += teamStats.DragonKills;
                 baronKills += teamStats.BaronKills;
                 towerKills += teamStats.TowerKills;
@@ -130,8 +169,8 @@ public static class GlobalCoachingAnalyzer
         var avgDpm = Math.Round(totalDpm / gameCount);
         var avgDamageShare = Math.Round(totalDamageShare / gameCount, 1);
         var avgKp = (int)Math.Round(totalKp / gameCount);
-        var avgVisionPerMin = Math.Round(totalVision / Math.Max(1.0, totalDurationMinutes), 2);
-        var avgControlWards = Math.Round(totalControlWards / gameCount, 1);
+        var avgVisionPerMin = Math.Round(totalVision / Math.Max(1.0, visionMinutes), 2);
+        var avgControlWards = Math.Round(totalControlWards / Math.Max(1, visionGames), 1);
 
         // 1. COMBAT PILLAR
         double combatBase = 68.0;
@@ -149,7 +188,7 @@ public static class GlobalCoachingAnalyzer
             Grade = combatGrade,
             GradeColor = combatColor,
             PlayerValueText = $"{avgKp}% KP | {avgDamageShare}% DMG",
-            BenchmarkText = $"Еталон: {benchmark.TargetKillParticipation}% KP",
+            BenchmarkText = $"{benchLabel}: {benchmark.TargetKillParticipation}% KP",
             DiffText = avgKp >= benchmark.TargetKillParticipation
                 ? $"+{avgKp - benchmark.TargetKillParticipation}% (Висока участь)"
                 : $"{avgKp - benchmark.TargetKillParticipation}% (Нижче норми)",
@@ -180,7 +219,7 @@ public static class GlobalCoachingAnalyzer
             Grade = economyGrade,
             GradeColor = economyColor,
             PlayerValueText = $"{avgCsPerMin:F1} CS/хв",
-            BenchmarkText = $"Еталон: {benchmark.TargetCsPerMin:F1} CS/хв",
+            BenchmarkText = $"{benchLabel}: {benchmark.TargetCsPerMin:F1} CS/хв",
             DiffText = csDifference >= 0
                 ? $"+{csDifference:F1} CS/хв (Відмінний темп)"
                 : $"{csDifference:F1} CS/хв (Втрата пачок)",
@@ -190,8 +229,8 @@ public static class GlobalCoachingAnalyzer
 
         // 3. OBJECTIVES PILLAR
         double objBase = 68.0;
-        var avgDragons = (double)dragonKills / gameCount;
-        var avgTowers = (double)towerKills / gameCount;
+        var avgDragons = (double)dragonKills / Math.Max(1, objectiveGames);
+        var avgTowers = (double)towerKills / Math.Max(1, objectiveGames);
         objBase += (avgDragons - 1.8) * 12.0;
         objBase += (avgTowers - 5.0) * 4.0;
         if (primaryPos == Position.Jungle)
@@ -214,6 +253,10 @@ public static class GlobalCoachingAnalyzer
             DiffColor = avgDragons >= 2.0 ? "#0AC8B9" : "#C8AA6E",
             Description = $"Знищено в середньому {avgTowers:F1} веж та {avgDragons:F1} драконів за гру."
         };
+        if (objectiveGames == 0)
+        {
+            report.Objectives = NoDataPillar(report.Objectives, "Немає командної статистики об'єктів для цих ігор.");
+        }
 
         // 4. SURVIVAL PILLAR
         double survivalBase = 68.0;
@@ -230,7 +273,7 @@ public static class GlobalCoachingAnalyzer
             Grade = survivalGrade,
             GradeColor = survivalColor,
             PlayerValueText = $"{avgD:F1} Смертей / гру",
-            BenchmarkText = $"Еталон: < {benchmark.MaxTargetDeaths:F1}",
+            BenchmarkText = $"{benchLabel}: {benchmark.MaxTargetDeaths:F1} смертей",
             DiffText = deathDiff >= 0
                 ? $"{Math.Abs(deathDiff):F1} смертей менше норми"
                 : $"+{Math.Abs(deathDiff):F1} зайвих смертей",
@@ -256,24 +299,31 @@ public static class GlobalCoachingAnalyzer
             Grade = visionGrade,
             GradeColor = visionColor,
             PlayerValueText = $"{avgVisionPerMin:F2} VS/хв",
-            BenchmarkText = $"Еталон: {benchmark.TargetVisionScorePerMin:F2} VS/хв",
+            BenchmarkText = $"{benchLabel}: {benchmark.TargetVisionScorePerMin:F2} VS/хв",
             DiffText = visionDiff >= 0
                 ? $"+{visionDiff:F2} VS/хв (Контроль карти)"
                 : $"{visionDiff:F2} VS/хв (Сліпа зона)",
             DiffColor = visionDiff >= 0 ? "#0AC8B9" : "#E84057",
             Description = $"Середньо {avgControlWards:F1} контрольних вардів/гру. Сумарний vision score: {totalVision:F0}."
         };
+        if (visionGames == 0)
+        {
+            report.Vision = NoDataPillar(report.Vision, "Riot не повернув vision score для цих ігор, тому віжн не оцінюється.");
+        }
 
-        // Overall Weighted Score
-        var overall = (int)Math.Round(
-            combatScore * 0.30 + economyScore * 0.20 + objScore * 0.15 + survivalScore * 0.15 + visionScore * 0.20);
+        // Overall Weighted Score over the pillars that actually have data
+        var weighted = new (SkillPillarScore Pillar, double Weight)[]
+        {
+            (report.Combat, 0.30), (report.Economy, 0.20), (report.Objectives, 0.15), (report.Survival, 0.15), (report.Vision, 0.20)
+        }.Where(x => x.Pillar.HasData).ToList();
+        var overall = (int)Math.Round(weighted.Sum(x => x.Pillar.Score * x.Weight) / weighted.Sum(x => x.Weight));
         report.OverallScore = overall;
         var (ovGrade, ovColor) = ScoreToGrade(overall);
         report.OverallGrade = ovGrade;
         report.OverallGradeColor = ovColor;
 
         // Coaching Advice based on weakest and strongest pillar
-        var pillars = new[] { report.Combat, report.Economy, report.Objectives, report.Survival, report.Vision };
+        var pillars = weighted.Select(x => x.Pillar).ToArray();
         var weakest = pillars.OrderBy(p => p.Score).First();
         var strongest = pillars.OrderByDescending(p => p.Score).First();
 
@@ -293,8 +343,39 @@ public static class GlobalCoachingAnalyzer
 
         report.CoachAdvice = $"Коучинг-висновок: {advice} Найсильніша сторона: {strongest.PillarName} ({strongest.Grade}).";
 
+        var roleSamples = validGames.Select(x => new CoachingHabitAnalyzer.GameSample(x.Match, x.Player)).ToList();
+        var riftSamples = riftGames.Select(x => new CoachingHabitAnalyzer.GameSample(x.Match, x.Player)).ToList();
+        var (habits, strengths) = CoachingHabitAnalyzer.Analyze(roleSamples, riftSamples, primaryPos, benchmark);
+        report.TopHabits = habits;
+        report.Trends = CoachingTrendAnalyzer.Analyze(roleSamples, riftSamples, primaryPos);
+        report.Highlights = strengths;
+        if (habits.Count > 0)
+        {
+            var first = habits[0];
+            report.CoachAdvice = $"Головне зараз — {first.Title.ToLowerInvariant()}. {first.Evidence} {first.Action}";
+        }
+        else if (strengths.Count > 0)
+        {
+            report.CoachAdvice = $"Явних звичок, які коштують вам ігор, не знайдено. {strengths[0]}";
+        }
+
         return report;
     }
+
+    private static SkillPillarScore NoDataPillar(SkillPillarScore pillar, string reason) => new()
+    {
+        PillarName = pillar.PillarName,
+        Icon = pillar.Icon,
+        HasData = false,
+        Score = 0,
+        Grade = "—",
+        GradeColor = "#8A93A5",
+        PlayerValueText = "Немає даних",
+        BenchmarkText = pillar.BenchmarkText,
+        DiffText = "Не враховано в оцінці",
+        DiffColor = "#8A93A5",
+        Description = reason
+    };
 
     public static (string Grade, string GradeColor, string Tag) EvaluateSingleMatch(Match match, Participant player, bool isVictory, bool isRemake)
     {

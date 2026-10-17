@@ -199,7 +199,19 @@ public class UiAndTelemetryTests
         };
         match.Participants.Add(player);
 
-        var report = MatchTacticalAnalyzer.AnalyzeMatchTactics(match, player, null, GameTier.Diamond);
+        var timeline = new MatchTimelineData
+        {
+            MatchId = "EUW1_TEST1",
+            RealEvents = new List<TimelineEventRecord>
+            {
+                new() { TimestampMs = 330000, EventType = "CHAMPION_KILL", KillerId = 1, VictimId = 6, Bounty = 300 },
+                new() { TimestampMs = 610000, EventType = "CHAMPION_KILL", KillerId = 6, VictimId = 1, Bounty = 300 },
+                new() { TimestampMs = 720000, EventType = "ELITE_MONSTER_KILL", KillerId = 1, KillerTeamId = 100, MonsterType = "DRAGON", MonsterSubType = "FIRE_DRAGON" },
+                new() { TimestampMs = 1200000, EventType = "BUILDING_KILL", KillerId = 1, BuildingType = "TOWER_BUILDING", LaneType = "MID_LANE" }
+            }
+        };
+
+        var report = MatchTacticalAnalyzer.AnalyzeMatchTactics(match, player, timeline, GameTier.Diamond);
 
         Assert.NotNull(report);
         Assert.NotEmpty(report.TimelineEvents);
