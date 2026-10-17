@@ -33,9 +33,13 @@ public class MatchAnalyticsService : IMatchAnalyticsService
         foreach (var id in matchIds)
         {
             var existing = await _matchRepository.GetMatchByMatchIdAsync(id, ct);
-            var hasCompleteData = existing != null 
+            // Rows created before spell columns (or with SQLite DEFAULT 4/14) look "complete"
+            // on items alone but show wrong Flash/Ignite for every player — re-fetch those.
+            var hasCompleteData = existing != null
+                && existing.Participants.Count > 0
                 && existing.Participants.Any(p => p.Item0 > 0 || p.Item1 > 0 || p.Item2 > 0 || p.Item6 > 0)
-                && existing.Participants.Any(p => p.ParticipantId > 0);
+                && existing.Participants.Any(p => p.ParticipantId > 0)
+                && !LooksLikeMigrationDefaultSpells(existing);
 
             if (existing != null && hasCompleteData)
             {
@@ -188,6 +192,11 @@ public class MatchAnalyticsService : IMatchAnalyticsService
         return await _matchRepository.GetAllMatchesAsync(ct);
     }
 
+    public async Task<IReadOnlyList<Match>> GetSavedMatchesForPlayerAsync(string gameName, string tagLine, int limit = 20, CancellationToken ct = default)
+    {
+        return await _matchRepository.GetMatchesByRiotIdAsync(gameName, tagLine, limit, ct);
+    }
+
     public async Task<MatchTimelineData?> GetMatchTimelineAsync(string matchId, CancellationToken ct = default)
     {
         var cached = await _matchRepository.GetCachedTimelineAsync(matchId, ct);
@@ -255,5 +264,17 @@ public class MatchAnalyticsService : IMatchAnalyticsService
     public bool IsTrainedOnRealData => _predictionEngine.IsTrainedOnRealData;
     public int TrainingDatasetSize => _predictionEngine.TrainingDatasetSize;
     public DateTime? LastTrainedAt => _predictionEngine.LastTrainedAt;
+
+    /// <summary>
+    /// SQLite ALTER DEFAULT filled every participant with Flash+Ignite. A real 5v5 almost never
+    /// has that exact pair on every row — treat that fingerprint as incomplete and re-pull from Riot.
+    /// </summary>
+    public static bool LooksLikeMigrationDefaultSpells(Match match)
+    {
+        if (match.Participants.Count < 2)
+            return false;
+
+        return match.Participants.All(p => p.Summoner1Id == 4 && p.Summoner2Id == 14);
+    }
 }
 

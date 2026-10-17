@@ -117,7 +117,7 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
     private string _avgKpText = "P/Kill 0%";
 
     [ObservableProperty]
-    private string _preferredRoleText = "MID ⚡";
+    private string _preferredRoleText = "MID";
 
     [ObservableProperty]
     private bool _hasSessionData;
@@ -188,6 +188,28 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
     [ObservableProperty]
     private string _statusMessage = "Введіть Riot ID (наприклад, Qu4dyz #qu4) та оберіть сервер";
 
+    /// <summary>Default quiet poll while a profile is open (~100s). Bumps to Retry-After on 429.</summary>
+    public static readonly TimeSpan DefaultAutoRefreshInterval = TimeSpan.FromSeconds(100);
+
+    private CancellationTokenSource? _autoRefreshCts;
+    private TimeSpan _autoRefreshCooldown = DefaultAutoRefreshInterval;
+    private DateTime _nextAutoRefreshUtc = DateTime.MinValue;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(AutoRefreshToggleText))]
+    private bool _isAutoRefreshEnabled = true;
+
+    public string AutoRefreshToggleText => IsAutoRefreshEnabled ? "Пауза авто" : "Увімкнути авто";
+
+    [ObservableProperty]
+    private bool _isAutoRefreshing;
+
+    [ObservableProperty]
+    private string _autoRefreshStatusText = string.Empty;
+
+    [ObservableProperty]
+    private bool _hasLoadedProfile;
+
     private int _currentMatchCount = 20;
     private List<Match> _rawMatches = new();
     internal List<Match> RawMatches { get => _rawMatches; set => _rawMatches = value; }
@@ -198,6 +220,7 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
         _analyticsService = null!;
         _options = new RiotApiOptions();
         _selectedRegion = AvailableRegions[0];
+        UpdateAutoRefreshStatusText();
     }
 
     public PlayerAnalyticsViewModel(IMatchAnalyticsService analyticsService, RiotApiOptions options, IDataDragonService? dataDragonService = null)
@@ -212,8 +235,24 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
         _apiKeyInput = options.ApiKey;
 
         UpdateApiStatus();
+        UpdateAutoRefreshStatusText();
         _ = _dataDragonService?.PreloadItemDataAsync();
         _ = SearchPlayerAsync();
+    }
+
+    partial void OnIsAutoRefreshEnabledChanged(bool value)
+    {
+        if (value && HasLoadedProfile && Summoner != null)
+        {
+            ScheduleNextAutoRefresh(_autoRefreshCooldown);
+            StartAutoRefreshLoop();
+        }
+        else
+        {
+            StopAutoRefreshLoop();
+        }
+
+        UpdateAutoRefreshStatusText();
     }
 
     partial void OnSelectedRegionChanged(ServerRegionInfo value)
@@ -307,11 +346,46 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
         try
         {
             IsLoading = true;
+            HasLoadedProfile = false;
+            StopAutoRefreshLoop();
             _currentMatchCount = 20;
             CanLoadMore = true;
-            StatusMessage = $"Завантаження даних для {GameName}#{TagLine} ({SelectedRegion.DisplayName})...";
+            var gameName = GameName.Trim();
+            var tagLine = TagLine.Trim();
+            StatusMessage = $"Завантаження даних для {gameName}#{tagLine} ({SelectedRegion.DisplayName})...";
 
-            var profile = await _analyticsService.FetchAndCacheSummonerAsync(GameName.Trim(), TagLine.Trim());
+            // Paint local SQLite history immediately so a rate-limited Riot key cannot leave the UI empty.
+            var hadCached = await TryShowCachedMatchesAsync(gameName, tagLine);
+
+            SummonerProfile? profile;
+            try
+            {
+                profile = await _analyticsService.FetchAndCacheSummonerAsync(gameName, tagLine);
+            }
+            catch (GameAnalytics.Core.Exceptions.RiotApiException ex) when (ex.IsRateLimited)
+            {
+                var sec = ex.RetryAfter.HasValue ? Math.Max(1, (int)Math.Ceiling(ex.RetryAfter.Value.TotalSeconds)) : 60;
+                ApplyRateLimitCooldown(ex.RetryAfter);
+                StatusMessage = hadCached
+                    ? $"Показано кеш ({RecentMatches.Count} матчів). Riot API ліміт (429) — авто через ~{sec}с. Можливо VPS-краулер вичерпав ключ."
+                    : $"Riot API ліміт запитів (429). Повторіть через ~{sec}с. Перевірте, чи VPS-краулер не використовує той самий ключ.";
+                if (hadCached)
+                {
+                    HasLoadedProfile = true;
+                    StartAutoRefreshLoop();
+                }
+                return;
+            }
+            catch (GameAnalytics.Core.Exceptions.RiotApiException ex) when (ex.IsUnauthorized)
+            {
+                StatusMessage = hadCached
+                    ? $"Показано кеш ({RecentMatches.Count} матчів). Riot API ключ відхилено (401/403) — оновіть ключ у Налаштуваннях."
+                    : "Riot API ключ відхилено (401/403). Оновіть ключ у Налаштуваннях або developer.riotgames.com.";
+                if (hadCached)
+                    HasLoadedProfile = true;
+                return;
+            }
+
             if (profile != null)
             {
                 Summoner = profile;
@@ -321,42 +395,46 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
                     ? $"Профіль {profile.FullName} успішно завантажено з Riot API. Оновлення матчів..."
                     : $"Профіль {profile.FullName} (Демо-режим). Отримання матчів...";
 
-                // Warm up UI with cached matches from local SQLite immediately for zero delay
+                // Refresh cache filter with real PUUID if we already showed name-matched rows
+                if (!hadCached)
+                {
+                    try
+                    {
+                        var cachedMatches = await _analyticsService.GetSavedMatchesForPlayerAsync(gameName, tagLine, _currentMatchCount);
+                        if (cachedMatches.Count == 0)
+                        {
+                            var allCached = await _analyticsService.GetSavedMatchHistoryAsync();
+                            cachedMatches = allCached
+                                .Where(m => m.Participants.Any(p => p.Puuid == profile.Puuid))
+                                .OrderByDescending(m => m.GameCreation)
+                                .Take(_currentMatchCount)
+                                .ToList();
+                        }
+
+                        if (cachedMatches.Count > 0 && RecentMatches.Count == 0)
+                        {
+                            await PopulateMatchesAsync(cachedMatches, profile);
+                        }
+                    }
+                    catch { /* Non-critical cache warm-up */ }
+                }
+
+                IReadOnlyList<Match> matches;
                 try
                 {
-                    var cachedMatches = await _analyticsService.GetSavedMatchHistoryAsync();
-                    var playerCached = cachedMatches
-                        .Where(m => m.Participants.Any(p => p.Puuid == profile.Puuid || 
-                                                            p.SummonerName.Equals(profile.GameName, StringComparison.OrdinalIgnoreCase)))
-                        .OrderByDescending(m => m.GameCreation)
-                        .Take(_currentMatchCount)
-                        .ToList();
-
-                    if (playerCached.Count > 0 && RecentMatches.Count == 0)
-                    {
-                        UpdateMomentumAnalysis(playerCached, profile.Puuid);
-                        var lpMapFast = await _analyticsService.GetPlayerMatchLpMapAsync(profile.Puuid);
-                        RecentMatches.Clear();
-                        var fastTier = Summoner?.Tier ?? GameTier.Emerald;
-                        foreach (var m in playerCached)
-                        {
-                            int? overrideLp = lpMapFast.TryGetValue(m.MatchId, out var delta) ? delta : null;
-                            RecentMatches.Add(PlayerMatchItemViewModel.FromMatch(
-                                m, 
-                                profile.Puuid, 
-                                profile.GameName, 
-                                SelectPlayerCommand, 
-                                fastTier, 
-                                mId => _analyticsService.GetMatchTimelineAsync(mId),
-                                overrideLp,
-                                profile.WinRate));
-                        }
-                        ApplyQueueFilter();
-                    }
+                    matches = await _analyticsService.FetchAndSaveRecentMatchesAsync(profile.Puuid, _currentMatchCount);
                 }
-                catch { /* Non-critical cache warm-up */ }
-
-                var matches = await _analyticsService.FetchAndSaveRecentMatchesAsync(profile.Puuid, _currentMatchCount);
+                catch (GameAnalytics.Core.Exceptions.RiotApiException ex) when (ex.IsRateLimited)
+                {
+                    var sec = ex.RetryAfter.HasValue ? Math.Max(1, (int)Math.Ceiling(ex.RetryAfter.Value.TotalSeconds)) : 60;
+                    ApplyRateLimitCooldown(ex.RetryAfter);
+                    StatusMessage = RecentMatches.Count > 0
+                        ? $"Профіль OK, матчі з кешу ({RecentMatches.Count}). Оновлення з Riot заблоковано лімітом — авто через ~{sec}с."
+                        : $"Профіль завантажено, але Riot API ліміт (429) під час історії матчів. Повторіть через ~{sec}с.";
+                    HasLoadedProfile = true;
+                    StartAutoRefreshLoop();
+                    return;
+                }
 
                 UpdateMomentumAnalysis(matches, profile.Puuid);
 
@@ -384,33 +462,42 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
                 _ = BitmapAssetValueConverter.PreloadImagesAsync(iconsToPreload);
 
                 await _analyticsService.TrackAndReconstructLpAsync(profile, matches);
-                var lpMap = await _analyticsService.GetPlayerMatchLpMapAsync(profile.Puuid);
-
-                _rawMatches = matches.ToList();
-                RecentMatches.Clear();
-                var currentTier = Summoner?.Tier ?? GameTier.Emerald;
-                foreach (var m in matches)
-                {
-                    int? overrideLp = lpMap.TryGetValue(m.MatchId, out var delta) ? delta : null;
-                    RecentMatches.Add(PlayerMatchItemViewModel.FromMatch(
-                        m, 
-                        profile.Puuid, 
-                        profile.GameName, 
-                        SelectPlayerCommand, 
-                        currentTier, 
-                        mId => _analyticsService.GetMatchTimelineAsync(mId),
-                        overrideLp,
-                        profile.WinRate));
-                }
-
-                ApplyQueueFilter();
+                await PopulateMatchesAsync(matches, profile);
 
                 StatusMessage = $"Завантажено {RecentMatches.Count} матчів для {profile.FullName} ({SelectedRegion.Code}).";
+                HasLoadedProfile = true;
+                ScheduleNextAutoRefresh(DefaultAutoRefreshInterval);
+                StartAutoRefreshLoop();
             }
             else
             {
-                StatusMessage = $"Гравця {GameName}#{TagLine} не знайдено на сервері {SelectedRegion.Code}. Перевірте правильність написання нікнейму та тегу.";
+                HasLoadedProfile = RecentMatches.Count > 0;
+                StatusMessage = hadCached
+                    ? $"Показано кеш ({RecentMatches.Count} матчів). Онлайн-профіль {gameName}#{tagLine} на {SelectedRegion.Code} не знайдено."
+                    : $"Гравця {gameName}#{tagLine} не знайдено на сервері {SelectedRegion.Code}. Перевірте правильність написання нікнейму та тегу.";
+                if (HasLoadedProfile)
+                {
+                    ScheduleNextAutoRefresh(DefaultAutoRefreshInterval);
+                    StartAutoRefreshLoop();
+                }
             }
+        }
+        catch (GameAnalytics.Core.Exceptions.RiotApiException ex) when (ex.IsRateLimited)
+        {
+            var sec = ex.RetryAfter.HasValue ? Math.Max(1, (int)Math.Ceiling(ex.RetryAfter.Value.TotalSeconds)) : 60;
+            ApplyRateLimitCooldown(ex.RetryAfter);
+            StatusMessage = RecentMatches.Count > 0
+                ? $"Кеш на екрані ({RecentMatches.Count}). Riot 429 — авто-оновлення через ~{sec}с."
+                : $"Riot API ліміт (429). Повторіть через ~{sec}с.";
+            if (RecentMatches.Count > 0)
+            {
+                HasLoadedProfile = true;
+                StartAutoRefreshLoop();
+            }
+        }
+        catch (GameAnalytics.Core.Exceptions.RiotApiException ex)
+        {
+            StatusMessage = $"Помилка Riot API ({ex.StatusCode}): {ex.Message}";
         }
         catch (Exception ex)
         {
@@ -419,7 +506,79 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
         finally
         {
             IsLoading = false;
+            UpdateAutoRefreshStatusText();
         }
+    }
+
+    private async Task<bool> TryShowCachedMatchesAsync(string gameName, string tagLine)
+    {
+        try
+        {
+            var cachedMatches = await _analyticsService.GetSavedMatchesForPlayerAsync(gameName, tagLine, _currentMatchCount);
+            if (cachedMatches.Count == 0)
+                return false;
+
+            var sample = cachedMatches
+                .SelectMany(m => m.Participants)
+                .FirstOrDefault(p =>
+                    p.SummonerName.Equals($"{gameName}#{tagLine}", StringComparison.OrdinalIgnoreCase) ||
+                    p.SummonerName.StartsWith(gameName + "#", StringComparison.OrdinalIgnoreCase));
+
+            var puuid = sample?.Puuid ?? string.Empty;
+
+            var profile = Summoner;
+            if (profile == null || !profile.GameName.Equals(gameName, StringComparison.OrdinalIgnoreCase))
+            {
+                profile = new SummonerProfile
+                {
+                    Puuid = puuid,
+                    GameName = gameName,
+                    TagLine = tagLine,
+                    SummonerLevel = Summoner?.SummonerLevel ?? 0,
+                    ProfileIconId = Summoner?.ProfileIconId ?? 1,
+                    Tier = Summoner?.Tier ?? GameTier.Unranked,
+                    Rank = Summoner?.Rank ?? string.Empty,
+                    LeaguePoints = Summoner?.LeaguePoints ?? 0,
+                    Wins = Summoner?.Wins ?? 0,
+                    Losses = Summoner?.Losses ?? 0
+                };
+                Summoner = profile;
+                TierBadgeColor = GetTierColor(profile.Tier);
+            }
+
+            await PopulateMatchesAsync(cachedMatches, profile);
+            StatusMessage = $"Показано {RecentMatches.Count} матчів з локального кешу для {gameName}#{tagLine}. Оновлення з Riot API...";
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private async Task PopulateMatchesAsync(IReadOnlyList<Match> matches, SummonerProfile profile)
+    {
+        UpdateMomentumAnalysis(matches, profile.Puuid);
+        var lpMap = await _analyticsService.GetPlayerMatchLpMapAsync(profile.Puuid);
+
+        _rawMatches = matches.ToList();
+        RecentMatches.Clear();
+        var currentTier = Summoner?.Tier ?? GameTier.Emerald;
+        foreach (var m in matches)
+        {
+            int? overrideLp = lpMap.TryGetValue(m.MatchId, out var delta) ? delta : null;
+            RecentMatches.Add(PlayerMatchItemViewModel.FromMatch(
+                m,
+                profile.Puuid,
+                profile.GameName,
+                SelectPlayerCommand,
+                currentTier,
+                mId => _analyticsService.GetMatchTimelineAsync(mId),
+                overrideLp,
+                profile.WinRate));
+        }
+
+        ApplyQueueFilter();
     }
 
     [RelayCommand]
@@ -503,6 +662,156 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
         {
             IsLoadingMore = false;
         }
+    }
+
+    [RelayCommand]
+    public void ToggleAutoRefresh()
+    {
+        IsAutoRefreshEnabled = !IsAutoRefreshEnabled;
+    }
+
+    private void ScheduleNextAutoRefresh(TimeSpan cooldown)
+    {
+        _autoRefreshCooldown = cooldown < TimeSpan.FromSeconds(15) ? TimeSpan.FromSeconds(15) : cooldown;
+        _nextAutoRefreshUtc = DateTime.UtcNow + _autoRefreshCooldown;
+        UpdateAutoRefreshStatusText();
+    }
+
+    private void ApplyRateLimitCooldown(TimeSpan? retryAfter)
+    {
+        var retry = retryAfter ?? TimeSpan.FromSeconds(60);
+        // Wait out Riot Retry-After, but never poll faster than the default quiet interval.
+        var seconds = Math.Max(DefaultAutoRefreshInterval.TotalSeconds, retry.TotalSeconds);
+        ScheduleNextAutoRefresh(TimeSpan.FromSeconds(seconds));
+    }
+
+    private void StartAutoRefreshLoop()
+    {
+        StopAutoRefreshLoop();
+        if (!IsAutoRefreshEnabled || !HasLoadedProfile || Summoner == null)
+        {
+            UpdateAutoRefreshStatusText();
+            return;
+        }
+
+        if (_nextAutoRefreshUtc < DateTime.UtcNow)
+            ScheduleNextAutoRefresh(_autoRefreshCooldown);
+
+        _autoRefreshCts = new CancellationTokenSource();
+        _ = RunAutoRefreshLoopAsync(_autoRefreshCts.Token);
+        UpdateAutoRefreshStatusText();
+    }
+
+    private void StopAutoRefreshLoop()
+    {
+        try { _autoRefreshCts?.Cancel(); }
+        catch { /* ignore */ }
+        _autoRefreshCts?.Dispose();
+        _autoRefreshCts = null;
+        IsAutoRefreshing = false;
+        UpdateAutoRefreshStatusText();
+    }
+
+    private async Task RunAutoRefreshLoopAsync(CancellationToken ct)
+    {
+        while (!ct.IsCancellationRequested)
+        {
+            try
+            {
+                var remaining = _nextAutoRefreshUtc - DateTime.UtcNow;
+                if (remaining > TimeSpan.Zero)
+                {
+                    UpdateAutoRefreshStatusText();
+                    var delay = remaining > TimeSpan.FromSeconds(1) ? TimeSpan.FromSeconds(1) : remaining;
+                    await Task.Delay(delay, ct);
+                    continue;
+                }
+
+                await QuietRefreshMatchesAsync(ct);
+                ScheduleNextAutoRefresh(DefaultAutoRefreshInterval);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (GameAnalytics.Core.Exceptions.RiotApiException ex) when (ex.IsRateLimited)
+            {
+                ApplyRateLimitCooldown(ex.RetryAfter);
+                var sec = (int)Math.Ceiling(_autoRefreshCooldown.TotalSeconds);
+                StatusMessage = $"Riot 429 — авто-оновлення призупинено на ~{sec}с (MaxRateLimitBlock / Retry-After).";
+            }
+            catch (Exception ex)
+            {
+                ScheduleNextAutoRefresh(DefaultAutoRefreshInterval);
+                StatusMessage = $"Авто-оновлення: {ex.Message}";
+            }
+        }
+    }
+
+    private async Task QuietRefreshMatchesAsync(CancellationToken ct)
+    {
+        if (Summoner == null || IsLoading || IsLoadingMore || IsAutoRefreshing)
+            return;
+
+        IsAutoRefreshing = true;
+        UpdateAutoRefreshStatusText();
+        try
+        {
+            var previousNewest = RecentMatches.FirstOrDefault()?.MatchId;
+            var matches = await _analyticsService.FetchAndSaveRecentMatchesAsync(Summoner.Puuid, _currentMatchCount, ct);
+            ct.ThrowIfCancellationRequested();
+
+            var newest = matches.OrderByDescending(m => m.GameCreation).FirstOrDefault()?.MatchId;
+            var countChanged = matches.Count != _rawMatches.Count;
+            var setChanged = !matches.Select(m => m.MatchId).OrderBy(x => x)
+                .SequenceEqual(_rawMatches.Select(m => m.MatchId).OrderBy(x => x));
+
+            if (countChanged || setChanged || !string.Equals(previousNewest, newest, StringComparison.OrdinalIgnoreCase))
+            {
+                await _analyticsService.TrackAndReconstructLpAsync(Summoner, matches, ct);
+                await PopulateMatchesAsync(matches, Summoner);
+                StatusMessage = $"Авто-оновлення: {RecentMatches.Count} матчів для {Summoner.FullName}.";
+            }
+            else
+            {
+                StatusMessage = $"Авто-перевірка: нових матчів немає ({Summoner.FullName}).";
+            }
+        }
+        finally
+        {
+            IsAutoRefreshing = false;
+            UpdateAutoRefreshStatusText();
+        }
+    }
+
+    private void UpdateAutoRefreshStatusText()
+    {
+        if (!IsAutoRefreshEnabled)
+        {
+            AutoRefreshStatusText = "Авто-оновлення: пауза";
+            return;
+        }
+
+        if (!HasLoadedProfile || Summoner == null)
+        {
+            AutoRefreshStatusText = "Авто-оновлення: очікує профіль";
+            return;
+        }
+
+        if (IsAutoRefreshing)
+        {
+            AutoRefreshStatusText = "Авто-оновлення: синхронізація...";
+            return;
+        }
+
+        var remaining = _nextAutoRefreshUtc - DateTime.UtcNow;
+        if (remaining < TimeSpan.Zero)
+            remaining = TimeSpan.Zero;
+
+        var secs = (int)Math.Ceiling(remaining.TotalSeconds);
+        AutoRefreshStatusText = secs <= 0
+            ? "Авто-оновлення: зараз..."
+            : $"Авто-оновлення через {secs}с";
     }
 
     internal void UpdateMomentumAnalysis(IReadOnlyList<Match> matches, string puuidOrName)
@@ -662,13 +971,12 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
             if (topRole != null)
             {
                 var pct = (int)Math.Round((double)topRole.Count() / nonAramGames.Count * 100);
-                var icon = topRole.FirstOrDefault()?.PositionIcon ?? "⚡";
-                PreferredRoleText = $"{topRole.Key} {icon} ({pct}%)";
+                PreferredRoleText = $"{topRole.Key} · {pct}%";
             }
         }
         else
         {
-            PreferredRoleText = "ARAM 🎲 (100%)";
+            PreferredRoleText = "ARAM · 100%";
         }
     }
 

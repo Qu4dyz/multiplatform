@@ -51,9 +51,18 @@ public partial class App : Application
 
         // HTTP Client, Rate Limiter & Riot API
         services.AddSingleton<RiotRateLimiter>();
-        services.AddHttpClient<IRiotApiClient, RiotApiClient>();
-        services.AddHttpClient<IDataDragonService, DataDragonService>();
-        services.AddHttpClient<IVpsSyncService, VpsSyncService>();
+        services.AddHttpClient<IRiotApiClient, RiotApiClient>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
+        services.AddHttpClient<IDataDragonService, DataDragonService>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
+        services.AddHttpClient<IVpsSyncService, VpsSyncService>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
         services.AddSingleton<ILiveGameService>(sp =>
         {
             var client = LiveGameService.CreateLiveClient();
