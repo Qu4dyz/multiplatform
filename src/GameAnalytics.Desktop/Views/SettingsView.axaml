@@ -46,7 +46,7 @@
                     </Grid>
 
                     <StackPanel Spacing="4">
-                        <TextBlock Text="Riot Games Development API Key:" FontSize="12" Foreground="#A09B8C" />
+                        <TextBlock Text="Riot Games Development API Key:" FontSize="12" Foreground="#94A3B8" />
                         <TextBox Text="{Binding ApiKey}"
                                  PlaceholderText="RGAPI-XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
                                  Height="36"
@@ -56,7 +56,7 @@
 
                     <Grid ColumnDefinitions="*, *" RowDefinitions="Auto">
                         <StackPanel Grid.Column="0" Margin="0,0,10,0" Spacing="4">
-                            <TextBlock Text="Ігровий сервер / Регіон:" FontSize="12" Foreground="#A09B8C" />
+                            <TextBlock Text="Ігровий сервер / Регіон:" FontSize="12" Foreground="#94A3B8" />
                             <ComboBox ItemsSource="{Binding AvailableRegions}"
                                       SelectedItem="{Binding SelectedRegion}"
                                       Height="36"
@@ -64,7 +64,7 @@
                         </StackPanel>
 
                         <StackPanel Grid.Column="1" Margin="10,0,0,0" Spacing="4">
-                            <TextBlock Text="Бажаний ранг у демо-режимі (якщо без ключа):" FontSize="12" Foreground="#A09B8C" />
+                            <TextBlock Text="Бажаний ранг у демо-режимі (якщо без ключа):" FontSize="12" Foreground="#94A3B8" />
                             <ComboBox ItemsSource="{Binding AvailableTiers}"
                                       SelectedItem="{Binding SelectedDemoTier}"
                                       Height="36"
@@ -89,7 +89,7 @@
                                 Content="🔌 Перевірити з'єднання з API"
                                 Height="36"
                                 Padding="16,0"
-                                Background="#2F3640"
+                                Background="#1F2336"
                                 Foreground="White"
                                 FontWeight="SemiBold"
                                 Cursor="Hand" />
@@ -97,23 +97,24 @@
 
                     <TextBlock Text="{Binding StatusMessage}"
                                FontSize="12"
-                               Foreground="#C8AA6E" />
+                               Foreground="#C4B5FD"
+                               TextWrapping="Wrap" />
                 </StackPanel>
             </Border>
 
             <!-- Database & Cache Card -->
-            <Border Background="#121820" CornerRadius="8" Padding="20" BorderBrush="#3C3C41" BorderThickness="1">
+            <Border Background="#131522" CornerRadius="8" Padding="20" BorderBrush="#22263C" BorderThickness="1">
                 <StackPanel Spacing="14">
                     <TextBlock Text="ЛОКАЛЬНА БАЗА ДАНИХ ТА СХОВИЩЕ (SQLITE)"
                                FontWeight="Bold"
                                FontSize="13"
-                               Foreground="#F0E6D2" />
+                               Foreground="#F8FAFC" />
 
                     <Grid ColumnDefinitions="140, *" RowDefinitions="Auto, Auto">
-                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Шлях до файлу БД:" FontSize="12" Foreground="#A09B8C" Margin="0,0,0,6" />
-                        <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding DatabasePath}" FontSize="12" Foreground="#F0E6D2" TextWrapping="Wrap" />
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Шлях до файлу БД:" FontSize="12" Foreground="#94A3B8" Margin="0,0,0,6" />
+                        <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding DatabasePath}" FontSize="12" Foreground="#F8FAFC" TextWrapping="Wrap" />
 
-                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Розмір бази:" FontSize="12" Foreground="#A09B8C" />
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Розмір бази:" FontSize="12" Foreground="#94A3B8" />
                         <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding DatabaseSizeText}" FontSize="12" Foreground="#0AC8B9" FontWeight="SemiBold" />
                     </Grid>
 
@@ -121,7 +122,7 @@
                             Content="{Binding ClearDatabaseButtonText}"
                             Height="36"
                             Padding="14,0"
-                            Background="#3C3C41"
+                            Background="#22263C"
                             Foreground="#E84057"
                             FontWeight="SemiBold"
                             HorizontalAlignment="Left"
@@ -130,24 +131,24 @@
             </Border>
 
             <!-- Platform & Cloud VPS Info Card -->
-            <Border Background="#121820" CornerRadius="8" Padding="20" BorderBrush="#3C3C41" BorderThickness="1">
+            <Border Background="#131522" CornerRadius="8" Padding="20" BorderBrush="#22263C" BorderThickness="1">
                 <StackPanel Spacing="12">
                     <TextBlock Text="МУЛЬТИПЛАТФОРМНИЙ СТАТУС ТА СЕРВЕР"
                                FontWeight="Bold"
                                FontSize="13"
-                               Foreground="#F0E6D2" />
+                               Foreground="#F8FAFC" />
 
                     <Grid ColumnDefinitions="160, *" RowDefinitions="Auto, Auto, Auto, Auto">
-                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Поточна ОС клієнта:" FontSize="12" Foreground="#A09B8C" Margin="0,0,0,6" />
-                        <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding OsDescription}" FontSize="12" Foreground="#F0E6D2" />
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Поточна ОС клієнта:" FontSize="12" Foreground="#94A3B8" Margin="0,0,0,6" />
+                        <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding OsDescription}" FontSize="12" Foreground="#F8FAFC" />
 
-                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Версія .NET Core:" FontSize="12" Foreground="#A09B8C" Margin="0,0,0,6" />
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Версія .NET Core:" FontSize="12" Foreground="#94A3B8" Margin="0,0,0,6" />
                         <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding DotnetVersion, StringFormat='.NET {0}'}" FontSize="12" Foreground="#0AC8B9" FontWeight="Bold" />
 
-                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Віддалений Linux VPS:" FontSize="12" Foreground="#A09B8C" Margin="0,0,0,6" />
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Віддалений Linux VPS:" FontSize="12" Foreground="#94A3B8" Margin="0,0,0,6" />
                         <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding VpsHostInfo}" FontSize="12" Foreground="#C8AA6E" FontWeight="SemiBold" />
 
-                        <TextBlock Grid.Row="3" Grid.Column="0" Text="VPS ML Тренування:" FontSize="12" Foreground="#A09B8C" />
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="VPS ML Тренування:" FontSize="12" Foreground="#94A3B8" />
                         <StackPanel Grid.Row="3" Grid.Column="1" Spacing="4">
                             <TextBlock Text="dotnet run --project src/GameAnalytics.Desktop --vps-train" FontSize="11" Foreground="#0AC8B9" FontFamily="Consolas, monospace" FontWeight="Bold" />
                             <TextBlock Text="Автономний 24/7 демон для збору рейтингових ігор Riot API та безперервного навчання моделей ML.NET на VPS." FontSize="11" Foreground="#8A93A5" />
@@ -157,7 +158,7 @@
             </Border>
 
             <!-- Cloud VPS Sync & ML Model Hub Card -->
-            <Border Background="#121820" CornerRadius="8" Padding="20" BorderBrush="#0AC8B9" BorderThickness="1.5">
+            <Border Background="#131522" CornerRadius="8" Padding="20" BorderBrush="#0AC8B9" BorderThickness="1.5">
                 <StackPanel Spacing="16">
                     <Grid ColumnDefinitions="*, Auto">
                         <StackPanel Grid.Column="0" Spacing="4">
@@ -168,24 +169,24 @@
                                        LetterSpacing="1.2" />
                             <TextBlock Text="Миттєве отримання свіжих вагів натренованої моделі FastTree та бази реальних ігор з віддаленого сервера в один клік"
                                        FontSize="12"
-                                       Foreground="#A09B8C" />
+                                       Foreground="#94A3B8" />
                         </StackPanel>
 
                         <Button Grid.Column="1"
                                 Command="{Binding CheckVpsStatusCommand}"
                                 Content="🔍 Перевірити зв'язок"
                                 FontSize="12"
-                                Background="#2F3640"
-                                Foreground="#F0E6D2"
+                                Background="#1F2336"
+                                Foreground="#F8FAFC"
                                 Padding="12,6"
                                 Cursor="Hand" />
                     </Grid>
 
                     <Grid ColumnDefinitions="140, *" RowDefinitions="Auto, Auto">
-                        <TextBlock Grid.Row="0" Grid.Column="0" Text="VPS Endpoint URL:" FontSize="12" Foreground="#A09B8C" VerticalAlignment="Center" />
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="VPS Endpoint URL:" FontSize="12" Foreground="#94A3B8" VerticalAlignment="Center" />
                         <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding VpsServerUrl}" Height="34" FontSize="13" />
 
-                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Статус сервера:" FontSize="12" Foreground="#A09B8C" VerticalAlignment="Center" Margin="0,10,0,0" />
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Статус сервера:" FontSize="12" Foreground="#94A3B8" VerticalAlignment="Center" Margin="0,10,0,0" />
                         <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding VpsStatusBadge}" FontSize="12" FontWeight="SemiBold" Foreground="#0AC8B9" VerticalAlignment="Center" Margin="0,10,0,0" />
                     </Grid>
 
@@ -205,15 +206,15 @@
                                 Content="🗄 Синхронізувати базу матчів SQLite"
                                 Height="38"
                                 Padding="16,0"
-                                Background="#2F3640"
-                                Foreground="#F0E6D2"
+                                Background="#1F2336"
+                                Foreground="#F8FAFC"
                                 FontWeight="SemiBold"
                                 Cursor="Hand" />
                     </StackPanel>
 
                     <TextBlock Text="{Binding VpsSyncMessage}"
                                FontSize="12"
-                               Foreground="#C8AA6E"
+                               Foreground="#C4B5FD"
                                TextWrapping="Wrap" />
                 </StackPanel>
             </Border>

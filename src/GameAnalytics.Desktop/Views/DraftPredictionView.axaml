@@ -101,7 +101,7 @@
                                                     HorizontalContentAlignment="Stretch"
                                                     Padding="6"
                                                     Margin="0,0,0,6"
-                                                    Background="#1E2328"
+                                                    Background="#161928"
                                                     BorderBrush="#0397AB"
                                                     BorderThickness="1"
                                                     CornerRadius="4"
@@ -119,7 +119,7 @@
                                                             Width="34" Height="34"
                                                             CornerRadius="4"
                                                             ClipToBounds="True"
-                                                            Background="#091428"
+                                                            Background="#0F1220"
                                                             Margin="4,0">
                                                         <Image conv:RemoteImage.Url="{Binding ChampionIconUrl}"
                                                                Width="34" Height="34"
@@ -131,10 +131,10 @@
                                                         <TextBlock Text="{Binding ChampionDisplayName}"
                                                                    FontWeight="SemiBold"
                                                                    FontSize="12"
-                                                                   Foreground="#F0E6D2" />
+                                                                   Foreground="#F8FAFC" />
                                                         <TextBlock Text="{Binding PositionName}"
                                                                    FontSize="10"
-                                                                   Foreground="#A09B8C" />
+                                                                   Foreground="#94A3B8" />
                                                     </StackPanel>
 
                                                     <!-- Individual Win Rate -->
@@ -155,15 +155,15 @@
 
                         <!-- Center: Champion Picker Console -->
                         <Border Grid.Column="1"
-                                Background="#121820"
+                                Background="#131522"
                                 CornerRadius="6"
                                 Padding="14"
                                 Margin="12,0"
-                                BorderBrush="#3C3C41"
+                                BorderBrush="#22263C"
                                 BorderThickness="1">
                             <StackPanel Spacing="10">
                                 <!-- Active Slot Indicator -->
-                                <Border Background="#091428" CornerRadius="4" Padding="8,6" BorderBrush="#C8AA6E" BorderThickness="1">
+                                <Border Background="#0F1220" CornerRadius="4" Padding="8,6" BorderBrush="#C8AA6E" BorderThickness="1">
                                     <Grid ColumnDefinitions="Auto, *">
                                         <TextBlock Text="🎯 Вибір для: "
                                                    FontSize="11"
@@ -173,7 +173,7 @@
                                                    Text="{Binding ActiveSlot.ChampionDisplayName, FallbackValue='Оберіть слот'}"
                                                    FontSize="11"
                                                    FontWeight="Bold"
-                                                   Foreground="#F0E6D2" />
+                                                   Foreground="#F8FAFC" />
                                     </Grid>
                                 </Border>
 
@@ -209,7 +209,7 @@
                                 </WrapPanel>
 
                                 <!-- Champion Grid / List -->
-                                <Border Background="#091428"
+                                <Border Background="#0F1220"
                                         CornerRadius="4"
                                         Padding="6"
                                         Height="220">
@@ -227,8 +227,8 @@
                                                             Margin="3"
                                                             Padding="4"
                                                             Width="68" Height="68"
-                                                            Background="#1E2328"
-                                                            BorderBrush="#3C3C41"
+                                                            Background="#161928"
+                                                            BorderBrush="#22263C"
                                                             BorderThickness="1"
                                                             CornerRadius="4"
                                                             ToolTip.Tip="{Binding Name}"
@@ -246,7 +246,7 @@
                                                                        FontSize="9"
                                                                        TextTrimming="CharacterEllipsis"
                                                                        HorizontalAlignment="Center"
-                                                                       Foreground="#F0E6D2" />
+                                                                       Foreground="#F8FAFC" />
                                                         </StackPanel>
                                                     </Button>
                                                 </DataTemplate>
@@ -286,7 +286,7 @@
                                                     HorizontalContentAlignment="Stretch"
                                                     Padding="6"
                                                     Margin="0,0,0,6"
-                                                    Background="#1E2328"
+                                                    Background="#161928"
                                                     BorderBrush="#E84057"
                                                     BorderThickness="1"
                                                     CornerRadius="4"
@@ -304,7 +304,7 @@
                                                             Width="34" Height="34"
                                                             CornerRadius="4"
                                                             ClipToBounds="True"
-                                                            Background="#091428"
+                                                            Background="#0F1220"
                                                             Margin="4,0">
                                                         <Image conv:RemoteImage.Url="{Binding ChampionIconUrl}"
                                                                Width="34" Height="34"
@@ -316,10 +316,10 @@
                                                         <TextBlock Text="{Binding ChampionDisplayName}"
                                                                    FontWeight="SemiBold"
                                                                    FontSize="12"
-                                                                   Foreground="#F0E6D2" />
+                                                                   Foreground="#F8FAFC" />
                                                         <TextBlock Text="{Binding PositionName}"
                                                                    FontSize="10"
-                                                                   Foreground="#A09B8C" />
+                                                                   Foreground="#94A3B8" />
                                                     </StackPanel>
 
                                                     <!-- Individual Win Rate -->
@@ -342,10 +342,10 @@
             </Border>
 
             <!-- SECTION 1.5: DRAFT COMPOSITION SCALING & POWER SPIKE CURVES -->
-            <Border Background="#1A202C"
+            <Border Background="#131522"
                     CornerRadius="8"
                     Padding="18"
-                    BorderBrush="#2D3748"
+                    BorderBrush="#22263C"
                     BorderThickness="1">
                 <StackPanel Spacing="14">
                     <Grid ColumnDefinitions="*, Auto">
@@ -357,13 +357,13 @@
                                        LetterSpacing="1.1" />
                             <TextBlock Text="Автоматичний розрахунок сили піків за фазами гри (Early 0-15m / Mid 15-25m / Late 25m+) та аналіз умов перемоги"
                                        FontSize="11"
-                                       Foreground="#A09B8C"
+                                       Foreground="#94A3B8"
                                        TextWrapping="Wrap"
                                        Margin="0,0,12,0" />
                         </StackPanel>
 
                         <!-- Overall Verdict Banner -->
-                        <Border Grid.Column="1" Background="#0F1726" CornerRadius="6" Padding="12,6" BorderBrush="#0AC8B9" BorderThickness="1" VerticalAlignment="Center">
+                        <Border Grid.Column="1" Background="#0F1220" CornerRadius="6" Padding="12,6" BorderBrush="#0AC8B9" BorderThickness="1" VerticalAlignment="Center">
                             <TextBlock Text="{Binding PowerSpikes.ComparativeVerdict}"
                                        FontSize="11"
                                        Foreground="#0AC8B9"
@@ -375,7 +375,7 @@
                     <!-- Side-by-side Blue vs Red Team Power Curves -->
                     <Grid ColumnDefinitions="*, *">
                         <!-- Blue Team Scaling Curve -->
-                        <Border Grid.Column="0" Background="#0C1422" CornerRadius="6" Padding="12" Margin="0,0,8,0" BorderBrush="#0397AB" BorderThickness="1">
+                        <Border Grid.Column="0" Background="#101527" CornerRadius="6" Padding="12" Margin="0,0,8,0" BorderBrush="#0397AB" BorderThickness="1">
                             <StackPanel Spacing="8">
                                 <Grid ColumnDefinitions="*, Auto">
                                     <TextBlock Text="🔵 СИНЯ КОМАНДА — СКЕЙЛІНГ" FontWeight="Bold" FontSize="11" Foreground="#0AC8B9" />
@@ -384,21 +384,21 @@
 
                                 <!-- Early Game Power -->
                                 <Grid ColumnDefinitions="70, *, 40">
-                                    <TextBlock Grid.Column="0" Text="Early (0-15m)" FontSize="10" Foreground="#A09B8C" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="0" Text="Early (0-15m)" FontSize="10" Foreground="#94A3B8" VerticalAlignment="Center" />
                                     <ProgressBar Grid.Column="1" Value="{Binding PowerSpikes.BlueTeam.EarlyGamePower}" Minimum="0" Maximum="100" Height="8" Foreground="#0AC8B9" Background="#141E2F" CornerRadius="4" VerticalAlignment="Center" />
                                     <TextBlock Grid.Column="2" Text="{Binding PowerSpikes.BlueTeam.FormattedEarlyPower}" FontSize="10" FontWeight="Bold" Foreground="#0AC8B9" HorizontalAlignment="Right" VerticalAlignment="Center" />
                                 </Grid>
 
                                 <!-- Mid Game Power -->
                                 <Grid ColumnDefinitions="70, *, 40">
-                                    <TextBlock Grid.Column="0" Text="Mid (15-25m)" FontSize="10" Foreground="#A09B8C" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="0" Text="Mid (15-25m)" FontSize="10" Foreground="#94A3B8" VerticalAlignment="Center" />
                                     <ProgressBar Grid.Column="1" Value="{Binding PowerSpikes.BlueTeam.MidGamePower}" Minimum="0" Maximum="100" Height="8" Foreground="#0397AB" Background="#141E2F" CornerRadius="4" VerticalAlignment="Center" />
                                     <TextBlock Grid.Column="2" Text="{Binding PowerSpikes.BlueTeam.FormattedMidPower}" FontSize="10" FontWeight="Bold" Foreground="#0397AB" HorizontalAlignment="Right" VerticalAlignment="Center" />
                                 </Grid>
 
                                 <!-- Late Game Power -->
                                 <Grid ColumnDefinitions="70, *, 40">
-                                    <TextBlock Grid.Column="0" Text="Late (25m+)" FontSize="10" Foreground="#A09B8C" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="0" Text="Late (25m+)" FontSize="10" Foreground="#94A3B8" VerticalAlignment="Center" />
                                     <ProgressBar Grid.Column="1" Value="{Binding PowerSpikes.BlueTeam.LateGamePower}" Minimum="0" Maximum="100" Height="8" Foreground="#5383E8" Background="#141E2F" CornerRadius="4" VerticalAlignment="Center" />
                                     <TextBlock Grid.Column="2" Text="{Binding PowerSpikes.BlueTeam.FormattedLatePower}" FontSize="10" FontWeight="Bold" Foreground="#5383E8" HorizontalAlignment="Right" VerticalAlignment="Center" />
                                 </Grid>
@@ -417,21 +417,21 @@
 
                                 <!-- Early Game Power -->
                                 <Grid ColumnDefinitions="70, *, 40">
-                                    <TextBlock Grid.Column="0" Text="Early (0-15m)" FontSize="10" Foreground="#A09B8C" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="0" Text="Early (0-15m)" FontSize="10" Foreground="#94A3B8" VerticalAlignment="Center" />
                                     <ProgressBar Grid.Column="1" Value="{Binding PowerSpikes.RedTeam.EarlyGamePower}" Minimum="0" Maximum="100" Height="8" Foreground="#E84057" Background="#28141B" CornerRadius="4" VerticalAlignment="Center" />
                                     <TextBlock Grid.Column="2" Text="{Binding PowerSpikes.RedTeam.FormattedEarlyPower}" FontSize="10" FontWeight="Bold" Foreground="#E84057" HorizontalAlignment="Right" VerticalAlignment="Center" />
                                 </Grid>
 
                                 <!-- Mid Game Power -->
                                 <Grid ColumnDefinitions="70, *, 40">
-                                    <TextBlock Grid.Column="0" Text="Mid (15-25m)" FontSize="10" Foreground="#A09B8C" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="0" Text="Mid (15-25m)" FontSize="10" Foreground="#94A3B8" VerticalAlignment="Center" />
                                     <ProgressBar Grid.Column="1" Value="{Binding PowerSpikes.RedTeam.MidGamePower}" Minimum="0" Maximum="100" Height="8" Foreground="#FF5E7E" Background="#28141B" CornerRadius="4" VerticalAlignment="Center" />
                                     <TextBlock Grid.Column="2" Text="{Binding PowerSpikes.RedTeam.FormattedMidPower}" FontSize="10" FontWeight="Bold" Foreground="#FF5E7E" HorizontalAlignment="Right" VerticalAlignment="Center" />
                                 </Grid>
 
                                 <!-- Late Game Power -->
                                 <Grid ColumnDefinitions="70, *, 40">
-                                    <TextBlock Grid.Column="0" Text="Late (25m+)" FontSize="10" Foreground="#A09B8C" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="0" Text="Late (25m+)" FontSize="10" Foreground="#94A3B8" VerticalAlignment="Center" />
                                     <ProgressBar Grid.Column="1" Value="{Binding PowerSpikes.RedTeam.LateGamePower}" Minimum="0" Maximum="100" Height="8" Foreground="#FFAA5E" Background="#28141B" CornerRadius="4" VerticalAlignment="Center" />
                                     <TextBlock Grid.Column="2" Text="{Binding PowerSpikes.RedTeam.FormattedLatePower}" FontSize="10" FontWeight="Bold" Foreground="#FFAA5E" HorizontalAlignment="Right" VerticalAlignment="Center" />
                                 </Grid>
@@ -492,7 +492,7 @@
 
                         <!-- Algorithm Selector -->
                         <StackPanel Spacing="4">
-                            <TextBlock Text="Активний алгоритм машинного навчання:" FontSize="12" Foreground="#A09B8C" />
+                            <TextBlock Text="Активний алгоритм машинного навчання:" FontSize="12" Foreground="#94A3B8" />
                             <ComboBox ItemsSource="{Binding AvailableAlgorithms}"
                                       SelectedItem="{Binding SelectedAlgorithm}"
                                       HorizontalAlignment="Stretch"
@@ -504,7 +504,7 @@
                             <Button Content="Баланс (50/50)"
                                     Command="{Binding ResetToBalancedCommand}"
                                     FontSize="12"
-                                    Background="#2F3640"
+                                    Background="#1F2336"
                                     Padding="10,6"
                                     Cursor="Hand" />
                             <Button Content="Перевага Синіх"
@@ -523,13 +523,13 @@
                                     Cursor="Hand" />
                         </StackPanel>
 
-                        <Separator Background="#2F3640" Height="1" />
+                        <Separator Background="#1F2336" Height="1" />
 
                         <!-- Key Objective Checkboxes -->
                         <TextBlock Text="Ключові об'єкти ранньої стадії (ранні прапорці):"
                                    FontWeight="SemiBold"
                                    FontSize="13"
-                                   Foreground="#F0E6D2" />
+                                   Foreground="#F8FAFC" />
 
                         <CheckBox IsChecked="{Binding BlueFirstBlood}"
                                   Content="🩸 Перша кров (First Blood): Синя команда" />
@@ -538,14 +538,14 @@
                         <CheckBox IsChecked="{Binding BlueFirstDragon}"
                                   Content="🐉 Перший дракон (First Dragon): Синя команда" />
 
-                        <Separator Background="#2F3640" Height="1" />
+                        <Separator Background="#1F2336" Height="1" />
 
                         <!-- Gold Diff Slider -->
                         <StackPanel Spacing="4">
                             <Grid ColumnDefinitions="*, Auto">
                                 <TextBlock Text="Різниця за золотом на 15 хв (Gold Diff):"
                                            FontSize="13"
-                                           Foreground="#F0E6D2" />
+                                           Foreground="#F8FAFC" />
                                 <TextBlock Grid.Column="1"
                                            Text="{Binding GoldDiffAt15, StringFormat='{}{0:+0;-#;0} gold'}"
                                            FontWeight="Bold"
@@ -561,7 +561,7 @@
                             <Grid ColumnDefinitions="*, Auto">
                                 <TextBlock Text="Різниця у вбивствах на 15 хв (Kill Diff):"
                                            FontSize="13"
-                                           Foreground="#F0E6D2" />
+                                           Foreground="#F8FAFC" />
                                 <TextBlock Grid.Column="1"
                                            Text="{Binding KillDiffAt15, StringFormat='{}{0:+0;-#;0} kills'}"
                                            FontWeight="Bold"
@@ -623,7 +623,7 @@
                             <Grid ColumnDefinitions="*, Auto">
                                 <TextBlock Text="Різниця фарму міньйонів на 15 хв (CS Diff):"
                                            FontSize="13"
-                                           Foreground="#F0E6D2" />
+                                           Foreground="#F8FAFC" />
                                 <TextBlock Grid.Column="1"
                                            Text="{Binding CsDiffAt15, StringFormat='{}{0:+0;-#;0} CS'}"
                                            FontWeight="Bold"
@@ -639,7 +639,7 @@
                             <Grid ColumnDefinitions="*, Auto">
                                 <TextBlock Text="Різниця командного досвіду на 15 хв (XP Diff):"
                                            FontSize="13"
-                                           Foreground="#F0E6D2" />
+                                           Foreground="#F8FAFC" />
                                 <TextBlock Grid.Column="1"
                                            Text="{Binding XpDiffAt15, StringFormat='{}{0:+0;-#;0} XP'}"
                                            FontWeight="Bold"
@@ -651,7 +651,7 @@
                         </StackPanel>
 
                         <!-- Lobby rank context -->
-                        <Border Background="#121820" CornerRadius="6" Padding="10" BorderBrush="#7C3AED" BorderThickness="1">
+                        <Border Background="#131522" CornerRadius="6" Padding="10" BorderBrush="#7C3AED" BorderThickness="1">
                             <StackPanel Spacing="6">
                                 <TextBlock Text="РІВЕНЬ ЛОБІ (RANK CONTEXT)" FontSize="11" FontWeight="Bold" Foreground="#A78BFA" />
                                 <TextBlock Text="Той самий голд-лід інакше конвертується в Iron і в Challenger"
@@ -664,19 +664,19 @@
                         </Border>
 
                         <!-- Dragon Soul Settings -->
-                        <Border Background="#121820" CornerRadius="6" Padding="10" BorderBrush="#C8AA6E" BorderThickness="1">
+                        <Border Background="#131522" CornerRadius="6" Padding="10" BorderBrush="#C8AA6E" BorderThickness="1">
                             <StackPanel Spacing="6">
                                 <TextBlock Text="🐉 ДРАКОНЯЧА ДУША (DRAGON SOUL IMPACT)" FontSize="11" FontWeight="Bold" Foreground="#C8AA6E" />
                                 <Grid ColumnDefinitions="*, *">
                                     <StackPanel Grid.Column="0" Margin="0,0,6,0" Spacing="2">
-                                        <TextBlock Text="Тип душі:" FontSize="10" Foreground="#A09B8C" />
+                                        <TextBlock Text="Тип душі:" FontSize="10" Foreground="#94A3B8" />
                                         <ComboBox ItemsSource="{Binding AvailableSoulTypes}"
                                                   SelectedItem="{Binding SelectedSoulType}"
                                                   HorizontalAlignment="Stretch"
                                                   Height="32" />
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Margin="6,0,0,0" Spacing="2">
-                                        <TextBlock Text="Власник душі (4 дракони):" FontSize="10" Foreground="#A09B8C" />
+                                        <TextBlock Text="Власник душі (4 дракони):" FontSize="10" Foreground="#94A3B8" />
                                         <ComboBox ItemsSource="{Binding AvailableSides}"
                                                   SelectedItem="{Binding SoulOwner}"
                                                   HorizontalAlignment="Stretch"
@@ -703,7 +703,7 @@
 
                 <!-- Right Column: ML Prediction Result Card -->
                 <Border Grid.Column="1"
-                        Background="#1E2328"
+                        Background="#161928"
                         CornerRadius="8"
                         Padding="20"
                         Margin="10,0,0,0"
@@ -737,7 +737,7 @@
                                                HorizontalAlignment="Center" />
                                     <TextBlock Text="Ймовірність перемоги"
                                                FontSize="11"
-                                               Foreground="#A09B8C" />
+                                               Foreground="#94A3B8" />
                                 </StackPanel>
                             </Border>
 
@@ -745,7 +745,7 @@
                                        Text="VS"
                                        FontSize="20"
                                        FontWeight="Bold"
-                                       Foreground="#A09B8C"
+                                       Foreground="#94A3B8"
                                        VerticalAlignment="Center"
                                        Margin="14,0" />
 
@@ -768,21 +768,21 @@
                                                HorizontalAlignment="Center" />
                                     <TextBlock Text="Ймовірність перемоги"
                                                FontSize="11"
-                                               Foreground="#A09B8C" />
+                                               Foreground="#94A3B8" />
                                 </StackPanel>
                             </Border>
                         </Grid>
 
                         <!-- Prediction Banner -->
-                        <Border Background="#091428"
+                        <Border Background="#0F1220"
                                 CornerRadius="6"
                                 Padding="14"
-                                BorderBrush="#2F3640"
+                                BorderBrush="#1F2336"
                                 BorderThickness="1">
                             <StackPanel Spacing="6">
                                 <TextBlock Text="ПРОГНОЗОВАНИЙ ПЕРЕМОЖЕЦЬ:"
                                            FontSize="12"
-                                           Foreground="#A09B8C" />
+                                           Foreground="#94A3B8" />
                                 <TextBlock Text="{Binding Prediction.PredictedWinner, StringFormat='Перемога: {0} Team'}"
                                            FontSize="18"
                                            FontWeight="Bold"
@@ -805,22 +805,22 @@
                         <ItemsControl ItemsSource="{Binding Prediction.KeyFactors}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Background="#091428"
+                                    <Border Background="#0F1220"
                                             CornerRadius="4"
                                             Padding="10,6"
                                             Margin="0,0,0,6"
-                                            BorderBrush="#2F3640"
+                                            BorderBrush="#1F2336"
                                             BorderThickness="1">
                                         <TextBlock Text="{Binding StringFormat='• {0}'}"
                                                    FontSize="12"
-                                                   Foreground="#F0E6D2"
+                                                   Foreground="#F8FAFC"
                                                    TextWrapping="Wrap" />
                                     </Border>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
 
-                        <Separator Background="#2F3640" Height="1" />
+                        <Separator Background="#1F2336" Height="1" />
 
                         <!-- Model Training on Real Data Bar -->
                         <Border Background="#101726" CornerRadius="6" Padding="12,10" BorderBrush="#1F2D44" BorderThickness="1">
@@ -831,7 +831,7 @@
                                         Content="🚀 Перенавчити модель на реальних матчах з бази"
                                         Height="34"
                                         Background="#1E283A"
-                                        Foreground="#F0E6D2"
+                                        Foreground="#F8FAFC"
                                         FontSize="11"
                                         FontWeight="SemiBold"
                                         HorizontalAlignment="Stretch"
@@ -853,7 +853,7 @@
                                 VerticalContentAlignment="Center"
                                 Cursor="Hand" />
 
-                        <Border Background="#091428"
+                        <Border Background="#0F1220"
                                 CornerRadius="6"
                                 Padding="12"
                                 BorderBrush="#C8AA6E"
@@ -873,7 +873,7 @@
                                 <ItemsControl ItemsSource="{Binding BenchmarkReport.Models}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Border Background="#1E2328"
+                                            <Border Background="#161928"
                                                     CornerRadius="4"
                                                     Padding="8,6"
                                                     Margin="0,0,0,6">
@@ -882,7 +882,7 @@
                                                                Text="{Binding AlgorithmName}"
                                                                FontSize="11"
                                                                FontWeight="Bold"
-                                                               Foreground="#F0E6D2" />
+                                                               Foreground="#F8FAFC" />
                                                     <TextBlock Grid.Column="1"
                                                                Text="{Binding FormattedAccuracy, StringFormat='Acc: {0}'}"
                                                                FontSize="11"
@@ -896,7 +896,7 @@
                                                     <TextBlock Grid.Column="3"
                                                                Text="{Binding TrainingDurationMs, StringFormat='{}{0}ms'}"
                                                                FontSize="11"
-                                                               Foreground="#A09B8C" />
+                                                               Foreground="#94A3B8" />
                                                 </Grid>
                                             </Border>
                                         </DataTemplate>
