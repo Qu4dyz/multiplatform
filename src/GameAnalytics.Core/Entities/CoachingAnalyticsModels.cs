@@ -199,4 +199,8 @@ public class GlobalCoachingReport
     public List<CoachingHabit> TopHabits { get; set; } = new();
     /// <summary>Latest games vs the ones before them; empty when there are too few games.</summary>
     public List<CoachingTrend> Trends { get; set; } = new();
+
+    public bool HasHabits => TopHabits.Count > 0;
+    public bool HasHighlights => Highlights.Count > 0;
+    public bool HasTrends => Trends.Count > 0;
 }
