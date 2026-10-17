@@ -165,6 +165,16 @@ public class CoachingHabit
     public int Rank { get; set; }
 }
 
+/// <summary>How one stat moved over the latest games compared with the games before them.</summary>
+public class CoachingTrend
+{
+    public string Metric { get; set; } = string.Empty;
+    public string Text { get; set; } = string.Empty;
+    /// <summary>+1 better, -1 worse, 0 about the same.</summary>
+    public int Direction { get; set; }
+    public string Color => Direction > 0 ? "#0AC8B9" : Direction < 0 ? "#E84057" : "#94A3B8";
+}
+
 public class GlobalCoachingReport
 {
     public int OverallScore { get; set; } = 50;
@@ -187,4 +197,6 @@ public class GlobalCoachingReport
     public List<string> Highlights { get; set; } = new();
     /// <summary>Top habits to fix, most costly first (at most three).</summary>
     public List<CoachingHabit> TopHabits { get; set; } = new();
+    /// <summary>Latest games vs the ones before them; empty when there are too few games.</summary>
+    public List<CoachingTrend> Trends { get; set; } = new();
 }
