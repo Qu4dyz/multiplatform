@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using GameAnalytics.Core.Entities;
 using GameAnalytics.Core.Enums;
+using GameAnalytics.Core.Exceptions;
 using GameAnalytics.Core.Helpers;
 using GameAnalytics.Core.Interfaces;
 using GameAnalytics.Infrastructure.Configuration;
@@ -24,12 +25,51 @@ public class RiotApiClient : IRiotApiClient
         _rateLimiter = rateLimiter ?? new RiotRateLimiter();
     }
 
+    /// <summary>
+    /// Cap how long a single 429 wait may block the caller. The shared <see cref="RiotRateLimiter"/>
+    /// still records the full Retry-After so subsequent calls pause correctly (important for VPS crawl).
+    /// Without this cap, desktop UI sat on "Завантаження..." for minutes when the personal app key
+    /// was exhausted (100:120) by the crawler — each call retried 3× with ~60s Retry-After.
+    /// </summary>
+    public static readonly TimeSpan MaxImmediate429Wait = TimeSpan.FromSeconds(3);
+
     private HttpRequestMessage CreateAuthenticatedRequest(string url)
     {
         var request = new HttpRequestMessage(HttpMethod.Get, url);
         request.Headers.Add("X-Riot-Token", _options.ApiKey);
         request.Headers.Add("User-Agent", "GameAnalytics/1.0 (Windows NT 10.0; Win64; x64)");
         return request;
+    }
+
+    private static TimeSpan ParseRetryAfter(HttpResponseMessage response)
+    {
+        var retryAfter = TimeSpan.FromSeconds(2);
+        if (response.Headers.RetryAfter != null)
+        {
+            if (response.Headers.RetryAfter.Delta.HasValue)
+            {
+                retryAfter = response.Headers.RetryAfter.Delta.Value;
+            }
+            else if (response.Headers.RetryAfter.Date.HasValue)
+            {
+                var diff = response.Headers.RetryAfter.Date.Value - DateTimeOffset.UtcNow;
+                if (diff > TimeSpan.Zero) retryAfter = diff;
+            }
+        }
+        else if (response.Headers.TryGetValues("Retry-After", out var values))
+        {
+            var raw = values.FirstOrDefault();
+            if (int.TryParse(raw, out var sec))
+            {
+                retryAfter = TimeSpan.FromSeconds(sec);
+            }
+        }
+
+        if (retryAfter < TimeSpan.FromMilliseconds(250))
+            retryAfter = TimeSpan.FromMilliseconds(250);
+        if (retryAfter > TimeSpan.FromMinutes(5))
+            retryAfter = TimeSpan.FromMinutes(5);
+        return retryAfter;
     }
 
     private async Task<HttpResponseMessage?> SendWithRetryAsync(string url, CancellationToken ct = default)
@@ -41,8 +81,12 @@ public class RiotApiClient : IRiotApiClient
         {
             ct.ThrowIfCancellationRequested();
 
-            // Wait for rate-limit slot specifically for this routing region (20/1s, 100/120s)
-            await _rateLimiter.WaitForSlotAsync(region, ct);
+            // Wait for rate-limit slot specifically for this routing region (20/1s, 100/120s).
+            // Desktop caps how long we will sit on a known 429 block so the UI can error fast.
+            TimeSpan? maxBlock = _options.MaxRateLimitBlockSeconds > 0
+                ? TimeSpan.FromSeconds(_options.MaxRateLimitBlockSeconds)
+                : null;
+            await _rateLimiter.WaitForSlotAsync(region, maxBlock, ct);
 
             var request = CreateAuthenticatedRequest(url);
             HttpResponseMessage response;
@@ -56,42 +100,22 @@ public class RiotApiClient : IRiotApiClient
                 continue;
             }
 
-            // Handle HTTP 429 Too Many Requests
+            // Handle HTTP 429 Too Many Requests — do NOT sleep the full Retry-After here
+            // (that caused multi-minute UI freezes). Record the block on the shared limiter
+            // and surface 429 to the caller after at most a short immediate wait.
             if (response.StatusCode == (HttpStatusCode)429)
             {
-                var retryAfter = TimeSpan.FromSeconds(2);
-                if (response.Headers.RetryAfter != null)
-                {
-                    if (response.Headers.RetryAfter.Delta.HasValue)
-                    {
-                        retryAfter = response.Headers.RetryAfter.Delta.Value;
-                    }
-                    else if (response.Headers.RetryAfter.Date.HasValue)
-                    {
-                        var diff = response.Headers.RetryAfter.Date.Value - DateTimeOffset.UtcNow;
-                        if (diff > TimeSpan.Zero) retryAfter = diff;
-                    }
-                }
-                else if (response.Headers.TryGetValues("Retry-After", out var values))
-                {
-                    var raw = values.FirstOrDefault();
-                    if (int.TryParse(raw, out var sec))
-                    {
-                        retryAfter = TimeSpan.FromSeconds(sec);
-                    }
-                }
-
-                // Notify the per-region rate limiter so other calls pause
+                var retryAfter = ParseRetryAfter(response);
                 _rateLimiter.NotifyRateLimitHit(region, retryAfter);
-                response.Dispose();
 
-                if (attempt < maxRetries)
+                if (attempt < maxRetries && retryAfter <= MaxImmediate429Wait)
                 {
-                    await Task.Delay(retryAfter + TimeSpan.FromMilliseconds(250), ct);
+                    response.Dispose();
+                    await Task.Delay(retryAfter + TimeSpan.FromMilliseconds(100), ct);
                     continue;
                 }
 
-                return null;
+                return response;
             }
 
             // Retry on transient server errors (500, 502, 503, 504)
@@ -106,6 +130,21 @@ public class RiotApiClient : IRiotApiClient
         }
 
         return null;
+    }
+
+    private static void ThrowIfRateLimited(HttpResponseMessage? response, string region)
+    {
+        if (response == null) return;
+        if (response.StatusCode != (HttpStatusCode)429) return;
+
+        var retryAfter = ParseRetryAfter(response);
+        var seconds = Math.Max(1, (int)Math.Ceiling(retryAfter.TotalSeconds));
+        throw new RiotApiException(
+            $"Riot API rate limit exceeded (429). Retry in ~{seconds}s. " +
+            "The personal app key may be shared with the VPS crawler (100 requests / 120s).",
+            statusCode: 429,
+            retryAfter: retryAfter,
+            region: region);
     }
 
     private static string ExtractRegionFromUrl(string url)
@@ -136,10 +175,20 @@ public class RiotApiClient : IRiotApiClient
             var accountUrl = $"https://{_options.RoutingRegion}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{Uri.EscapeDataString(gameName)}/{Uri.EscapeDataString(tagLine)}";
             using var accountResp = await SendWithRetryAsync(accountUrl, ct);
 
+            ThrowIfRateLimited(accountResp, _options.RoutingRegion);
+
             if (accountResp == null || accountResp.StatusCode == HttpStatusCode.NotFound)
             {
                 // Account not found on Riot servers
                 return null;
+            }
+
+            if (accountResp.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+            {
+                throw new RiotApiException(
+                    "Riot API key rejected (401/403). Check appsettings.local.json or regenerate the key at developer.riotgames.com.",
+                    statusCode: (int)accountResp.StatusCode,
+                    region: _options.RoutingRegion);
             }
 
             if (!accountResp.IsSuccessStatusCode)
@@ -219,6 +268,10 @@ public class RiotApiClient : IRiotApiClient
             catch { /* non-critical */ }
 
             return profile;
+        }
+        catch (RiotApiException)
+        {
+            throw;
         }
         catch
         {
@@ -455,6 +508,7 @@ public class RiotApiClient : IRiotApiClient
                 ? $"https://{_options.RoutingRegion}.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids?queue={queue.Value}&count={count}"
                 : $"https://{_options.RoutingRegion}.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids?count={count}";
             using var response = await SendWithRetryAsync(url, ct);
+            ThrowIfRateLimited(response, _options.RoutingRegion);
             if (response == null || !response.IsSuccessStatusCode)
             {
                 return _options.UseMockFallback ? GenerateMockMatchIds(puuid, count) : Array.Empty<string>();
@@ -462,6 +516,10 @@ public class RiotApiClient : IRiotApiClient
 
             var matchIds = await response.Content.ReadFromJsonAsync<List<string>>(cancellationToken: ct);
             return matchIds ?? (_options.UseMockFallback ? GenerateMockMatchIds(puuid, count) : Array.Empty<string>());
+        }
+        catch (RiotApiException)
+        {
+            throw;
         }
         catch
         {
@@ -480,6 +538,7 @@ public class RiotApiClient : IRiotApiClient
         {
             var url = $"https://{_options.RoutingRegion}.api.riotgames.com/lol/match/v5/matches/{matchId}";
             using var response = await SendWithRetryAsync(url, ct);
+            ThrowIfRateLimited(response, _options.RoutingRegion);
             if (response == null || !response.IsSuccessStatusCode)
             {
                 return _options.UseMockFallback ? GenerateMockMatch(matchId) : null;
@@ -492,6 +551,10 @@ public class RiotApiClient : IRiotApiClient
             }
 
             return MapMatchDtoToDomain(matchId, matchDto.Info);
+        }
+        catch (RiotApiException)
+        {
+            throw;
         }
         catch
         {
@@ -546,43 +609,34 @@ public class RiotApiClient : IRiotApiClient
             WinningTeam = blueWin ? TeamSide.Blue : TeamSide.Red
         };
 
-        // Teams
+        // Teams — end-game objective totals stay on TowerKills/DragonKills/etc.
+        // Minute-15 fields stay 0 until MATCH-V5 timeline is applied (avoids placeholder leakage into ML).
         match.Teams.Add(new TeamStats
         {
             TeamSide = TeamSide.Blue,
             Win = blueWin,
-            FirstBlood = blueTeamDto?.Objectives?.Champion?.First ?? false,
-            FirstTower = blueTeamDto?.Objectives?.Tower?.First ?? false,
-            FirstDragon = blueTeamDto?.Objectives?.Dragon?.First ?? false,
             FirstBaron = blueTeamDto?.Objectives?.Baron?.First ?? false,
             TowerKills = blueTeamDto?.Objectives?.Tower?.Kills ?? 0,
             DragonKills = blueTeamDto?.Objectives?.Dragon?.Kills ?? 0,
             BaronKills = blueTeamDto?.Objectives?.Baron?.Kills ?? 0,
             VoidgrubKills = blueTeamDto?.Objectives?.Horde?.Kills ?? 0,
             RiftHeraldKills = blueTeamDto?.Objectives?.RiftHerald?.Kills ?? 0,
-            FirstVoidgrub = blueTeamDto?.Objectives?.Horde?.First ?? false,
-            FirstRiftHerald = blueTeamDto?.Objectives?.RiftHerald?.First ?? false,
-            GoldAt15 = 25000,
-            KillsAt15 = blueTeamDto?.Objectives?.Champion?.Kills ?? 10
+            GoldAt15 = 0,
+            KillsAt15 = 0
         });
 
         match.Teams.Add(new TeamStats
         {
             TeamSide = TeamSide.Red,
             Win = !blueWin,
-            FirstBlood = redTeamDto?.Objectives?.Champion?.First ?? false,
-            FirstTower = redTeamDto?.Objectives?.Tower?.First ?? false,
-            FirstDragon = redTeamDto?.Objectives?.Dragon?.First ?? false,
             FirstBaron = redTeamDto?.Objectives?.Baron?.First ?? false,
             TowerKills = redTeamDto?.Objectives?.Tower?.Kills ?? 0,
             DragonKills = redTeamDto?.Objectives?.Dragon?.Kills ?? 0,
             BaronKills = redTeamDto?.Objectives?.Baron?.Kills ?? 0,
             VoidgrubKills = redTeamDto?.Objectives?.Horde?.Kills ?? 0,
             RiftHeraldKills = redTeamDto?.Objectives?.RiftHerald?.Kills ?? 0,
-            FirstVoidgrub = redTeamDto?.Objectives?.Horde?.First ?? false,
-            FirstRiftHerald = redTeamDto?.Objectives?.RiftHerald?.First ?? false,
-            GoldAt15 = 25000,
-            KillsAt15 = redTeamDto?.Objectives?.Champion?.Kills ?? 10
+            GoldAt15 = 0,
+            KillsAt15 = 0
         });
 
         // Participants
@@ -649,12 +703,35 @@ public class RiotApiClient : IRiotApiClient
                     TeamDamagePercentage = (float)(p.Challenges?.TeamDamagePercentage ?? 0),
                     ControlWardsPlaced = p.Challenges?.ControlWardsPlaced ?? 0,
                     EffectiveHealAndShielding = (int)(p.Challenges?.EffectiveHealAndShielding ?? 0),
-                    DamageDealtToObjectivesChallenge = (int)(p.Challenges?.DamageDealtToObjectives ?? 0)
+                    DamageDealtToObjectivesChallenge = (int)(p.Challenges?.DamageDealtToObjectives ?? 0),
+                    ChallengesJson = SerializeChallenges(p.Challenges),
+                    JungleCsBefore10Minutes = (float)(p.Challenges?.JungleCsBefore10Minutes ?? 0),
+                    LaneMinionsFirst10Minutes = (float)(p.Challenges?.LaneMinionsFirst10Minutes ?? 0),
+                    SkillshotsDodged = p.Challenges?.SkillshotsDodged ?? 0,
+                    SkillshotsHit = p.Challenges?.SkillshotsHit ?? 0,
+                    TakedownsFirstXMinutes = p.Challenges?.TakedownsFirstXMinutes ?? 0,
+                    EpicMonsterSteals = p.Challenges?.EpicMonsterSteals ?? 0,
+                    SoloBaronKills = p.Challenges?.SoloBaronKills ?? 0,
+                    KdaChallenge = (float)(p.Challenges?.Kda ?? 0)
                 });
             }
         }
 
+        ParticipantChallengeHelper.RefreshHasChallengesFlag(match);
         return match;
+    }
+
+    private static string SerializeChallenges(RiotChallengesDto? challenges)
+    {
+        if (challenges == null) return string.Empty;
+        try
+        {
+            return System.Text.Json.JsonSerializer.Serialize(challenges);
+        }
+        catch
+        {
+            return string.Empty;
+        }
     }
 
     private MatchTimelineData ParseRealTimeline(string matchId, JsonElement root)
@@ -1217,10 +1294,17 @@ public class RiotApiClient : IRiotApiClient
                 TeamDamagePercentage = (float)(random.NextDouble() * 0.2 + 0.15),
                 ControlWardsPlaced = random.Next(1, 8),
                 EffectiveHealAndShielding = random.Next(500, 8000),
-                DamageDealtToObjectivesChallenge = random.Next(2000, 18000)
+                DamageDealtToObjectivesChallenge = random.Next(2000, 18000),
+                JungleCsBefore10Minutes = champ.Item2 == Position.Jungle ? random.Next(40, 80) : 0,
+                LaneMinionsFirst10Minutes = champ.Item2 == Position.Jungle ? 0 : random.Next(50, 90),
+                SkillshotsDodged = random.Next(5, 40),
+                SkillshotsHit = random.Next(10, 60),
+                TakedownsFirstXMinutes = random.Next(0, 6),
+                ChallengesJson = "{\"mock\":true}"
             });
         }
 
+        ParticipantChallengeHelper.RefreshHasChallengesFlag(match);
         return match;
     }
 
@@ -1543,6 +1627,34 @@ public class RiotApiClient : IRiotApiClient
 
         [JsonPropertyName("damageDealtToObjectives")]
         public double? DamageDealtToObjectives { get; set; }
+
+        [JsonPropertyName("jungleCsBefore10Minutes")]
+        public double? JungleCsBefore10Minutes { get; set; }
+
+        [JsonPropertyName("laneMinionsFirst10Minutes")]
+        public double? LaneMinionsFirst10Minutes { get; set; }
+
+        [JsonPropertyName("skillshotsDodged")]
+        public int? SkillshotsDodged { get; set; }
+
+        [JsonPropertyName("skillshotsHit")]
+        public int? SkillshotsHit { get; set; }
+
+        [JsonPropertyName("takedownsFirstXMinutes")]
+        public int? TakedownsFirstXMinutes { get; set; }
+
+        [JsonPropertyName("epicMonsterSteals")]
+        public int? EpicMonsterSteals { get; set; }
+
+        [JsonPropertyName("soloBaronKills")]
+        public int? SoloBaronKills { get; set; }
+
+        [JsonPropertyName("kda")]
+        public double? Kda { get; set; }
+
+        /// <summary>Captures every other challenge key Riot returns (full fidelity → ChallengesJson).</summary>
+        [JsonExtensionData]
+        public Dictionary<string, JsonElement>? AdditionalProperties { get; set; }
     }
 
     public class RiotChampionMasteryDto

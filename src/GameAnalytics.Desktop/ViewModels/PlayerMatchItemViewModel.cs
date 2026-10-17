@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using GameAnalytics.Core.Entities;
 using GameAnalytics.Core.Enums;
 using GameAnalytics.Core.Helpers;
@@ -10,8 +11,18 @@ using Avalonia.Input;
 
 namespace GameAnalytics.Desktop.ViewModels;
 
+/// <summary>Sent once Data Dragon item data arrives, so tooltips built earlier pick up names.</summary>
+public sealed record ItemDataLoadedMessage;
+
 public partial class ItemSlotViewModel : ObservableObject
 {
+    public ItemSlotViewModel()
+    {
+        // Weak registration: item slots come and go with every match list rebuild.
+        WeakReferenceMessenger.Default.Register<ItemSlotViewModel, ItemDataLoadedMessage>(
+            this, static (slot, _) => slot.OnPropertyChanged(nameof(ToolTipText)));
+    }
+
     private int _itemId;
     public int ItemId
     {
@@ -287,11 +298,13 @@ public partial class PlayerMatchItemViewModel : ObservableObject
     [ObservableProperty]
     private string _goldCurveSummary = string.Empty;
 
+    // Avalonia Polyline.CreateDefiningGeometry throws ArgumentNullException on null Points
+    // (silent process kill). Keep non-null empty collections at all times.
     [ObservableProperty]
-    private Points? _goldDiffChartPoints;
+    private Points _goldDiffChartPoints = new();
 
     [ObservableProperty]
-    private Points? _playerGoldChartPoints;
+    private Points _playerGoldChartPoints = new();
 
     private Match? _underlyingMatch;
     private Participant? _underlyingPlayer;
@@ -457,8 +470,8 @@ public partial class PlayerMatchItemViewModel : ObservableObject
         {
             HasGoldCurve = false;
             GoldCurveSummary = string.Empty;
-            GoldDiffChartPoints = null;
-            PlayerGoldChartPoints = null;
+            GoldDiffChartPoints = new Points();
+            PlayerGoldChartPoints = new Points();
             return;
         }
 
@@ -673,28 +686,15 @@ public partial class PlayerMatchItemViewModel : ObservableObject
             vm.MatchGradeBg = gradeColor;
             vm.CoachingBadgeText = tag;
 
-            var rune = player.PrimaryRuneId;
-            var runeStyle = player.SecondaryRuneStyleId;
-            var sp1 = player.Summoner1Id;
-            var sp2 = player.Summoner2Id;
+            var (sp1, sp2) = SpellRuneHelper.ResolveSpellIds(
+                player.Summoner1Id, player.Summoner2Id, player.ChampionName, player.Position);
+            var (rune, runeStyle) = SpellRuneHelper.ResolveRuneIds(
+                player.PrimaryRuneId, player.SecondaryRuneStyleId, player.ChampionName, player.Position);
 
-            if ((rune <= 0 || (rune == 8010 && runeStyle == 8100 && !SpellRuneHelper.IsConquerorChampion(player.ChampionName)))
-                && !string.IsNullOrWhiteSpace(player.ChampionName))
-            {
-                var rec = SpellRuneHelper.GetRecommendedRunesAndSpells(player.ChampionName, player.Position);
-                rune = rec.PrimaryRune;
-                runeStyle = rec.SecondaryStyle;
-                if (sp1 <= 0 || (sp1 == 4 && sp2 == 14))
-                {
-                    sp1 = rec.Spell1;
-                    sp2 = rec.Spell2;
-                }
-            }
-
-            vm.Summoner1Id = sp1 > 0 ? sp1 : 4;
-            vm.Summoner2Id = sp2 > 0 ? sp2 : 14;
-            vm.PrimaryRuneId = rune > 0 ? rune : 8010;
-            vm.SecondaryRuneStyleId = runeStyle > 0 ? runeStyle : 8100;
+            vm.Summoner1Id = sp1;
+            vm.Summoner2Id = sp2;
+            vm.PrimaryRuneId = rune;
+            vm.SecondaryRuneStyleId = runeStyle;
             vm.VisionScore = player.VisionScore;
             vm.WardsPlaced = player.WardsPlaced;
             vm.ControlWardsBought = player.ControlWardsBought;
@@ -808,10 +808,6 @@ public partial class PlayerMatchItemViewModel : ObservableObject
                 DamagePercentOfMax = Math.Round((double)p.TotalDamageDealtToChampions / maxDamage * 100, 1),
                 GoldEarned = p.GoldEarned,
                 MinionsKilled = p.TotalMinionsKilled,
-                Summoner1Id = (p.Summoner1Id > 0 && p.Summoner1Id != 4) ? p.Summoner1Id : SpellRuneHelper.GetRecommendedRunesAndSpells(p.ChampionName, p.Position).Spell1,
-                Summoner2Id = (p.Summoner2Id > 0 && p.Summoner2Id != 14) ? p.Summoner2Id : SpellRuneHelper.GetRecommendedRunesAndSpells(p.ChampionName, p.Position).Spell2,
-                PrimaryRuneId = (p.PrimaryRuneId > 0 && (p.PrimaryRuneId != 8010 || SpellRuneHelper.IsConquerorChampion(p.ChampionName))) ? p.PrimaryRuneId : SpellRuneHelper.GetRecommendedRunesAndSpells(p.ChampionName, p.Position).PrimaryRune,
-                SecondaryRuneStyleId = (p.SecondaryRuneStyleId > 0 && (p.SecondaryRuneStyleId != 8100 || SpellRuneHelper.IsConquerorChampion(p.ChampionName))) ? p.SecondaryRuneStyleId : SpellRuneHelper.GetRecommendedRunesAndSpells(p.ChampionName, p.Position).SecondaryStyle,
                 VisionScore = p.VisionScore,
                 WardsPlaced = p.WardsPlaced,
                 ControlWardsBought = p.ControlWardsBought,
@@ -829,6 +825,7 @@ public partial class PlayerMatchItemViewModel : ObservableObject
                 Trinket = new ItemSlotViewModel { ItemId = p.Item6 },
                 SelectPlayerCommand = selectPlayerCommand
             };
+            ApplyParticipantSpellsAndRunes(detailed, p);
             detailed.ChampionIcon = BitmapAssetValueConverter.GetOrLoadBitmap(detailed.ChampionIconUrl, bmp => detailed.ChampionIcon = bmp);
             detailed.Summoner1Icon = BitmapAssetValueConverter.GetOrLoadBitmap(detailed.Summoner1IconUrl, bmp => detailed.Summoner1Icon = bmp);
             detailed.Summoner2Icon = BitmapAssetValueConverter.GetOrLoadBitmap(detailed.Summoner2IconUrl, bmp => detailed.Summoner2Icon = bmp);
@@ -899,10 +896,6 @@ public partial class PlayerMatchItemViewModel : ObservableObject
                 DamagePercentOfMax = Math.Round((double)p.TotalDamageDealtToChampions / maxDamage * 100, 1),
                 GoldEarned = p.GoldEarned,
                 MinionsKilled = p.TotalMinionsKilled,
-                Summoner1Id = (p.Summoner1Id > 0 && p.Summoner1Id != 4) ? p.Summoner1Id : SpellRuneHelper.GetRecommendedRunesAndSpells(p.ChampionName, p.Position).Spell1,
-                Summoner2Id = (p.Summoner2Id > 0 && p.Summoner2Id != 14) ? p.Summoner2Id : SpellRuneHelper.GetRecommendedRunesAndSpells(p.ChampionName, p.Position).Spell2,
-                PrimaryRuneId = (p.PrimaryRuneId > 0 && (p.PrimaryRuneId != 8010 || SpellRuneHelper.IsConquerorChampion(p.ChampionName))) ? p.PrimaryRuneId : SpellRuneHelper.GetRecommendedRunesAndSpells(p.ChampionName, p.Position).PrimaryRune,
-                SecondaryRuneStyleId = (p.SecondaryRuneStyleId > 0 && (p.SecondaryRuneStyleId != 8100 || SpellRuneHelper.IsConquerorChampion(p.ChampionName))) ? p.SecondaryRuneStyleId : SpellRuneHelper.GetRecommendedRunesAndSpells(p.ChampionName, p.Position).SecondaryStyle,
                 VisionScore = p.VisionScore,
                 WardsPlaced = p.WardsPlaced,
                 ControlWardsBought = p.ControlWardsBought,
@@ -920,6 +913,7 @@ public partial class PlayerMatchItemViewModel : ObservableObject
                 Trinket = new ItemSlotViewModel { ItemId = p.Item6 },
                 SelectPlayerCommand = selectPlayerCommand
             };
+            ApplyParticipantSpellsAndRunes(detailed, p);
             detailed.ChampionIcon = BitmapAssetValueConverter.GetOrLoadBitmap(detailed.ChampionIconUrl, bmp => detailed.ChampionIcon = bmp);
             detailed.Summoner1Icon = BitmapAssetValueConverter.GetOrLoadBitmap(detailed.Summoner1IconUrl, bmp => detailed.Summoner1Icon = bmp);
             detailed.Summoner2Icon = BitmapAssetValueConverter.GetOrLoadBitmap(detailed.Summoner2IconUrl, bmp => detailed.Summoner2Icon = bmp);
@@ -934,6 +928,16 @@ public partial class PlayerMatchItemViewModel : ObservableObject
         }
 
         return vm;
+    }
+
+    private static void ApplyParticipantSpellsAndRunes(DetailedParticipantViewModel detailed, Participant p)
+    {
+        var (sp1, sp2) = SpellRuneHelper.ResolveSpellIds(p.Summoner1Id, p.Summoner2Id, p.ChampionName, p.Position);
+        var (rune, runeStyle) = SpellRuneHelper.ResolveRuneIds(p.PrimaryRuneId, p.SecondaryRuneStyleId, p.ChampionName, p.Position);
+        detailed.Summoner1Id = sp1;
+        detailed.Summoner2Id = sp2;
+        detailed.PrimaryRuneId = rune;
+        detailed.SecondaryRuneStyleId = runeStyle;
     }
 
     public static string NormalizeChampionName(string? name)

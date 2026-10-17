@@ -347,7 +347,7 @@ public partial class DraftPredictionViewModel : ViewModelBase
     public async Task RetrainOnRealDataAsync()
     {
         IsRetraining = true;
-        TrainingStatusText = "⏳ Навчання моделі на реальних матчах з бази даних...";
+        TrainingStatusText = $"⏳ Навчання моделі на найновіших реальних матчах з бази даних (до {GameAnalytics.Infrastructure.Services.MatchAnalyticsService.DesktopRetrainMaxMatches})...";
         try
         {
             var success = await _analyticsService.RetrainModelOnSavedMatchesAsync();

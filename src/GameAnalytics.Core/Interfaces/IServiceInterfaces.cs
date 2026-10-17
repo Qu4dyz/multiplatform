@@ -23,16 +23,28 @@ public readonly record struct LadderPlayerEntry(string Puuid, GameAnalytics.Core
 public interface IMatchRepository
 {
     Task<IReadOnlyList<Match>> GetAllMatchesAsync(CancellationToken ct = default);
+    /// <summary>Recent matches for a Riot ID from local SQLite (no network).</summary>
+    Task<IReadOnlyList<Match>> GetMatchesByRiotIdAsync(string gameName, string tagLine, int limit = 20, CancellationToken ct = default);
+    /// <summary>Newest-first page of saved matches for UI lists; never loads the whole table.</summary>
+    Task<IReadOnlyList<Match>> GetRecentMatchesPageAsync(int skip, int take, CancellationToken ct = default);
+    /// <summary>Newest saved matches where the given PUUID took part.</summary>
+    Task<IReadOnlyList<Match>> GetMatchesByPuuidAsync(string puuid, int limit = 20, CancellationToken ct = default);
     Task<Match?> GetMatchByMatchIdAsync(string matchId, CancellationToken ct = default);
     Task SaveMatchAsync(Match match, CancellationToken ct = default);
     Task UpsertMatchAsync(Match match, CancellationToken ct = default);
     Task<int> GetTotalMatchesCountAsync(CancellationToken ct = default);
     Task ClearAllMatchesAsync(CancellationToken ct = default);
+    /// <summary>Forget tracked entities, e.g. after the database file was swapped underneath the context.</summary>
+    void ResetTrackedState() { }
     Task<IReadOnlyList<string>> GetDistinctParticipantPuuidsAsync(int limit = 50, CancellationToken ct = default);
     /// <summary>Match IDs that have minute-15 objectives but still miss vision/death or CS/XP@10 features.</summary>
     Task<IReadOnlyList<string>> GetMatchIdsNeedingTimelineBackfillAsync(int limit = 50, CancellationToken ct = default);
     /// <summary>Ranked matches still missing ApproxRankScore (lobby skill tag).</summary>
     Task<IReadOnlyList<string>> GetMatchIdsNeedingRankBackfillAsync(int limit = 80, CancellationToken ct = default);
+    /// <summary>Ranked matches still missing match-v5 challenges payload.</summary>
+    Task<IReadOnlyList<string>> GetMatchIdsNeedingChallengesBackfillAsync(int limit = 40, CancellationToken ct = default);
+    /// <summary>Matches with 15' features but no MatchTimelineCaches row (gold curve / replay).</summary>
+    Task<IReadOnlyList<string>> GetMatchIdsMissingTimelineCacheAsync(int limit = 12, CancellationToken ct = default);
     /// <summary>Cached PUUID → solo rank score (1–10) for lobby tagging across epochs.</summary>
     Task<IReadOnlyDictionary<string, float>> GetPlayerRankHintsAsync(CancellationToken ct = default);
     Task UpsertPlayerRankHintsAsync(IReadOnlyDictionary<string, float> hints, CancellationToken ct = default);
@@ -65,6 +77,9 @@ public interface IMatchAnalyticsService
     Task<IReadOnlyDictionary<string, int>> GetPlayerMatchLpMapAsync(string puuid, CancellationToken ct = default);
     Task TrackAndReconstructLpAsync(SummonerProfile profile, IReadOnlyList<Match> matches, CancellationToken ct = default);
     Task<IReadOnlyList<Match>> GetSavedMatchHistoryAsync(CancellationToken ct = default);
+    /// <summary>Local SQLite matches for a Riot ID — used to paint UI before / without live API.</summary>
+    Task<IReadOnlyList<Match>> GetSavedMatchesForPlayerAsync(string gameName, string tagLine, int limit = 20, CancellationToken ct = default);
+    Task<IReadOnlyList<Match>> GetSavedMatchesForPuuidAsync(string puuid, int limit = 20, CancellationToken ct = default);
     Task<MatchTimelineData?> GetMatchTimelineAsync(string matchId, CancellationToken ct = default);
     Task<bool> RetrainModelOnSavedMatchesAsync(CancellationToken ct = default);
     PredictionResult PredictOutcome(MatchInputFeatures features);

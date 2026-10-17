@@ -26,7 +26,8 @@ public class GameAnalyticsDbContext : DbContext
         _dbPath = ResolveDatabasePath();
     }
 
-    private static string ResolveDatabasePath()
+    /// <summary>The SQLite file the default-configured context opens (app dir, then project, then repo root).</summary>
+    public static string ResolveDatabasePath()
     {
         var baseDir = AppContext.BaseDirectory;
         var appPath = Path.Combine(baseDir, "game_analytics.db");

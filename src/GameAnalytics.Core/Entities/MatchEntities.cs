@@ -67,6 +67,12 @@ public class Match
     /// <summary>True once deaths/vision ward diffs were written from a timeline parse.</summary>
     public bool HasVisionDeathFeatures { get; set; }
 
+    /// <summary>
+    /// True once match-v5 participant challenges were persisted (coach/UI).
+    /// End-game challenge rates must not feed the 15' win model (label leakage).
+    /// </summary>
+    public bool HasChallenges { get; set; }
+
     public List<Participant> Participants { get; set; } = new();
     public List<TeamStats> Teams { get; set; } = new();
 
@@ -146,7 +152,8 @@ public class Participant
     public int SoloKills { get; set; }
     public int TurretPlatesTaken { get; set; }
 
-    // Match-v5 challenges (coach / UI; 0 when absent on older rows)
+    // Match-v5 challenges (coach / UI; 0 when absent on older rows).
+    // Do not feed end-game rates into the 15' prediction model.
     public float KillParticipation { get; set; }
     public float VisionScorePerMinute { get; set; }
     public float GoldPerMinute { get; set; }
@@ -155,6 +162,20 @@ public class Participant
     public int ControlWardsPlaced { get; set; }
     public int EffectiveHealAndShielding { get; set; }
     public int DamageDealtToObjectivesChallenge { get; set; }
+
+    /// <summary>Raw match-v5 challenges object (full fidelity for coach / future features).</summary>
+    public string ChallengesJson { get; set; } = string.Empty;
+
+    /// <summary>Early jungle CS before 10' (challenge; safe historical fact, already covered by timeline CS).</summary>
+    public float JungleCsBefore10Minutes { get; set; }
+    /// <summary>Lane minions before 10' (challenge).</summary>
+    public float LaneMinionsFirst10Minutes { get; set; }
+    public int SkillshotsDodged { get; set; }
+    public int SkillshotsHit { get; set; }
+    public int TakedownsFirstXMinutes { get; set; }
+    public int EpicMonsterSteals { get; set; }
+    public int SoloBaronKills { get; set; }
+    public float KdaChallenge { get; set; }
 
     public double KdaRatio => Deaths == 0 ? (Kills + Assists) : Math.Round((double)(Kills + Assists) / Deaths, 2);
 }

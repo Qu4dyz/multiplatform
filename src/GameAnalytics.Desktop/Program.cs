@@ -21,13 +21,58 @@ sealed class Program
     [STAThread]
     public static async Task Main(string[] args)
     {
+        AttachCrashLogging();
+
         if (args.Any(a => a.Equals("--vps-train", StringComparison.OrdinalIgnoreCase) || a.Equals("--train", StringComparison.OrdinalIgnoreCase)))
         {
             await RunHeadlessVpsTrainerAsync(args);
             return;
         }
 
-        BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+        try
+        {
+            BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+        }
+        catch (Exception ex)
+        {
+            WriteCrashLog(ex);
+            throw;
+        }
+    }
+
+    private static void AttachCrashLogging()
+    {
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+        {
+            if (e.ExceptionObject is Exception ex)
+                WriteCrashLog(ex);
+            else
+                WriteCrashLog(new Exception(e.ExceptionObject?.ToString() ?? "Unknown unhandled exception"));
+        };
+
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+        {
+            WriteCrashLog(e.Exception);
+            e.SetObserved();
+        };
+    }
+
+    private static void WriteCrashLog(Exception ex)
+    {
+        try
+        {
+            Console.Error.WriteLine(ex);
+            var path = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "GameAnalytics",
+                "crash.log");
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.AppendAllText(path, $"[{DateTime.Now:O}] {ex}{Environment.NewLine}{Environment.NewLine}");
+        }
+        catch
+        {
+            // Best-effort diagnostics only.
+        }
     }
 
     private static async Task RunHeadlessVpsTrainerAsync(string[] args)
@@ -50,6 +95,8 @@ sealed class Program
             if (File.Exists(projectConfig)) configPath = projectConfig;
         }
         var riotOptions = RiotApiOptions.LoadFromFile(configPath);
+        // Headless crawl must wait out Riot Retry-After instead of failing fast like the desktop UI.
+        riotOptions.MaxRateLimitBlockSeconds = 0;
         services.AddSingleton(riotOptions);
         services.AddSingleton<IPredictionEngine, MatchPredictionEngine>();
         services.AddScoped<VpsTrainingWorker>();
@@ -123,17 +170,17 @@ sealed class Program
             Console.WriteLine("[VPS ML Trainer] Отримано сигнал завершення роботи (SIGINT/Ctrl+C)...");
         };
 
-        // Near personal-key ceiling: app limit is 20/1s + 100/120s per region
-        // (confirmed via X-App-Rate-Limit). Match crawl uses europe; rank uses euw1 —
-        // separate buckets. Rate limiter paces requests; keep only a short idle gap.
+        // 2GB VPS knobs (personal Riot app still caps at 20/1s + 100/120s per region).
+        // Modest raise vs old 1GB: larger batches, shorter idle, slightly heavier backfill.
+        // Documented in docs/vps-deploy.md — do not push past app limits without a production key.
         if (predictionEngine is MatchPredictionEngine mpe)
             mpe.AblationIntervalEpochs = 4;
 
         // Wrap training with post-epoch match-count refresh for the status API
         await worker.RunContinuousTrainingAsync(
             seedPuuid,
-            batchSize: 50,
-            epochDelay: TimeSpan.FromMinutes(1),
+            batchSize: 56,
+            epochDelay: TimeSpan.FromSeconds(90),
             logger: msg =>
             {
                 Console.WriteLine(msg);

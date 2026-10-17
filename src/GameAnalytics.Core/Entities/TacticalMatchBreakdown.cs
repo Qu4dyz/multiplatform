@@ -130,7 +130,7 @@ public class TacticalMomentReplay
     public int KillerId { get; set; }
     public int VictimId { get; set; }
     public int TimestampMs { get; set; }
-    public double MapSize { get; set; } = 260;
+    public double MapSize { get; set; } = 280;
     /// <summary>Summoner's Rift minimap asset key or URL.</summary>
     public string MapImageUrl { get; set; } = string.Empty;
     /// <summary>Kill epicenter marker on the canvas (centered ring).</summary>
@@ -172,6 +172,8 @@ public class MatchTacticalReport
     public string KeyTakeaway { get; set; } = string.Empty;
 
     public List<TacticalTimelineEvent> TimelineEvents { get; set; } = new();
+    /// <summary>False when no Riot timeline was available, so the event list is intentionally empty.</summary>
+    public bool HasRealTimeline { get; set; }
     public List<MatchGapItem> GapAnalysis { get; set; } = new();
     public List<GoldCurveBuilder.GoldCurvePoint> GoldCurve { get; set; } = new();
 }

@@ -67,6 +67,18 @@ public partial class MainViewModel : ViewModelBase
     private string _osInfo;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ConnectionStatusText))]
+    [NotifyPropertyChangedFor(nameof(ConnectionStatusColor))]
+    [NotifyPropertyChangedFor(nameof(ConnectionStatusBg))]
+    [NotifyPropertyChangedFor(nameof(ConnectionStatusBorder))]
+    private bool _hasRiotApiKey;
+
+    public string ConnectionStatusText => HasRiotApiKey ? "● Riot API: ключ активний" : "● Демо-режим (без ключа)";
+    public string ConnectionStatusColor => HasRiotApiKey ? "#10B981" : "#F59E0B";
+    public string ConnectionStatusBg => HasRiotApiKey ? "#131F1C" : "#211B10";
+    public string ConnectionStatusBorder => HasRiotApiKey ? "#1B3B32" : "#4A3712";
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsScale100))]
     [NotifyPropertyChangedFor(nameof(IsScale115))]
     [NotifyPropertyChangedFor(nameof(IsScale125))]
@@ -100,7 +112,7 @@ public partial class MainViewModel : ViewModelBase
         _matchHistory = null!;
         _settings = null!;
 
-        SelectTab0Command = new CommunityToolkit.Mvvm.Input.RelayCommand(() => SelectedTabIndex = 0);
+        SelectTab0Command = new CommunityToolkit.Mvvm.Input.RelayCommand(() => { PlayerAnalytics.UpdateApiStatus(); SelectedTabIndex = 0; });
         SelectTab1Command = new CommunityToolkit.Mvvm.Input.RelayCommand(() => SelectedTabIndex = 1);
         SelectTab2Command = new CommunityToolkit.Mvvm.Input.RelayCommand(() => SelectedTabIndex = 2);
         SelectTab3Command = new CommunityToolkit.Mvvm.Input.RelayCommand(() => SelectedTabIndex = 3);
@@ -124,5 +136,17 @@ public partial class MainViewModel : ViewModelBase
         _draftPrediction = draftPrediction;
         _matchHistory = matchHistory;
         _settings = settings;
+
+        // Settings can swap in a VPS database or wipe the local one; reload the paged history afterwards.
+        if (settings != null && matchHistory != null)
+            settings.DatabaseChanged += async (_, _) => await matchHistory.LoadMatchesAsync();
+
+        // The status pills used to say "online" unconditionally; follow the real key state instead.
+        HasRiotApiKey = playerAnalytics.HasApiKey;
+        playerAnalytics.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(PlayerAnalyticsViewModel.HasApiKey))
+                HasRiotApiKey = playerAnalytics.HasApiKey;
+        };
     }
 }

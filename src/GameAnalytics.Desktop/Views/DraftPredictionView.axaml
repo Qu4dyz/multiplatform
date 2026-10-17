@@ -10,48 +10,61 @@
              x:DataType="vm:DraftPredictionViewModel"
              x:Name="RootControl">
 
-    <UserControl.Resources>
-        <conv:BitmapAssetValueConverter x:Key="BitmapAssetConverter" />
-    </UserControl.Resources>
+    <UserControl.Styles>
+        <Style Selector="Button.role-chip">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Padding" Value="10,4" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Background" Value="{StaticResource Surface2Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.role-chip.active">
+            <Setter Property="Background" Value="#7C3AED" />
+            <Setter Property="BorderBrush" Value="#A78BFA" />
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+        </Style>
+    </UserControl.Styles>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="24" Spacing="20">
 
             <!-- SECTION 1: 5v5 DRAFT BOARD & CHAMPION PICKER -->
-            <Border Background="#131522"
+            <Border Background="{StaticResource SurfaceBrush}"
                     CornerRadius="12"
                     Padding="20"
-                    BorderBrush="#22263C"
+                    BorderBrush="{StaticResource BorderBrush}"
                     BorderThickness="1">
                 <StackPanel Spacing="16">
                     <!-- Section Header -->
                     <Grid ColumnDefinitions="*, Auto">
                         <StackPanel Grid.Column="0" Spacing="4">
-                            <TextBlock Text="⚔️ 5v5 ДРАФТ ЧЕМПІОНІВ ТА ОЦІНКА СИНЕРГІЇ"
+                            <TextBlock Classes="title" Text="Драфт 5 на 5"
                                        FontWeight="Bold"
-                                       FontSize="14"
-                                       Foreground="#C4B5FD"
-                                       LetterSpacing="1.2" />
+                                       FontSize="16"
+                                       Foreground="#C4B5FD" />
                             <TextBlock Text="Оберіть позицію та призначте чемпіона для кожної команди. Вінрейти та синергії оновлюються автоматично."
                                        FontSize="12"
-                                       Foreground="#94A3B8" />
+                                       Foreground="{StaticResource TextMutedBrush}" />
                         </StackPanel>
 
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                            <Border Background="#181B2B" CornerRadius="6" Padding="8,4" BorderBrush="#7C3AED" BorderThickness="1">
+                            <Border Background="{StaticResource Surface2Brush}" CornerRadius="8" Padding="8,4" BorderBrush="#7C3AED" BorderThickness="1">
                                 <TextBlock Text="{Binding PatchVersion, StringFormat='Патч DDragon: v{0}'}"
                                            FontSize="11"
                                            Foreground="#A78BFA" />
                             </Border>
-                            <Button Content="🔄 Скинути драфт"
+                            <Button Content="Скинути драфт"
                                     Command="{Binding ResetDraftCommand}"
                                     FontSize="11"
-                                    Background="#181B2B"
-                                    BorderBrush="#252A42"
+                                    Background="{StaticResource Surface2Brush}"
+                                    BorderBrush="{StaticResource BorderBrush}"
                                     BorderThickness="1"
                                     Foreground="#C4B5FD"
                                     Padding="12,6"
-                                    CornerRadius="6"
+                                    CornerRadius="8"
                                     Cursor="Hand" />
                         </StackPanel>
                     </Grid>
@@ -61,7 +74,7 @@
                         <!-- Blue Team Slots (5 rows) -->
                         <Border Grid.Column="0"
                                 Background="#0A1428"
-                                CornerRadius="6"
+                                CornerRadius="8"
                                 Padding="12"
                                 BorderBrush="#0397AB"
                                 BorderThickness="1.5">
@@ -87,7 +100,7 @@
                                                     HorizontalContentAlignment="Stretch"
                                                     Padding="6"
                                                     Margin="0,0,0,6"
-                                                    Background="#1E2328"
+                                                    Background="{StaticResource Surface2Brush}"
                                                     BorderBrush="#0397AB"
                                                     BorderThickness="1"
                                                     CornerRadius="4"
@@ -105,9 +118,9 @@
                                                             Width="34" Height="34"
                                                             CornerRadius="4"
                                                             ClipToBounds="True"
-                                                            Background="#091428"
+                                                            Background="#0F1220"
                                                             Margin="4,0">
-                                                        <Image Source="{Binding ChampionIconUrl, Converter={StaticResource BitmapAssetConverter}}"
+                                                        <Image conv:RemoteImage.Url="{Binding ChampionIconUrl}"
                                                                Width="34" Height="34"
                                                                Stretch="UniformToFill" />
                                                     </Border>
@@ -117,10 +130,10 @@
                                                         <TextBlock Text="{Binding ChampionDisplayName}"
                                                                    FontWeight="SemiBold"
                                                                    FontSize="12"
-                                                                   Foreground="#F0E6D2" />
+                                                                   Foreground="{StaticResource TextPrimaryBrush}" />
                                                         <TextBlock Text="{Binding PositionName}"
-                                                                   FontSize="10"
-                                                                   Foreground="#A09B8C" />
+                                                                   FontSize="11"
+                                                                   Foreground="{StaticResource TextMutedBrush}" />
                                                     </StackPanel>
 
                                                     <!-- Individual Win Rate -->
@@ -141,17 +154,17 @@
 
                         <!-- Center: Champion Picker Console -->
                         <Border Grid.Column="1"
-                                Background="#121820"
-                                CornerRadius="6"
+                                Background="{StaticResource SurfaceBrush}"
+                                CornerRadius="8"
                                 Padding="14"
                                 Margin="12,0"
-                                BorderBrush="#3C3C41"
+                                BorderBrush="{StaticResource BorderBrush}"
                                 BorderThickness="1">
                             <StackPanel Spacing="10">
                                 <!-- Active Slot Indicator -->
-                                <Border Background="#091428" CornerRadius="4" Padding="8,6" BorderBrush="#C8AA6E" BorderThickness="1">
+                                <Border Background="#0F1220" CornerRadius="4" Padding="8,6" BorderBrush="#C8AA6E" BorderThickness="1">
                                     <Grid ColumnDefinitions="Auto, *">
-                                        <TextBlock Text="🎯 Вибір для: "
+                                        <TextBlock Text="Вибір для: "
                                                    FontSize="11"
                                                    FontWeight="SemiBold"
                                                    Foreground="#C8AA6E" />
@@ -159,44 +172,43 @@
                                                    Text="{Binding ActiveSlot.ChampionDisplayName, FallbackValue='Оберіть слот'}"
                                                    FontSize="11"
                                                    FontWeight="Bold"
-                                                   Foreground="#F0E6D2" />
+                                                   Foreground="{StaticResource TextPrimaryBrush}" />
                                     </Grid>
                                 </Border>
 
                                 <!-- Search and Role Filter -->
                                 <TextBox Text="{Binding SearchQuery}"
-                                         PlaceholderText="🔍 Пошук чемпіона за ім'ям..."
+                                         PlaceholderText="Пошук чемпіона за ім'ям..."
                                          Height="32"
                                          FontSize="12" />
 
-                                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
-                                    <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <Button Content="Всі"
-                                                Command="{Binding FilterByRoleCommand}" CommandParameter="All"
-                                                FontSize="11" Padding="8,4" Background="#2F3640" Foreground="White" />
-                                        <Button Content="Боєць"
-                                                Command="{Binding FilterByRoleCommand}" CommandParameter="Fighter"
-                                                FontSize="11" Padding="8,4" Background="#2F3640" Foreground="#F0E6D2" />
-                                        <Button Content="Маг"
-                                                Command="{Binding FilterByRoleCommand}" CommandParameter="Mage"
-                                                FontSize="11" Padding="8,4" Background="#2F3640" Foreground="#F0E6D2" />
-                                        <Button Content="Вбивця"
-                                                Command="{Binding FilterByRoleCommand}" CommandParameter="Assassin"
-                                                FontSize="11" Padding="8,4" Background="#2F3640" Foreground="#F0E6D2" />
-                                        <Button Content="Стрілець"
-                                                Command="{Binding FilterByRoleCommand}" CommandParameter="Marksman"
-                                                FontSize="11" Padding="8,4" Background="#2F3640" Foreground="#F0E6D2" />
-                                        <Button Content="Танк"
-                                                Command="{Binding FilterByRoleCommand}" CommandParameter="Tank"
-                                                FontSize="11" Padding="8,4" Background="#2F3640" Foreground="#F0E6D2" />
-                                        <Button Content="Підтримка"
-                                                Command="{Binding FilterByRoleCommand}" CommandParameter="Support"
-                                                FontSize="11" Padding="8,4" Background="#2F3640" Foreground="#F0E6D2" />
-                                    </StackPanel>
-                                </ScrollViewer>
+                                <!-- Role filter chips wrap to a second line instead of a clipped scroll strip -->
+                                <WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="6">
+                                    <Button Classes="role-chip" Content="Всі"
+                                            Classes.active="{Binding SelectedRoleFilter, Converter={x:Static conv:EqualsParameterConverter.Instance}, ConverterParameter=All}"
+                                            Command="{Binding FilterByRoleCommand}" CommandParameter="All" />
+                                    <Button Classes="role-chip" Content="Боєць"
+                                            Classes.active="{Binding SelectedRoleFilter, Converter={x:Static conv:EqualsParameterConverter.Instance}, ConverterParameter=Fighter}"
+                                            Command="{Binding FilterByRoleCommand}" CommandParameter="Fighter" />
+                                    <Button Classes="role-chip" Content="Маг"
+                                            Classes.active="{Binding SelectedRoleFilter, Converter={x:Static conv:EqualsParameterConverter.Instance}, ConverterParameter=Mage}"
+                                            Command="{Binding FilterByRoleCommand}" CommandParameter="Mage" />
+                                    <Button Classes="role-chip" Content="Вбивця"
+                                            Classes.active="{Binding SelectedRoleFilter, Converter={x:Static conv:EqualsParameterConverter.Instance}, ConverterParameter=Assassin}"
+                                            Command="{Binding FilterByRoleCommand}" CommandParameter="Assassin" />
+                                    <Button Classes="role-chip" Content="Стрілець"
+                                            Classes.active="{Binding SelectedRoleFilter, Converter={x:Static conv:EqualsParameterConverter.Instance}, ConverterParameter=Marksman}"
+                                            Command="{Binding FilterByRoleCommand}" CommandParameter="Marksman" />
+                                    <Button Classes="role-chip" Content="Танк"
+                                            Classes.active="{Binding SelectedRoleFilter, Converter={x:Static conv:EqualsParameterConverter.Instance}, ConverterParameter=Tank}"
+                                            Command="{Binding FilterByRoleCommand}" CommandParameter="Tank" />
+                                    <Button Classes="role-chip" Content="Підтримка"
+                                            Classes.active="{Binding SelectedRoleFilter, Converter={x:Static conv:EqualsParameterConverter.Instance}, ConverterParameter=Support}"
+                                            Command="{Binding FilterByRoleCommand}" CommandParameter="Support" />
+                                </WrapPanel>
 
                                 <!-- Champion Grid / List -->
-                                <Border Background="#091428"
+                                <Border Background="#0F1220"
                                         CornerRadius="4"
                                         Padding="6"
                                         Height="220">
@@ -214,8 +226,8 @@
                                                             Margin="3"
                                                             Padding="4"
                                                             Width="68" Height="68"
-                                                            Background="#1E2328"
-                                                            BorderBrush="#3C3C41"
+                                                            Background="{StaticResource Surface2Brush}"
+                                                            BorderBrush="{StaticResource BorderBrush}"
                                                             BorderThickness="1"
                                                             CornerRadius="4"
                                                             ToolTip.Tip="{Binding Name}"
@@ -225,15 +237,15 @@
                                                                     CornerRadius="4"
                                                                     ClipToBounds="True"
                                                                     Background="#0A1428">
-                                                                <Image Source="{Binding IconUrl, Converter={StaticResource BitmapAssetConverter}}"
+                                                                <Image conv:RemoteImage.Url="{Binding IconUrl}"
                                                                        Width="38" Height="38"
                                                                        Stretch="UniformToFill" />
                                                             </Border>
                                                             <TextBlock Text="{Binding Name}"
-                                                                       FontSize="9"
+                                                                       FontSize="11"
                                                                        TextTrimming="CharacterEllipsis"
                                                                        HorizontalAlignment="Center"
-                                                                       Foreground="#F0E6D2" />
+                                                                       Foreground="{StaticResource TextPrimaryBrush}" />
                                                         </StackPanel>
                                                     </Button>
                                                 </DataTemplate>
@@ -247,7 +259,7 @@
                         <!-- Red Team Slots (5 rows) -->
                         <Border Grid.Column="2"
                                 Background="#0A1428"
-                                CornerRadius="6"
+                                CornerRadius="8"
                                 Padding="12"
                                 BorderBrush="#E84057"
                                 BorderThickness="1.5">
@@ -273,7 +285,7 @@
                                                     HorizontalContentAlignment="Stretch"
                                                     Padding="6"
                                                     Margin="0,0,0,6"
-                                                    Background="#1E2328"
+                                                    Background="{StaticResource Surface2Brush}"
                                                     BorderBrush="#E84057"
                                                     BorderThickness="1"
                                                     CornerRadius="4"
@@ -291,9 +303,9 @@
                                                             Width="34" Height="34"
                                                             CornerRadius="4"
                                                             ClipToBounds="True"
-                                                            Background="#091428"
+                                                            Background="#0F1220"
                                                             Margin="4,0">
-                                                        <Image Source="{Binding ChampionIconUrl, Converter={StaticResource BitmapAssetConverter}}"
+                                                        <Image conv:RemoteImage.Url="{Binding ChampionIconUrl}"
                                                                Width="34" Height="34"
                                                                Stretch="UniformToFill" />
                                                     </Border>
@@ -303,10 +315,10 @@
                                                         <TextBlock Text="{Binding ChampionDisplayName}"
                                                                    FontWeight="SemiBold"
                                                                    FontSize="12"
-                                                                   Foreground="#F0E6D2" />
+                                                                   Foreground="{StaticResource TextPrimaryBrush}" />
                                                         <TextBlock Text="{Binding PositionName}"
-                                                                   FontSize="10"
-                                                                   Foreground="#A09B8C" />
+                                                                   FontSize="11"
+                                                                   Foreground="{StaticResource TextMutedBrush}" />
                                                     </StackPanel>
 
                                                     <!-- Individual Win Rate -->
@@ -329,30 +341,31 @@
             </Border>
 
             <!-- SECTION 1.5: DRAFT COMPOSITION SCALING & POWER SPIKE CURVES -->
-            <Border Background="#1A202C"
+            <Border Background="{StaticResource SurfaceBrush}"
                     CornerRadius="8"
                     Padding="18"
-                    BorderBrush="#2D3748"
+                    BorderBrush="{StaticResource BorderBrush}"
                     BorderThickness="1">
                 <StackPanel Spacing="14">
                     <Grid ColumnDefinitions="*, Auto">
                         <StackPanel Grid.Column="0" Spacing="3">
-                            <TextBlock Text="📈 ТЕМП ТА СКЕЙЛІНГ КОМПОЗИЦІЙ (POWER SPIKE CURVES)"
+                            <TextBlock Classes="title" Text="Сила складів по фазах гри"
                                        FontWeight="Bold"
-                                       FontSize="13"
-                                       Foreground="#C8AA6E"
-                                       LetterSpacing="1.1" />
+                                       FontSize="16"
+                                       Foreground="#C8AA6E" />
                             <TextBlock Text="Автоматичний розрахунок сили піків за фазами гри (Early 0-15m / Mid 15-25m / Late 25m+) та аналіз умов перемоги"
                                        FontSize="11"
-                                       Foreground="#A09B8C" />
+                                       Foreground="{StaticResource TextMutedBrush}"
+                                       TextWrapping="Wrap"
+                                       Margin="0,0,12,0" />
                         </StackPanel>
 
                         <!-- Overall Verdict Banner -->
-                        <Border Grid.Column="1" Background="#0F1726" CornerRadius="6" Padding="12,6" BorderBrush="#0AC8B9" BorderThickness="1" VerticalAlignment="Center">
+                        <Border Grid.Column="1" Background="#0F1220" CornerRadius="8" Padding="12,6" BorderBrush="#0AC8B9" BorderThickness="1" VerticalAlignment="Center">
                             <TextBlock Text="{Binding PowerSpikes.ComparativeVerdict}"
                                        FontSize="11"
                                        Foreground="#0AC8B9"
-                                       MaxWidth="480"
+                                       MaxWidth="420"
                                        TextWrapping="Wrap" />
                         </Border>
                     </Grid>
@@ -360,68 +373,68 @@
                     <!-- Side-by-side Blue vs Red Team Power Curves -->
                     <Grid ColumnDefinitions="*, *">
                         <!-- Blue Team Scaling Curve -->
-                        <Border Grid.Column="0" Background="#0C1422" CornerRadius="6" Padding="12" Margin="0,0,8,0" BorderBrush="#0397AB" BorderThickness="1">
+                        <Border Grid.Column="0" Background="#101527" CornerRadius="8" Padding="12" Margin="0,0,8,0" BorderBrush="#0397AB" BorderThickness="1">
                             <StackPanel Spacing="8">
                                 <Grid ColumnDefinitions="*, Auto">
-                                    <TextBlock Text="🔵 СИНЯ КОМАНДА — СКЕЙЛІНГ" FontWeight="Bold" FontSize="11" Foreground="#0AC8B9" />
-                                    <TextBlock Grid.Column="1" Text="{Binding PowerSpikes.BlueTeam.ArchetypeTitle}" FontSize="10" FontWeight="SemiBold" Foreground="#8A93A5" />
+                                    <TextBlock Text="СИНЯ КОМАНДА — СКЕЙЛІНГ" FontWeight="Bold" FontSize="11" Foreground="#0AC8B9" />
+                                    <TextBlock Grid.Column="1" Text="{Binding PowerSpikes.BlueTeam.ArchetypeTitle}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextMutedBrush}" />
                                 </Grid>
 
                                 <!-- Early Game Power -->
                                 <Grid ColumnDefinitions="70, *, 40">
-                                    <TextBlock Grid.Column="0" Text="Early (0-15m)" FontSize="10" Foreground="#A09B8C" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="0" Text="Early (0-15m)" FontSize="11" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
                                     <ProgressBar Grid.Column="1" Value="{Binding PowerSpikes.BlueTeam.EarlyGamePower}" Minimum="0" Maximum="100" Height="8" Foreground="#0AC8B9" Background="#141E2F" CornerRadius="4" VerticalAlignment="Center" />
-                                    <TextBlock Grid.Column="2" Text="{Binding PowerSpikes.BlueTeam.FormattedEarlyPower}" FontSize="10" FontWeight="Bold" Foreground="#0AC8B9" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="2" Text="{Binding PowerSpikes.BlueTeam.FormattedEarlyPower}" FontSize="11" FontWeight="Bold" Foreground="#0AC8B9" HorizontalAlignment="Right" VerticalAlignment="Center" />
                                 </Grid>
 
                                 <!-- Mid Game Power -->
                                 <Grid ColumnDefinitions="70, *, 40">
-                                    <TextBlock Grid.Column="0" Text="Mid (15-25m)" FontSize="10" Foreground="#A09B8C" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="0" Text="Mid (15-25m)" FontSize="11" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
                                     <ProgressBar Grid.Column="1" Value="{Binding PowerSpikes.BlueTeam.MidGamePower}" Minimum="0" Maximum="100" Height="8" Foreground="#0397AB" Background="#141E2F" CornerRadius="4" VerticalAlignment="Center" />
-                                    <TextBlock Grid.Column="2" Text="{Binding PowerSpikes.BlueTeam.FormattedMidPower}" FontSize="10" FontWeight="Bold" Foreground="#0397AB" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="2" Text="{Binding PowerSpikes.BlueTeam.FormattedMidPower}" FontSize="11" FontWeight="Bold" Foreground="#0397AB" HorizontalAlignment="Right" VerticalAlignment="Center" />
                                 </Grid>
 
                                 <!-- Late Game Power -->
                                 <Grid ColumnDefinitions="70, *, 40">
-                                    <TextBlock Grid.Column="0" Text="Late (25m+)" FontSize="10" Foreground="#A09B8C" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="0" Text="Late (25m+)" FontSize="11" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
                                     <ProgressBar Grid.Column="1" Value="{Binding PowerSpikes.BlueTeam.LateGamePower}" Minimum="0" Maximum="100" Height="8" Foreground="#5383E8" Background="#141E2F" CornerRadius="4" VerticalAlignment="Center" />
-                                    <TextBlock Grid.Column="2" Text="{Binding PowerSpikes.BlueTeam.FormattedLatePower}" FontSize="10" FontWeight="Bold" Foreground="#5383E8" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="2" Text="{Binding PowerSpikes.BlueTeam.FormattedLatePower}" FontSize="11" FontWeight="Bold" Foreground="#5383E8" HorizontalAlignment="Right" VerticalAlignment="Center" />
                                 </Grid>
 
-                                <TextBlock Text="{Binding PowerSpikes.BlueTeam.WinConditionSummary}" FontSize="10" Foreground="#8A93A5" TextWrapping="Wrap" Margin="0,2,0,0" />
+                                <TextBlock Text="{Binding PowerSpikes.BlueTeam.WinConditionSummary}" FontSize="11" Foreground="{StaticResource TextMutedBrush}" TextWrapping="Wrap" Margin="0,2,0,0" />
                             </StackPanel>
                         </Border>
 
                         <!-- Red Team Scaling Curve -->
-                        <Border Grid.Column="1" Background="#1A0F14" CornerRadius="6" Padding="12" Margin="8,0,0,0" BorderBrush="#E84057" BorderThickness="1">
+                        <Border Grid.Column="1" Background="{StaticResource SurfaceBrush}" CornerRadius="8" Padding="12" Margin="8,0,0,0" BorderBrush="#E84057" BorderThickness="1">
                             <StackPanel Spacing="8">
                                 <Grid ColumnDefinitions="*, Auto">
-                                    <TextBlock Text="🔴 ЧЕРВОНА КОМАНДА — СКЕЙЛІНГ" FontWeight="Bold" FontSize="11" Foreground="#E84057" />
-                                    <TextBlock Grid.Column="1" Text="{Binding PowerSpikes.RedTeam.ArchetypeTitle}" FontSize="10" FontWeight="SemiBold" Foreground="#8A93A5" />
+                                    <TextBlock Text="ЧЕРВОНА КОМАНДА — СКЕЙЛІНГ" FontWeight="Bold" FontSize="11" Foreground="#E84057" />
+                                    <TextBlock Grid.Column="1" Text="{Binding PowerSpikes.RedTeam.ArchetypeTitle}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextMutedBrush}" />
                                 </Grid>
 
                                 <!-- Early Game Power -->
                                 <Grid ColumnDefinitions="70, *, 40">
-                                    <TextBlock Grid.Column="0" Text="Early (0-15m)" FontSize="10" Foreground="#A09B8C" VerticalAlignment="Center" />
-                                    <ProgressBar Grid.Column="1" Value="{Binding PowerSpikes.RedTeam.EarlyGamePower}" Minimum="0" Maximum="100" Height="8" Foreground="#E84057" Background="#28141B" CornerRadius="4" VerticalAlignment="Center" />
-                                    <TextBlock Grid.Column="2" Text="{Binding PowerSpikes.RedTeam.FormattedEarlyPower}" FontSize="10" FontWeight="Bold" Foreground="#E84057" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="0" Text="Early (0-15m)" FontSize="11" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
+                                    <ProgressBar Grid.Column="1" Value="{Binding PowerSpikes.RedTeam.EarlyGamePower}" Minimum="0" Maximum="100" Height="8" Foreground="#E84057" Background="{StaticResource Surface2Brush}" CornerRadius="4" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="2" Text="{Binding PowerSpikes.RedTeam.FormattedEarlyPower}" FontSize="11" FontWeight="Bold" Foreground="#E84057" HorizontalAlignment="Right" VerticalAlignment="Center" />
                                 </Grid>
 
                                 <!-- Mid Game Power -->
                                 <Grid ColumnDefinitions="70, *, 40">
-                                    <TextBlock Grid.Column="0" Text="Mid (15-25m)" FontSize="10" Foreground="#A09B8C" VerticalAlignment="Center" />
-                                    <ProgressBar Grid.Column="1" Value="{Binding PowerSpikes.RedTeam.MidGamePower}" Minimum="0" Maximum="100" Height="8" Foreground="#FF5E7E" Background="#28141B" CornerRadius="4" VerticalAlignment="Center" />
-                                    <TextBlock Grid.Column="2" Text="{Binding PowerSpikes.RedTeam.FormattedMidPower}" FontSize="10" FontWeight="Bold" Foreground="#FF5E7E" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="0" Text="Mid (15-25m)" FontSize="11" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
+                                    <ProgressBar Grid.Column="1" Value="{Binding PowerSpikes.RedTeam.MidGamePower}" Minimum="0" Maximum="100" Height="8" Foreground="#FF5E7E" Background="{StaticResource Surface2Brush}" CornerRadius="4" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="2" Text="{Binding PowerSpikes.RedTeam.FormattedMidPower}" FontSize="11" FontWeight="Bold" Foreground="#FF5E7E" HorizontalAlignment="Right" VerticalAlignment="Center" />
                                 </Grid>
 
                                 <!-- Late Game Power -->
                                 <Grid ColumnDefinitions="70, *, 40">
-                                    <TextBlock Grid.Column="0" Text="Late (25m+)" FontSize="10" Foreground="#A09B8C" VerticalAlignment="Center" />
-                                    <ProgressBar Grid.Column="1" Value="{Binding PowerSpikes.RedTeam.LateGamePower}" Minimum="0" Maximum="100" Height="8" Foreground="#FFAA5E" Background="#28141B" CornerRadius="4" VerticalAlignment="Center" />
-                                    <TextBlock Grid.Column="2" Text="{Binding PowerSpikes.RedTeam.FormattedLatePower}" FontSize="10" FontWeight="Bold" Foreground="#FFAA5E" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="0" Text="Late (25m+)" FontSize="11" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
+                                    <ProgressBar Grid.Column="1" Value="{Binding PowerSpikes.RedTeam.LateGamePower}" Minimum="0" Maximum="100" Height="8" Foreground="#FFAA5E" Background="{StaticResource Surface2Brush}" CornerRadius="4" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="2" Text="{Binding PowerSpikes.RedTeam.FormattedLatePower}" FontSize="11" FontWeight="Bold" Foreground="#FFAA5E" HorizontalAlignment="Right" VerticalAlignment="Center" />
                                 </Grid>
 
-                                <TextBlock Text="{Binding PowerSpikes.RedTeam.WinConditionSummary}" FontSize="10" Foreground="#8A93A5" TextWrapping="Wrap" Margin="0,2,0,0" />
+                                <TextBlock Text="{Binding PowerSpikes.RedTeam.WinConditionSummary}" FontSize="11" Foreground="{StaticResource TextMutedBrush}" TextWrapping="Wrap" Margin="0,2,0,0" />
                             </StackPanel>
                         </Border>
                     </Grid>
@@ -432,43 +445,43 @@
             <Grid ColumnDefinitions="*, *" RowDefinitions="Auto">
                 <!-- Left Column: Input Features & Parameters -->
                 <Border Grid.Column="0"
-                        Background="#131522"
+                        Background="{StaticResource SurfaceBrush}"
                         CornerRadius="12"
                         Padding="20"
                         Margin="0,0,10,0"
-                        BorderBrush="#22263C"
+                        BorderBrush="{StaticResource BorderBrush}"
                         BorderThickness="1">
                     <StackPanel Spacing="14">
-                        <TextBlock Text="ВХІДНІ МЕТРИКИ ТА АЛГОРИТМ ML.NET"
+                        <TextBlock Classes="title" Text="Стан гри на 15-й хвилині"
                                    FontWeight="Bold"
-                                   FontSize="14"
-                                   Foreground="#C4B5FD"
-                                   LetterSpacing="1.2" />
+                                   FontSize="16"
+                                   Foreground="#C4B5FD" />
 
                         <!-- Live Client LoL Bar -->
-                        <Border Background="#181B2B" CornerRadius="8" Padding="12" BorderBrush="#7C3AED" BorderThickness="1">
+                        <Border Background="{StaticResource Surface2Brush}" CornerRadius="8" Padding="12" BorderBrush="#7C3AED" BorderThickness="1">
                             <StackPanel Spacing="8">
                                 <Grid ColumnDefinitions="*, Auto">
                                     <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
-                                        <TextBlock Text="🎮 LIVE CLIENT LOL (СКАСУВАННЯ В РЕАЛЬНОМУ ЧАСІ)"
+                                        <TextBlock Text="Дані з клієнта LoL"
                                                    FontWeight="Bold"
                                                    FontSize="12"
-                                                   Foreground="#A78BFA" />
+                                                   Foreground="#A78BFA"
+                                                   TextWrapping="Wrap" />
                                         <TextBlock Text="{Binding LiveGameStatusText}"
                                                    FontSize="11"
-                                                   Foreground="#F8FAFC"
+                                                   Foreground="{StaticResource TextPrimaryBrush}"
                                                    TextWrapping="Wrap" />
                                     </StackPanel>
                                     <Button Grid.Column="1"
                                             Command="{Binding ScanLiveGameCommand}"
                                             IsEnabled="{Binding !IsCheckingLiveGame}"
-                                            Content="📡 Зчитати з LoL (2999)"
+                                            Content="Зчитати з LoL (2999)"
                                             Background="#7C3AED"
                                             Foreground="White"
                                             FontWeight="SemiBold"
                                             FontSize="11"
                                             Padding="12,6"
-                                            CornerRadius="6"
+                                            CornerRadius="8"
                                             Cursor="Hand" />
                                 </Grid>
                             </StackPanel>
@@ -476,7 +489,7 @@
 
                         <!-- Algorithm Selector -->
                         <StackPanel Spacing="4">
-                            <TextBlock Text="Активний алгоритм машинного навчання:" FontSize="12" Foreground="#A09B8C" />
+                            <TextBlock Text="Активний алгоритм машинного навчання:" FontSize="12" Foreground="{StaticResource TextMutedBrush}" />
                             <ComboBox ItemsSource="{Binding AvailableAlgorithms}"
                                       SelectedItem="{Binding SelectedAlgorithm}"
                                       HorizontalAlignment="Stretch"
@@ -488,7 +501,7 @@
                             <Button Content="Баланс (50/50)"
                                     Command="{Binding ResetToBalancedCommand}"
                                     FontSize="12"
-                                    Background="#2F3640"
+                                    Background="{StaticResource Surface3Brush}"
                                     Padding="10,6"
                                     Cursor="Hand" />
                             <Button Content="Перевага Синіх"
@@ -507,29 +520,29 @@
                                     Cursor="Hand" />
                         </StackPanel>
 
-                        <Separator Background="#2F3640" Height="1" />
+                        <Separator Background="{StaticResource Surface3Brush}" Height="1" />
 
                         <!-- Key Objective Checkboxes -->
                         <TextBlock Text="Ключові об'єкти ранньої стадії (ранні прапорці):"
                                    FontWeight="SemiBold"
                                    FontSize="13"
-                                   Foreground="#F0E6D2" />
+                                   Foreground="{StaticResource TextPrimaryBrush}" />
 
                         <CheckBox IsChecked="{Binding BlueFirstBlood}"
-                                  Content="🩸 Перша кров (First Blood): Синя команда" />
+                                  Content="Перша кров (First Blood): Синя команда" />
                         <CheckBox IsChecked="{Binding BlueFirstTower}"
-                                  Content="🏰 Перша вежа (First Tower): Синя команда" />
+                                  Content="Перша вежа (First Tower): Синя команда" />
                         <CheckBox IsChecked="{Binding BlueFirstDragon}"
-                                  Content="🐉 Перший дракон (First Dragon): Синя команда" />
+                                  Content="Перший дракон (First Dragon): Синя команда" />
 
-                        <Separator Background="#2F3640" Height="1" />
+                        <Separator Background="{StaticResource Surface3Brush}" Height="1" />
 
                         <!-- Gold Diff Slider -->
                         <StackPanel Spacing="4">
                             <Grid ColumnDefinitions="*, Auto">
                                 <TextBlock Text="Різниця за золотом на 15 хв (Gold Diff):"
                                            FontSize="13"
-                                           Foreground="#F0E6D2" />
+                                           Foreground="{StaticResource TextPrimaryBrush}" />
                                 <TextBlock Grid.Column="1"
                                            Text="{Binding GoldDiffAt15, StringFormat='{}{0:+0;-#;0} gold'}"
                                            FontWeight="Bold"
@@ -545,7 +558,7 @@
                             <Grid ColumnDefinitions="*, Auto">
                                 <TextBlock Text="Різниця у вбивствах на 15 хв (Kill Diff):"
                                            FontSize="13"
-                                           Foreground="#F0E6D2" />
+                                           Foreground="{StaticResource TextPrimaryBrush}" />
                                 <TextBlock Grid.Column="1"
                                            Text="{Binding KillDiffAt15, StringFormat='{}{0:+0;-#;0} kills'}"
                                            FontWeight="Bold"
@@ -582,22 +595,22 @@
                         <!-- Voidgrubs and Heralds Sliders -->
                         <Grid ColumnDefinitions="*, *" RowDefinitions="Auto, Auto">
                             <StackPanel Grid.Column="0" Margin="0,0,6,0" Spacing="4">
-                                <TextBlock Text="{Binding BlueVoidgrubs, StringFormat='🐛 Личинки Синіх: {0}'}" FontSize="12" Foreground="#0397AB" />
+                                <TextBlock Text="{Binding BlueVoidgrubs, StringFormat='Личинки Синіх: {0}'}" FontSize="12" Foreground="#0397AB" />
                                 <Slider Minimum="0" Maximum="6" Value="{Binding BlueVoidgrubs}" />
                             </StackPanel>
                             <StackPanel Grid.Column="1" Margin="6,0,0,0" Spacing="4">
-                                <TextBlock Text="{Binding RedVoidgrubs, StringFormat='🐛 Личинки Червоних: {0}'}" FontSize="12" Foreground="#E84057" />
+                                <TextBlock Text="{Binding RedVoidgrubs, StringFormat='Личинки Червоних: {0}'}" FontSize="12" Foreground="#E84057" />
                                 <Slider Minimum="0" Maximum="6" Value="{Binding RedVoidgrubs}" />
                             </StackPanel>
                         </Grid>
 
                         <Grid ColumnDefinitions="*, *" RowDefinitions="Auto, Auto">
                             <StackPanel Grid.Column="0" Margin="0,0,6,0" Spacing="4">
-                                <TextBlock Text="{Binding BlueHeralds, StringFormat='👁️ Герольд Синіх: {0}'}" FontSize="12" Foreground="#0397AB" />
+                                <TextBlock Text="{Binding BlueHeralds, StringFormat='Герольд Синіх: {0}'}" FontSize="12" Foreground="#0397AB" />
                                 <Slider Minimum="0" Maximum="1" Value="{Binding BlueHeralds}" />
                             </StackPanel>
                             <StackPanel Grid.Column="1" Margin="6,0,0,0" Spacing="4">
-                                <TextBlock Text="{Binding RedHeralds, StringFormat='👁️ Герольд Червоних: {0}'}" FontSize="12" Foreground="#E84057" />
+                                <TextBlock Text="{Binding RedHeralds, StringFormat='Герольд Червоних: {0}'}" FontSize="12" Foreground="#E84057" />
                                 <Slider Minimum="0" Maximum="1" Value="{Binding RedHeralds}" />
                             </StackPanel>
                         </Grid>
@@ -607,7 +620,7 @@
                             <Grid ColumnDefinitions="*, Auto">
                                 <TextBlock Text="Різниця фарму міньйонів на 15 хв (CS Diff):"
                                            FontSize="13"
-                                           Foreground="#F0E6D2" />
+                                           Foreground="{StaticResource TextPrimaryBrush}" />
                                 <TextBlock Grid.Column="1"
                                            Text="{Binding CsDiffAt15, StringFormat='{}{0:+0;-#;0} CS'}"
                                            FontWeight="Bold"
@@ -623,7 +636,7 @@
                             <Grid ColumnDefinitions="*, Auto">
                                 <TextBlock Text="Різниця командного досвіду на 15 хв (XP Diff):"
                                            FontSize="13"
-                                           Foreground="#F0E6D2" />
+                                           Foreground="{StaticResource TextPrimaryBrush}" />
                                 <TextBlock Grid.Column="1"
                                            Text="{Binding XpDiffAt15, StringFormat='{}{0:+0;-#;0} XP'}"
                                            FontWeight="Bold"
@@ -635,11 +648,11 @@
                         </StackPanel>
 
                         <!-- Lobby rank context -->
-                        <Border Background="#121820" CornerRadius="6" Padding="10" BorderBrush="#7C3AED" BorderThickness="1">
+                        <Border Background="{StaticResource SurfaceBrush}" CornerRadius="8" Padding="10" BorderBrush="#7C3AED" BorderThickness="1">
                             <StackPanel Spacing="6">
-                                <TextBlock Text="РІВЕНЬ ЛОБІ (RANK CONTEXT)" FontSize="11" FontWeight="Bold" Foreground="#A78BFA" />
+                                <TextBlock Text="Ранг лобі" FontSize="11" FontWeight="Bold" Foreground="#A78BFA" />
                                 <TextBlock Text="Той самий голд-лід інакше конвертується в Iron і в Challenger"
-                                           FontSize="10" Foreground="#8A93A5" TextWrapping="Wrap" />
+                                           FontSize="11" Foreground="{StaticResource TextMutedBrush}" TextWrapping="Wrap" />
                                 <ComboBox ItemsSource="{Binding AvailableLobbyTiers}"
                                           SelectedItem="{Binding SelectedLobbyTier}"
                                           HorizontalAlignment="Stretch"
@@ -648,19 +661,19 @@
                         </Border>
 
                         <!-- Dragon Soul Settings -->
-                        <Border Background="#121820" CornerRadius="6" Padding="10" BorderBrush="#C8AA6E" BorderThickness="1">
+                        <Border Background="{StaticResource SurfaceBrush}" CornerRadius="8" Padding="10" BorderBrush="#C8AA6E" BorderThickness="1">
                             <StackPanel Spacing="6">
-                                <TextBlock Text="🐉 ДРАКОНЯЧА ДУША (DRAGON SOUL IMPACT)" FontSize="11" FontWeight="Bold" Foreground="#C8AA6E" />
+                                <TextBlock Text="Драконяча душа" FontSize="11" FontWeight="Bold" Foreground="#C8AA6E" />
                                 <Grid ColumnDefinitions="*, *">
                                     <StackPanel Grid.Column="0" Margin="0,0,6,0" Spacing="2">
-                                        <TextBlock Text="Тип душі:" FontSize="10" Foreground="#A09B8C" />
+                                        <TextBlock Text="Тип душі:" FontSize="11" Foreground="{StaticResource TextMutedBrush}" />
                                         <ComboBox ItemsSource="{Binding AvailableSoulTypes}"
                                                   SelectedItem="{Binding SelectedSoulType}"
                                                   HorizontalAlignment="Stretch"
                                                   Height="32" />
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Margin="6,0,0,0" Spacing="2">
-                                        <TextBlock Text="Власник душі (4 дракони):" FontSize="10" Foreground="#A09B8C" />
+                                        <TextBlock Text="Власник душі (4 дракони):" FontSize="11" Foreground="{StaticResource TextMutedBrush}" />
                                         <ComboBox ItemsSource="{Binding AvailableSides}"
                                                   SelectedItem="{Binding SoulOwner}"
                                                   HorizontalAlignment="Stretch"
@@ -672,10 +685,10 @@
 
                         <!-- Run Prediction Button -->
                         <Button Command="{Binding CalculatePredictionCommand}"
-                                Content="⚡ РОЗРАХУВАТИ ЙМОВІРНІСТЬ ПЕРЕМОГИ (ML.NET)"
+                                Content="Розрахувати шанс перемоги"
                                 Height="44"
-                                Background="#C8AA6E"
-                                Foreground="#010A13"
+                                Background="#7C3AED"
+                                Foreground="{StaticResource TextPrimaryBrush}"
                                 FontWeight="Bold"
                                 FontSize="13"
                                 HorizontalAlignment="Stretch"
@@ -687,18 +700,17 @@
 
                 <!-- Right Column: ML Prediction Result Card -->
                 <Border Grid.Column="1"
-                        Background="#1E2328"
+                        Background="{StaticResource Surface2Brush}"
                         CornerRadius="8"
                         Padding="20"
                         Margin="10,0,0,0"
                         BorderBrush="#C8AA6E"
                         BorderThickness="1">
                     <StackPanel Spacing="16">
-                        <TextBlock Text="РЕЗУЛЬТАТ ПРОГНОЗУВАННЯ ТА ОЦІНКА"
+                        <TextBlock Classes="title" Text="Прогноз"
                                    FontWeight="Bold"
-                                   FontSize="14"
-                                   Foreground="#C8AA6E"
-                                   LetterSpacing="1.2" />
+                                   FontSize="16"
+                                   Foreground="#C8AA6E" />
 
                         <!-- Big Chances Board -->
                         <Grid ColumnDefinitions="*, Auto, *" Margin="0,6">
@@ -721,7 +733,7 @@
                                                HorizontalAlignment="Center" />
                                     <TextBlock Text="Ймовірність перемоги"
                                                FontSize="11"
-                                               Foreground="#A09B8C" />
+                                               Foreground="{StaticResource TextMutedBrush}" />
                                 </StackPanel>
                             </Border>
 
@@ -729,7 +741,7 @@
                                        Text="VS"
                                        FontSize="20"
                                        FontWeight="Bold"
-                                       Foreground="#A09B8C"
+                                       Foreground="{StaticResource TextMutedBrush}"
                                        VerticalAlignment="Center"
                                        Margin="14,0" />
 
@@ -752,21 +764,21 @@
                                                HorizontalAlignment="Center" />
                                     <TextBlock Text="Ймовірність перемоги"
                                                FontSize="11"
-                                               Foreground="#A09B8C" />
+                                               Foreground="{StaticResource TextMutedBrush}" />
                                 </StackPanel>
                             </Border>
                         </Grid>
 
                         <!-- Prediction Banner -->
-                        <Border Background="#091428"
-                                CornerRadius="6"
+                        <Border Background="#0F1220"
+                                CornerRadius="8"
                                 Padding="14"
-                                BorderBrush="#2F3640"
+                                BorderBrush="{StaticResource Surface3Brush}"
                                 BorderThickness="1">
                             <StackPanel Spacing="6">
-                                <TextBlock Text="ПРОГНОЗОВАНИЙ ПЕРЕМОЖЕЦЬ:"
+                                <TextBlock Text="Ймовірний переможець:"
                                            FontSize="12"
-                                           Foreground="#A09B8C" />
+                                           Foreground="{StaticResource TextMutedBrush}" />
                                 <TextBlock Text="{Binding Prediction.PredictedWinner, StringFormat='Перемога: {0} Team'}"
                                            FontSize="18"
                                            FontWeight="Bold"
@@ -781,7 +793,7 @@
                         </Border>
 
                         <!-- Key Influencing Factors -->
-                        <TextBlock Text="ФАКТОРИ ВПЛИВУ (ML FEATURE SENSITIVITY):"
+                        <TextBlock Text="Що найбільше впливає:"
                                    FontWeight="Bold"
                                    FontSize="12"
                                    Foreground="#C8AA6E" />
@@ -789,33 +801,33 @@
                         <ItemsControl ItemsSource="{Binding Prediction.KeyFactors}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Background="#091428"
+                                    <Border Background="#0F1220"
                                             CornerRadius="4"
                                             Padding="10,6"
                                             Margin="0,0,0,6"
-                                            BorderBrush="#2F3640"
+                                            BorderBrush="{StaticResource Surface3Brush}"
                                             BorderThickness="1">
                                         <TextBlock Text="{Binding StringFormat='• {0}'}"
                                                    FontSize="12"
-                                                   Foreground="#F0E6D2"
+                                                   Foreground="{StaticResource TextPrimaryBrush}"
                                                    TextWrapping="Wrap" />
                                     </Border>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
 
-                        <Separator Background="#2F3640" Height="1" />
+                        <Separator Background="{StaticResource Surface3Brush}" Height="1" />
 
                         <!-- Model Training on Real Data Bar -->
-                        <Border Background="#101726" CornerRadius="6" Padding="12,10" BorderBrush="#1F2D44" BorderThickness="1">
+                        <Border Background="#101726" CornerRadius="8" Padding="12,10" BorderBrush="#1F2D44" BorderThickness="1">
                             <StackPanel Spacing="6">
                                 <TextBlock Text="{Binding TrainingStatusText}" FontSize="12" FontWeight="SemiBold" Foreground="#0AC8B9" TextWrapping="Wrap" />
                                 <Button Command="{Binding RetrainOnRealDataCommand}"
                                         IsEnabled="{Binding !IsRetraining}"
-                                        Content="🚀 Перенавчити модель на реальних матчах з бази"
+                                        Content="Перенавчити модель на реальних матчах з бази"
                                         Height="34"
-                                        Background="#1E283A"
-                                        Foreground="#F0E6D2"
+                                        Background="{StaticResource Surface3Brush}"
+                                        Foreground="{StaticResource TextSecondaryBrush}"
                                         FontSize="11"
                                         FontWeight="SemiBold"
                                         HorizontalAlignment="Stretch"
@@ -826,10 +838,10 @@
 
                         <!-- Benchmark Section -->
                         <Button Command="{Binding RunBenchmarkCommand}"
-                                Content="🔬 Запустити бенчмарк 3-х алгоритмів (ML.NET)"
+                                Content="Запустити бенчмарк 3-х алгоритмів (ML.NET)"
                                 Height="38"
-                                Background="#0397AB"
-                                Foreground="White"
+                                Background="{StaticResource Surface3Brush}"
+                                Foreground="{StaticResource TextSecondaryBrush}"
                                 FontWeight="Bold"
                                 FontSize="12"
                                 HorizontalAlignment="Stretch"
@@ -837,14 +849,14 @@
                                 VerticalContentAlignment="Center"
                                 Cursor="Hand" />
 
-                        <Border Background="#091428"
-                                CornerRadius="6"
+                        <Border Background="#0F1220"
+                                CornerRadius="8"
                                 Padding="12"
                                 BorderBrush="#C8AA6E"
                                 BorderThickness="1"
                                 IsVisible="{Binding BenchmarkReport, Converter={x:Static ObjectConverters.IsNotNull}}">
                             <StackPanel Spacing="8">
-                                <TextBlock Text="ПОРІВНЯННЯ АЛГОРИТМІВ КЛАСИФІКАЦІЇ"
+                                <TextBlock Classes="title" Text="Порівняння алгоритмів"
                                            FontWeight="Bold"
                                            FontSize="11"
                                            Foreground="#C8AA6E" />
@@ -857,7 +869,7 @@
                                 <ItemsControl ItemsSource="{Binding BenchmarkReport.Models}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Border Background="#1E2328"
+                                            <Border Background="{StaticResource Surface2Brush}"
                                                     CornerRadius="4"
                                                     Padding="8,6"
                                                     Margin="0,0,0,6">
@@ -866,7 +878,7 @@
                                                                Text="{Binding AlgorithmName}"
                                                                FontSize="11"
                                                                FontWeight="Bold"
-                                                               Foreground="#F0E6D2" />
+                                                               Foreground="{StaticResource TextPrimaryBrush}" />
                                                     <TextBlock Grid.Column="1"
                                                                Text="{Binding FormattedAccuracy, StringFormat='Acc: {0}'}"
                                                                FontSize="11"
@@ -880,7 +892,7 @@
                                                     <TextBlock Grid.Column="3"
                                                                Text="{Binding TrainingDurationMs, StringFormat='{}{0}ms'}"
                                                                FontSize="11"
-                                                               Foreground="#A09B8C" />
+                                                               Foreground="{StaticResource TextMutedBrush}" />
                                                 </Grid>
                                             </Border>
                                         </DataTemplate>

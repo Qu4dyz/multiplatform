@@ -29,12 +29,125 @@ public class UiAndTelemetryTests
         Assert.Contains("Electrocute.png", electrocuteUrl);
         Assert.Contains("7201_Precision.png", precisionStyleUrl);
 
-        // Unknown fallback
+        // Unknown → blank (do not impersonate Flash)
         var fallbackSpell = SpellRuneHelper.GetSpellIconUrl(9999, "14.18.1");
-        Assert.Contains("SummonerFlash.png", fallbackSpell);
+        Assert.Equal(string.Empty, fallbackSpell);
 
         var fallbackRune = SpellRuneHelper.GetRuneIconUrl(9999);
         Assert.Contains("Conqueror.png", fallbackRune);
+    }
+
+    [Fact]
+    public void SpellRuneHelper_ResolveSpellIds_KeepsFlashAndIgnite()
+    {
+        var (s1, s2) = SpellRuneHelper.ResolveSpellIds(4, 14, "Ahri", Position.Middle);
+        Assert.Equal(4, s1);
+        Assert.Equal(14, s2);
+
+        var (flashSmite1, flashSmite2) = SpellRuneHelper.ResolveSpellIds(4, 11, "Ambessa", Position.Jungle);
+        Assert.Equal(4, flashSmite1);
+        Assert.Equal(11, flashSmite2);
+
+        var (missing1, missing2) = SpellRuneHelper.ResolveSpellIds(0, 0, "Ambessa", Position.Jungle);
+        Assert.Equal(4, missing1);
+        Assert.Equal(11, missing2);
+    }
+
+    [Fact]
+    public void PlayerMatchItemViewModel_FromMatch_PreservesRealSummonerSpells()
+    {
+        var match = new Match
+        {
+            MatchId = "EUW1_SPELLS",
+            QueueId = 420,
+            GameDurationSeconds = 1800,
+            GameCreation = DateTime.UtcNow.AddHours(-1),
+            Participants =
+            {
+                new Participant
+                {
+                    Puuid = "hero",
+                    SummonerName = "Qu4dyz#qu4",
+                    ChampionName = "Ambessa",
+                    Position = Position.Jungle,
+                    TeamSide = TeamSide.Blue,
+                    Win = true,
+                    Kills = 8,
+                    Deaths = 2,
+                    Assists = 10,
+                    ChampLevel = 16,
+                    Summoner1Id = 4,
+                    Summoner2Id = 11,
+                    PrimaryRuneId = 8010,
+                    SecondaryRuneStyleId = 8300,
+                    TotalDamageDealtToChampions = 22000,
+                    Item0 = 3078
+                },
+                new Participant
+                {
+                    Puuid = "enemy",
+                    SummonerName = "Other#euw",
+                    ChampionName = "Rengar",
+                    Position = Position.Jungle,
+                    TeamSide = TeamSide.Red,
+                    Win = false,
+                    Kills = 3,
+                    Deaths = 7,
+                    Assists = 2,
+                    ChampLevel = 14,
+                    Summoner1Id = 4,
+                    Summoner2Id = 14,
+                    PrimaryRuneId = 9923,
+                    SecondaryRuneStyleId = 8000,
+                    TotalDamageDealtToChampions = 12000,
+                    Item0 = 3074
+                }
+            }
+        };
+
+        var vm = GameAnalytics.Desktop.ViewModels.PlayerMatchItemViewModel.FromMatch(match, "hero");
+
+        Assert.Equal(4, vm.Summoner1Id);
+        Assert.Equal(11, vm.Summoner2Id);
+        Assert.Contains("SummonerFlash", vm.Summoner1IconUrl);
+        Assert.Contains("SummonerSmite", vm.Summoner2IconUrl);
+
+        var rengar = vm.RedTeamDetailed.Single(p => p.ChampionName.Contains("Rengar", StringComparison.OrdinalIgnoreCase));
+        Assert.Equal(4, rengar.Summoner1Id);
+        Assert.Equal(14, rengar.Summoner2Id);
+        Assert.Contains("SummonerDot", rengar.Summoner2IconUrl);
+    }
+
+    [Fact]
+    public void MatchAnalyticsService_LooksLikeMigrationDefaultSpells_DetectsUniformFlashIgnite()
+    {
+        var stub = new Match
+        {
+            MatchId = "X",
+            Participants =
+            {
+                new Participant { Summoner1Id = 4, Summoner2Id = 14 },
+                new Participant { Summoner1Id = 4, Summoner2Id = 14 }
+            }
+        };
+        Assert.True(GameAnalytics.Infrastructure.Services.MatchAnalyticsService.LooksLikeMigrationDefaultSpells(stub));
+
+        stub.Participants[1].Summoner2Id = 11;
+        Assert.False(GameAnalytics.Infrastructure.Services.MatchAnalyticsService.LooksLikeMigrationDefaultSpells(stub));
+    }
+
+    [Fact]
+    public void PlayerAnalyticsViewModel_AutoRefresh_DefaultsAndToggle()
+    {
+        var vm = new GameAnalytics.Desktop.ViewModels.PlayerAnalyticsViewModel();
+        Assert.True(vm.IsAutoRefreshEnabled);
+        Assert.Equal(TimeSpan.FromSeconds(100), GameAnalytics.Desktop.ViewModels.PlayerAnalyticsViewModel.DefaultAutoRefreshInterval);
+        Assert.Contains("авто", vm.AutoRefreshToggleText, StringComparison.OrdinalIgnoreCase);
+
+        vm.ToggleAutoRefreshCommand.Execute(null);
+        Assert.False(vm.IsAutoRefreshEnabled);
+        Assert.Contains("Увімкнути", vm.AutoRefreshToggleText);
+        Assert.Contains("пауза", vm.AutoRefreshStatusText, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -86,7 +199,19 @@ public class UiAndTelemetryTests
         };
         match.Participants.Add(player);
 
-        var report = MatchTacticalAnalyzer.AnalyzeMatchTactics(match, player, null, GameTier.Diamond);
+        var timeline = new MatchTimelineData
+        {
+            MatchId = "EUW1_TEST1",
+            RealEvents = new List<TimelineEventRecord>
+            {
+                new() { TimestampMs = 330000, EventType = "CHAMPION_KILL", KillerId = 1, VictimId = 6, Bounty = 300 },
+                new() { TimestampMs = 610000, EventType = "CHAMPION_KILL", KillerId = 6, VictimId = 1, Bounty = 300 },
+                new() { TimestampMs = 720000, EventType = "ELITE_MONSTER_KILL", KillerId = 1, KillerTeamId = 100, MonsterType = "DRAGON", MonsterSubType = "FIRE_DRAGON" },
+                new() { TimestampMs = 1200000, EventType = "BUILDING_KILL", KillerId = 1, BuildingType = "TOWER_BUILDING", LaneType = "MID_LANE" }
+            }
+        };
+
+        var report = MatchTacticalAnalyzer.AnalyzeMatchTactics(match, player, timeline, GameTier.Diamond);
 
         Assert.NotNull(report);
         Assert.NotEmpty(report.TimelineEvents);
