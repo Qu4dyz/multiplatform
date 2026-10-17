@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 using GameAnalytics.Core.Enums;
 using GameAnalytics.Core.Interfaces;
 using GameAnalytics.Infrastructure.Configuration;
+using GameAnalytics.Infrastructure.Persistence;
 
 namespace GameAnalytics.Desktop.ViewModels;
 
@@ -71,6 +72,9 @@ public partial class SettingsViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(ClearDatabaseButtonText))]
     private bool _isClearConfirmPending;
 
+    /// <summary>Raised after the local database was replaced from VPS or cleared, so lists can reload.</summary>
+    public event EventHandler? DatabaseChanged;
+
     public string ClearDatabaseButtonText => IsClearConfirmPending
         ? "⚠ Натисніть ще раз для підтвердження"
         : "🗑 Очистити локальну базу даних";
@@ -95,11 +99,8 @@ public partial class SettingsViewModel : ViewModelBase
         SelectedDemoTier = options.DemoTier;
         UseMockFallback = options.UseMockFallback;
 
-        var baseDb = Path.Combine(AppContext.BaseDirectory, "game_analytics.db");
-        var projDb = Path.Combine(Directory.GetCurrentDirectory(), "src", "GameAnalytics.Desktop", "game_analytics.db");
-        var rootDb = Path.Combine(Directory.GetCurrentDirectory(), "game_analytics.db");
-
-        DatabasePath = File.Exists(baseDb) ? baseDb : (File.Exists(projDb) ? projDb : (File.Exists(rootDb) ? rootDb : baseDb));
+        // Same file the DbContext opens, so a VPS sync replaces the database the app actually reads.
+        DatabasePath = GameAnalyticsDbContext.ResolveDatabasePath();
         UpdateDatabaseSize();
 
         OsDescription = $"{System.Runtime.InteropServices.RuntimeInformation.OSDescription} ({System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture})";
@@ -223,32 +224,30 @@ public partial class SettingsViewModel : ViewModelBase
         IsSyncingDatabase = true;
         VpsSyncMessage = "⏳ Завантаження актуальної бази даних матчів (SQLite) з VPS...";
 
+        // Download next to the live file first: the open DbContext keeps reading the old one until the swap.
+        var tempPath = SqliteDatabaseFile.CreateDownloadTempPath(DatabasePath);
         try
         {
-            var projectDbPath = Path.Combine(Directory.GetCurrentDirectory(), "src", "GameAnalytics.Desktop", "game_analytics.db");
-            var rootDbPath = Path.Combine(Directory.GetCurrentDirectory(), "game_analytics.db");
-
-            var success = await _vpsSyncService.DownloadDatabaseAsync(VpsServerUrl, DatabasePath);
-            if (success)
-            {
-                try
-                {
-                    if (File.Exists(DatabasePath))
-                    {
-                        if (DatabasePath != projectDbPath) File.Copy(DatabasePath, projectDbPath, overwrite: true);
-                        if (DatabasePath != rootDbPath) File.Copy(DatabasePath, rootDbPath, overwrite: true);
-                    }
-                }
-                catch { }
-
-                UpdateDatabaseSize();
-                VpsSyncMessage = $"✅ Базу матчів SQLite успішно завантажено з VPS! Розмір: {DatabaseSizeText}. Історія матчів тепер містить актуальні дані.";
-                StatusMessage = VpsSyncMessage;
-            }
-            else
+            var success = await _vpsSyncService.DownloadDatabaseAsync(VpsServerUrl, tempPath);
+            if (!success)
             {
                 VpsSyncMessage = "❌ Не вдалося завантажити базу даних. Перевірте з'єднання з VPS.";
+                return;
             }
+
+            if (!SqliteDatabaseFile.HasSqliteHeader(tempPath))
+            {
+                VpsSyncMessage = "❌ VPS повернув файл, який не є базою SQLite. Локальну базу не змінено.";
+                return;
+            }
+
+            _matchRepository.ResetTrackedState();
+            await SqliteDatabaseFile.ReplaceAsync(tempPath, DatabasePath);
+
+            UpdateDatabaseSize();
+            VpsSyncMessage = $"✅ Базу матчів SQLite успішно завантажено з VPS! Розмір: {DatabaseSizeText}. Історія матчів тепер містить актуальні дані.";
+            StatusMessage = VpsSyncMessage;
+            DatabaseChanged?.Invoke(this, EventArgs.Empty);
         }
         catch (Exception ex)
         {
@@ -256,6 +255,12 @@ public partial class SettingsViewModel : ViewModelBase
         }
         finally
         {
+            try
+            {
+                if (File.Exists(tempPath)) File.Delete(tempPath);
+            }
+            catch { /* Leftover temp file is harmless; the next sync uses a new name. */ }
+
             IsSyncingDatabase = false;
         }
     }
@@ -321,6 +326,7 @@ public partial class SettingsViewModel : ViewModelBase
             await _matchRepository.ClearAllMatchesAsync();
             UpdateDatabaseSize();
             StatusMessage = "Базу даних SQLite очищено.";
+            DatabaseChanged?.Invoke(this, EventArgs.Empty);
         }
         catch (Exception ex)
         {

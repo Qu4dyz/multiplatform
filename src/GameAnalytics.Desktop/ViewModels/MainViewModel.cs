@@ -137,6 +137,10 @@ public partial class MainViewModel : ViewModelBase
         _matchHistory = matchHistory;
         _settings = settings;
 
+        // Settings can swap in a VPS database or wipe the local one; reload the paged history afterwards.
+        if (settings != null && matchHistory != null)
+            settings.DatabaseChanged += async (_, _) => await matchHistory.LoadMatchesAsync();
+
         // The status pills used to say "online" unconditionally; follow the real key state instead.
         HasRiotApiKey = playerAnalytics.HasApiKey;
         playerAnalytics.PropertyChanged += (_, e) =>

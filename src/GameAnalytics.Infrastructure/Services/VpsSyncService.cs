@@ -85,11 +85,18 @@ public class VpsSyncService : IVpsSyncService
         var url = $"{vpsBaseUrl.TrimEnd('/')}/api/database";
         try
         {
-            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            cts.CancelAfter(TimeSpan.FromSeconds(45));
-
-            var response = await _httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cts.Token);
+            // 45 s covers the handshake only; a multi-GB body gets its own, much longer budget.
+            HttpResponseMessage response;
+            using (var headersCts = CancellationTokenSource.CreateLinkedTokenSource(ct))
+            {
+                headersCts.CancelAfter(TimeSpan.FromSeconds(45));
+                response = await _httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, headersCts.Token);
+            }
+            using var responseScope = response;
             if (!response.IsSuccessStatusCode) return false;
+
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(TimeSpan.FromMinutes(30));
 
             var targetDir = Path.GetDirectoryName(targetFilePath);
             if (!string.IsNullOrEmpty(targetDir) && !Directory.Exists(targetDir))
@@ -98,10 +105,19 @@ public class VpsSyncService : IVpsSyncService
             }
 
             var tempFile = $"{targetFilePath}.tmp_{Guid.NewGuid():N}";
-            await using (var remoteStream = await response.Content.ReadAsStreamAsync(cts.Token))
-            await using (var fileStream = new FileStream(tempFile, FileMode.Create, FileAccess.Write, FileShare.None))
+            try
             {
-                await remoteStream.CopyToAsync(fileStream, cts.Token);
+                await using (var remoteStream = await response.Content.ReadAsStreamAsync(cts.Token))
+                await using (var fileStream = new FileStream(tempFile, FileMode.Create, FileAccess.Write, FileShare.None))
+                {
+                    await remoteStream.CopyToAsync(fileStream, cts.Token);
+                }
+            }
+            catch
+            {
+                // Don't leave a partial multi-GB download behind.
+                if (File.Exists(tempFile)) File.Delete(tempFile);
+                throw;
             }
 
             if (File.Exists(targetFilePath))

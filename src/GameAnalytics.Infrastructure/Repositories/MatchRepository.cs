@@ -397,6 +397,11 @@ public class MatchRepository : IMatchRepository
         await _context.SaveChangesAsync(ct);
     }
 
+    public void ResetTrackedState()
+    {
+        _context.ChangeTracker.Clear();
+    }
+
     public async Task<IReadOnlyList<string>> GetDistinctParticipantPuuidsAsync(int limit = 50, CancellationToken ct = default)
     {
         // Pull a larger pool then randomize so each training epoch explores different players

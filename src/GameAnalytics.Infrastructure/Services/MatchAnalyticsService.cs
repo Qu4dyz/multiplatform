@@ -255,9 +255,18 @@ public class MatchAnalyticsService : IMatchAnalyticsService
         return _predictionEngine.ReloadModel();
     }
 
-    public async Task<bool> RetrainModelOnSavedMatchesAsync(CancellationToken ct = default)
+    /// <summary>
+    /// Newest matches the desktop retrains on. A VPS-synced database can hold far more than fits in
+    /// memory; full-history training belongs to the VPS trainer.
+    /// </summary>
+    public const int DesktopRetrainMaxMatches = 5000;
+
+    public Task<bool> RetrainModelOnSavedMatchesAsync(CancellationToken ct = default) =>
+        RetrainModelOnSavedMatchesAsync(DesktopRetrainMaxMatches, ct);
+
+    public async Task<bool> RetrainModelOnSavedMatchesAsync(int maxMatches, CancellationToken ct = default)
     {
-        var matches = await _matchRepository.GetAllMatchesAsync(ct);
+        var matches = await _matchRepository.GetRecentMatchesPageAsync(0, maxMatches, ct);
         if (matches.Count < 5) return false;
 
         await _predictionEngine.TrainModelAsync(matches, ct);

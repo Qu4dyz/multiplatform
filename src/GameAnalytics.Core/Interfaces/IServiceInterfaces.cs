@@ -34,6 +34,8 @@ public interface IMatchRepository
     Task UpsertMatchAsync(Match match, CancellationToken ct = default);
     Task<int> GetTotalMatchesCountAsync(CancellationToken ct = default);
     Task ClearAllMatchesAsync(CancellationToken ct = default);
+    /// <summary>Forget tracked entities, e.g. after the database file was swapped underneath the context.</summary>
+    void ResetTrackedState() { }
     Task<IReadOnlyList<string>> GetDistinctParticipantPuuidsAsync(int limit = 50, CancellationToken ct = default);
     /// <summary>Match IDs that have minute-15 objectives but still miss vision/death or CS/XP@10 features.</summary>
     Task<IReadOnlyList<string>> GetMatchIdsNeedingTimelineBackfillAsync(int limit = 50, CancellationToken ct = default);
