@@ -12,6 +12,11 @@ public class VpsTrainingWorker
     public const int LabHorizonIntervalEpochs = 20;
     /// <summary>Newest-N cap for early train rows on 2GB hosts (same style as horizon maxRows).</summary>
     public const int EarlyTrainMaxRows = 20_000;
+    /// <summary>
+    /// SQL fetch size for early train: the cap plus a small margin. The query already applies the
+    /// collector's early eligibility, so the margin only covers rows it rejects for other reasons.
+    /// </summary>
+    public const int EarlyTrainFetchRows = EarlyTrainMaxRows + 250;
     /// <summary>Newest duration-eligible rows for lab m25/m35 (was 12k — hung the 2GB host after epoch 60).</summary>
     public const int LabHorizonMaxRows = 5_000;
 
@@ -65,30 +70,22 @@ public class VpsTrainingWorker
                 // Retrain schedule is independent of +N crawl hits — otherwise +50/epoch forces full RAM train every cycle.
                 var shouldRetrain = epoch == 1 || epoch % RetrainIntervalEpochs == 0;
                 var shouldLabHorizons = epoch % LabHorizonIntervalEpochs == 0;
-                var needMatchGraph = shouldRetrain || shouldLabHorizons;
 
-                int totalMatches;
-                IReadOnlyList<Match>? allMatches = null;
-                if (needMatchGraph)
-                {
-                    allMatches = await _matchRepo.GetAllMatchesAsync(ct);
-                    totalMatches = allMatches.Count;
-                }
-                else
-                {
-                    // Count-only path: avoid materializing ~47k matches + participants into RAM.
-                    totalMatches = await _matchRepo.GetTotalMatchesCountAsync(ct);
-                }
-
+                // Count-only: never materialize the full ~67k match graph (5GB DB) on a 2GB host.
+                var totalMatches = await _matchRepo.GetTotalMatchesCountAsync(ct);
                 log($"[VPS ML Trainer] Всього матчів у базі даних: {totalMatches} (нових у цій епосі: {newMatches})");
 
-                if (totalMatches >= 5 && shouldRetrain && allMatches != null)
+                if (totalMatches >= 5 && shouldRetrain)
                 {
-                    log($"[VPS ML Trainer] Навчання моделі {_predictionEngine.ActiveAlgorithm} на реальних даних (cap {EarlyTrainMaxRows} newest)...");
+                    // SQL-side newest-N eligible slice (oldest → newest) instead of GetAllMatchesAsync + trim.
+                    IReadOnlyList<Match>? trainMatches = await _matchRepo.GetNewestMatchesAsync(
+                        EarlyTrainFetchRows, PredictionHorizons.Early * 60, requireMinute15Timeline: true, ct);
+                    log($"[VPS ML Trainer] Навчання моделі {_predictionEngine.ActiveAlgorithm} на реальних даних ({trainMatches.Count} newest eligible, cap {EarlyTrainMaxRows})...");
                     if (_predictionEngine is MatchPredictionEngine mpe)
                         mpe.MaxTrainRows = EarlyTrainMaxRows;
 
-                    await _predictionEngine.TrainModelAsync(allMatches, ct);
+                    await _predictionEngine.TrainModelAsync(trainMatches, ct);
+                    trainMatches = null;
 
                     if (_predictionEngine.CurrentModelMetrics != null)
                     {
@@ -134,15 +131,12 @@ public class VpsTrainingWorker
                 }
 
                 // Lab mid/late: rare Tree-only trains; memory-guarded; never abort the crawl loop on OOM.
-                if (totalMatches >= 5 && shouldLabHorizons && allMatches != null)
+                if (totalMatches >= 5 && shouldLabHorizons)
                 {
-                    await RunLabHorizonTrainsAsync(allMatches, log, ct);
-                }
-
-                // Drop match graph before idle wait so HTTP sync has headroom.
-                allMatches = null;
-                if (needMatchGraph)
+                    await RunLabHorizonTrainsAsync(log, ct);
+                    // Drop lab pool before idle wait so HTTP sync has headroom.
                     ForceGc();
+                }
 
                 epoch++;
                 CurrentEpoch = epoch;
@@ -173,7 +167,6 @@ public class VpsTrainingWorker
     /// Keeps prior zip files when a train is skipped. Does not throw — crawl must continue.
     /// </summary>
     private async Task RunLabHorizonTrainsAsync(
-        IReadOnlyList<Match> allMatches,
         Action<string> log,
         CancellationToken ct)
     {
@@ -187,9 +180,11 @@ public class VpsTrainingWorker
 
         log($"[VPS ML Trainer] Memory guard OK ({memReason}) — lab horizon train (cap {LabHorizonMaxRows} newest eligible).");
 
-        // Slim once: newest long-enough ranked games only — do not feed the full 50k graph into FastTree.
-        var labPool = SlimLabCandidatePool(allMatches, LabHorizonMaxRows);
-        log($"[VPS ML Trainer] Lab candidate pool: {labPool.Count} matches (from {allMatches.Count} total).");
+        // Newest long-enough ranked games straight from SQL — never load the full graph for FastTree.
+        var fetched = await _matchRepo.GetNewestMatchesAsync(
+            LabHorizonMaxRows, PredictionHorizons.Mid * 60, requireMinute15Timeline: false, ct);
+        var labPool = SlimLabCandidatePool(fetched, LabHorizonMaxRows);
+        log($"[VPS ML Trainer] Lab candidate pool: {labPool.Count} matches (SQL newest-{LabHorizonMaxRows}).");
 
         Func<string, MatchTimelineData?> timelineLookup = id =>
             _matchRepo.GetCachedTimelineAsync(id).GetAwaiter().GetResult();
@@ -237,7 +232,7 @@ public class VpsTrainingWorker
 
     /// <summary>
     /// Newest duration-eligible ranked matches for lab (mid threshold so one pool serves m25+m35).
-    /// Avoids retaining the full GetAllMatchesAsync graph inside FastTree featurization.
+    /// Defensive re-filter of the SQL slice (also keeps fakes / older repositories honest).
     /// </summary>
     internal static List<Match> SlimLabCandidatePool(IReadOnlyList<Match> allMatches, int maxRows)
     {

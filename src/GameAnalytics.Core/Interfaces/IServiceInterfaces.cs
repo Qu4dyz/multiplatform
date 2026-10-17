@@ -23,6 +23,17 @@ public readonly record struct LadderPlayerEntry(string Puuid, GameAnalytics.Core
 public interface IMatchRepository
 {
     Task<IReadOnlyList<Match>> GetAllMatchesAsync(CancellationToken ct = default);
+    /// <summary>
+    /// Newest <paramref name="take"/> train-eligible Solo/Duo (420) matches, filtered and ordered in SQL,
+    /// returned oldest → newest so chronological holdout/calibration splits keep working.
+    /// <paramref name="requireMinute15Timeline"/> = early-model eligibility (real 15' timeline + 10' CS/XP + vision/death + gold@15).
+    /// Participants.ChallengesJson is not loaded (not a training feature; dominates RAM on large DBs).
+    /// </summary>
+    Task<IReadOnlyList<Match>> GetNewestMatchesAsync(
+        int take,
+        int minDurationSeconds = 900,
+        bool requireMinute15Timeline = true,
+        CancellationToken ct = default);
     Task<Match?> GetMatchByMatchIdAsync(string matchId, CancellationToken ct = default);
     Task SaveMatchAsync(Match match, CancellationToken ct = default);
     Task UpsertMatchAsync(Match match, CancellationToken ct = default);

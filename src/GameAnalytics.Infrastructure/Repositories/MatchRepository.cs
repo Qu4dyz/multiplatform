@@ -1,4 +1,5 @@
 using GameAnalytics.Core.Entities;
+using GameAnalytics.Core.Enums;
 using GameAnalytics.Core.Interfaces;
 using GameAnalytics.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -265,6 +266,14 @@ public class MatchRepository : IMatchRepository
                 );");
         }
         catch { /* Table already exists */ }
+
+        // Newest-N training slice orders by GameCreation; without this SQLite sorts the whole table.
+        try
+        {
+            _context.Database.ExecuteSqlRaw(
+                "CREATE INDEX IF NOT EXISTS IX_Matches_GameCreation ON Matches (GameCreation);");
+        }
+        catch { /* Best-effort index */ }
     }
 
     public async Task<IReadOnlyList<Match>> GetAllMatchesAsync(CancellationToken ct = default)
@@ -275,6 +284,123 @@ public class MatchRepository : IMatchRepository
             .OrderByDescending(m => m.GameCreation)
             .AsNoTracking()
             .ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<Match>> GetNewestMatchesAsync(
+        int take,
+        int minDurationSeconds = 900,
+        bool requireMinute15Timeline = true,
+        CancellationToken ct = default)
+    {
+        if (take <= 0) return Array.Empty<Match>();
+
+        // Same eligibility as RealMatchDatasetCollector.ExtractFeaturesFromMatches, pushed into SQL
+        // so a 2GB VPS never materializes the full match graph just to keep the newest N rows.
+        var minDuration = Math.Max(300, minDurationSeconds);
+        var query = _context.Matches
+            .AsNoTracking()
+            .Where(m => m.QueueId == 420 && !m.IsRemake && m.GameDurationSeconds >= minDuration);
+
+        if (requireMinute15Timeline)
+        {
+            query = query.Where(m => m.HasMinute15Objectives
+                                     && m.HasCsXp10Features
+                                     && m.HasVisionDeathFeatures
+                                     && m.Teams.Any(t => t.TeamSide == TeamSide.Blue)
+                                     && m.Teams.Any(t => t.TeamSide == TeamSide.Red)
+                                     && m.Teams.Any(t => t.GoldAt15 > 0));
+        }
+
+        var matches = await query
+            .OrderByDescending(m => m.GameCreation)
+            .ThenByDescending(m => m.Id)
+            .Take(take)
+            .Include(m => m.Teams)
+            .AsSplitQuery()
+            .ToListAsync(ct);
+
+        if (matches.Count == 0) return matches;
+
+        // Participants without ChallengesJson: the raw payload is ~KBs per row and unused by training.
+        var matchIds = matches.Select(m => m.Id).ToList();
+        var participants = await _context.Participants
+            .AsNoTracking()
+            .Where(p => matchIds.Contains(p.MatchEntityId))
+            .Select(p => new Participant
+            {
+                Id = p.Id,
+                MatchEntityId = p.MatchEntityId,
+                Puuid = p.Puuid,
+                SummonerName = p.SummonerName,
+                ChampionName = p.ChampionName,
+                ChampionId = p.ChampionId,
+                ParticipantId = p.ParticipantId,
+                ChampLevel = p.ChampLevel,
+                TeamSide = p.TeamSide,
+                Position = p.Position,
+                Kills = p.Kills,
+                Deaths = p.Deaths,
+                Assists = p.Assists,
+                TotalDamageDealtToChampions = p.TotalDamageDealtToChampions,
+                GoldEarned = p.GoldEarned,
+                TotalMinionsKilled = p.TotalMinionsKilled,
+                Win = p.Win,
+                Item0 = p.Item0,
+                Item1 = p.Item1,
+                Item2 = p.Item2,
+                Item3 = p.Item3,
+                Item4 = p.Item4,
+                Item5 = p.Item5,
+                Item6 = p.Item6,
+                Summoner1Id = p.Summoner1Id,
+                Summoner2Id = p.Summoner2Id,
+                PrimaryRuneId = p.PrimaryRuneId,
+                SecondaryRuneStyleId = p.SecondaryRuneStyleId,
+                VisionScore = p.VisionScore,
+                WardsPlaced = p.WardsPlaced,
+                WardsKilled = p.WardsKilled,
+                ControlWardsBought = p.ControlWardsBought,
+                PhysicalDamageDealtToChampions = p.PhysicalDamageDealtToChampions,
+                MagicDamageDealtToChampions = p.MagicDamageDealtToChampions,
+                TrueDamageDealtToChampions = p.TrueDamageDealtToChampions,
+                TotalDamageTaken = p.TotalDamageTaken,
+                DamageSelfMitigated = p.DamageSelfMitigated,
+                DamageDealtToObjectives = p.DamageDealtToObjectives,
+                DamageDealtToTurrets = p.DamageDealtToTurrets,
+                DoubleKills = p.DoubleKills,
+                TripleKills = p.TripleKills,
+                QuadraKills = p.QuadraKills,
+                PentaKills = p.PentaKills,
+                SoloKills = p.SoloKills,
+                TurretPlatesTaken = p.TurretPlatesTaken,
+                KillParticipation = p.KillParticipation,
+                VisionScorePerMinute = p.VisionScorePerMinute,
+                GoldPerMinute = p.GoldPerMinute,
+                DamagePerMinute = p.DamagePerMinute,
+                TeamDamagePercentage = p.TeamDamagePercentage,
+                ControlWardsPlaced = p.ControlWardsPlaced,
+                EffectiveHealAndShielding = p.EffectiveHealAndShielding,
+                DamageDealtToObjectivesChallenge = p.DamageDealtToObjectivesChallenge,
+                JungleCsBefore10Minutes = p.JungleCsBefore10Minutes,
+                LaneMinionsFirst10Minutes = p.LaneMinionsFirst10Minutes,
+                SkillshotsDodged = p.SkillshotsDodged,
+                SkillshotsHit = p.SkillshotsHit,
+                TakedownsFirstXMinutes = p.TakedownsFirstXMinutes,
+                EpicMonsterSteals = p.EpicMonsterSteals,
+                SoloBaronKills = p.SoloBaronKills,
+                KdaChallenge = p.KdaChallenge,
+            })
+            .ToListAsync(ct);
+
+        var byMatch = participants
+            .GroupBy(p => p.MatchEntityId)
+            .ToDictionary(g => g.Key, g => g.OrderBy(p => p.Id).ToList());
+        foreach (var match in matches)
+            match.Participants = byMatch.TryGetValue(match.Id, out var list) ? list : new List<Participant>();
+
+        // Oldest → newest for rolling win-rates and the temporal train/calibration/test split.
+        matches.Reverse();
+        return matches;
     }
 
     public async Task<Match?> GetMatchByMatchIdAsync(string matchId, CancellationToken ct = default)

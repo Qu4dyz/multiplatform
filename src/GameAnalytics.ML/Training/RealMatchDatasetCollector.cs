@@ -676,26 +676,20 @@ public class RealMatchDatasetCollector
         var minDuration = predictionMinute * 60;
         var isLabHorizon = predictionMinute is PredictionHorizons.Mid or PredictionHorizons.Late;
 
-        // 2GB VPS caps:
-        // - early: newest N source matches (HasMinute15 filter still applies below)
-        // - lab mid/late: newest N duration/queue-eligible matches (avoids short games eating the budget)
+        // 2GB VPS caps (newest N *eligible* rows, so ineligible games never eat the budget):
+        // - early: queue/duration + real 15' timeline flags (same predicate as the loop below)
+        // - lab mid/late: queue/duration only (timeline availability is checked per row)
         if (maxRows is > 0)
         {
-            if (isLabHorizon)
-            {
-                var durationEligible = ordered
-                    .Where(m => !m.IsRemake
-                                && m.GameDurationSeconds >= Math.Max(300, minDuration)
-                                && (m.QueueId == 420 || m.QueueId == 0))
-                    .ToList();
-                ordered = durationEligible.Count > maxRows.Value
-                    ? durationEligible.Skip(durationEligible.Count - maxRows.Value).ToList()
-                    : durationEligible;
-            }
-            else if (ordered.Count > maxRows.Value)
-            {
-                ordered = ordered.Skip(ordered.Count - maxRows.Value).ToList();
-            }
+            var eligible = ordered
+                .Where(m => !m.IsRemake
+                            && m.GameDurationSeconds >= Math.Max(300, minDuration)
+                            && (m.QueueId == 420 || m.QueueId == 0)
+                            && (isLabHorizon || IsEarlyTimelineEligible(m)))
+                .ToList();
+            ordered = eligible.Count > maxRows.Value
+                ? eligible.Skip(eligible.Count - maxRows.Value).ToList()
+                : eligible;
         }
 
         var champWins = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -727,11 +721,7 @@ public class RealMatchDatasetCollector
 
             if (predictionMinute == PredictionHorizons.Early)
             {
-                // Require a real MATCH-V5 timeline apply — placeholder GoldAt15 must never train the model.
-                if (!match.HasMinute15Objectives) continue;
-                // Prefer complete 10' CS/XP + vision/death rows (heuristic fallbacks add noise).
-                if (!match.HasCsXp10Features || !match.HasVisionDeathFeatures) continue;
-                if (blue.GoldAt15 <= 0 && red.GoldAt15 <= 0) continue;
+                if (!IsEarlyTimelineEligible(match)) continue;
 
                 goldDiff15 = (float)(blue.GoldAt15 - red.GoldAt15);
                 killDiff15 = (float)(blue.KillsAt15 - red.KillsAt15);
@@ -936,6 +926,21 @@ public class RealMatchDatasetCollector
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Early (15') row gate. Mirrored in SQL by MatchRepository.GetNewestMatchesAsync(requireMinute15Timeline: true).
+    /// </summary>
+    private static bool IsEarlyTimelineEligible(Match match)
+    {
+        // Require a real MATCH-V5 timeline apply — placeholder GoldAt15 must never train the model.
+        if (!match.HasMinute15Objectives) return false;
+        // Prefer complete 10' CS/XP + vision/death rows (heuristic fallbacks add noise).
+        if (!match.HasCsXp10Features || !match.HasVisionDeathFeatures) return false;
+        var blue = match.Teams.FirstOrDefault(t => t.TeamSide == TeamSide.Blue);
+        var red = match.Teams.FirstOrDefault(t => t.TeamSide == TeamSide.Red);
+        if (blue == null || red == null) return false;
+        return blue.GoldAt15 > 0 || red.GoldAt15 > 0;
     }
 
     /// <summary>

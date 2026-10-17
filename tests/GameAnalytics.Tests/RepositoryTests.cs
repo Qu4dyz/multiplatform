@@ -245,5 +245,84 @@ public class RepositoryTests
             repoContext.Database.EnsureDeleted();
         }
     }
-}
 
+    private static Match NewTrainMatch(
+        string id, DateTime created, int queueId = 420, int durationSeconds = 1800,
+        bool timeline = true, bool remake = false, int goldAt15 = 25000)
+    {
+        var participants = new List<Participant>();
+        for (var i = 0; i < 10; i++)
+        {
+            participants.Add(new Participant
+            {
+                Puuid = $"{id}-p{i}",
+                ChampionName = $"Champ{i}",
+                ParticipantId = i + 1,
+                TeamSide = i < 5 ? TeamSide.Blue : TeamSide.Red,
+                Win = i < 5,
+                TurretPlatesTaken = i,
+                ChallengesJson = "{\"big\":\"payload\"}"
+            });
+        }
+
+        return new Match
+        {
+            MatchId = id,
+            QueueId = queueId,
+            GameCreation = created,
+            GameDurationSeconds = durationSeconds,
+            IsRemake = remake,
+            WinningTeam = TeamSide.Blue,
+            HasMinute15Objectives = timeline,
+            HasCsXp10Features = timeline,
+            HasVisionDeathFeatures = timeline,
+            Participants = participants,
+            Teams = new List<TeamStats>
+            {
+                new() { TeamSide = TeamSide.Blue, Win = true, GoldAt15 = goldAt15 },
+                new() { TeamSide = TeamSide.Red, Win = false, GoldAt15 = goldAt15 > 0 ? goldAt15 - 1500 : 0 }
+            }
+        };
+    }
+
+    [Fact]
+    public async Task GetNewestMatchesAsync_ReturnsNewestEligibleAscendingWithoutChallengesJson()
+    {
+        using var context = CreateTestContext();
+        var repo = new MatchRepository(context);
+        var t0 = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        // Six eligible solo games, one hour apart, saved out of order.
+        foreach (var i in new[] { 3, 0, 5, 1, 4, 2 })
+            await repo.SaveMatchAsync(NewTrainMatch($"OK_{i}", t0.AddHours(i)));
+
+        // Newer than every eligible game, but each fails one early-train rule.
+        var late = t0.AddDays(1);
+        await repo.SaveMatchAsync(NewTrainMatch("FLEX", late, queueId: 440));
+        await repo.SaveMatchAsync(NewTrainMatch("NO_TIMELINE", late.AddMinutes(1), timeline: false));
+        await repo.SaveMatchAsync(NewTrainMatch("REMAKE", late.AddMinutes(2), remake: true));
+        await repo.SaveMatchAsync(NewTrainMatch("SHORT", late.AddMinutes(3), durationSeconds: 840));
+        await repo.SaveMatchAsync(NewTrainMatch("NO_GOLD", late.AddMinutes(4), goldAt15: 0));
+
+        var newest = await repo.GetNewestMatchesAsync(take: 3);
+
+        Assert.Equal(new[] { "OK_3", "OK_4", "OK_5" }, newest.Select(m => m.MatchId).ToArray());
+        Assert.All(newest, m =>
+        {
+            Assert.Equal(10, m.Participants.Count);
+            Assert.Equal(2, m.Teams.Count);
+            Assert.All(m.Participants, p => Assert.Equal(string.Empty, p.ChallengesJson));
+            Assert.Equal(Enumerable.Range(0, 10), m.Participants.Select(p => p.TurretPlatesTaken));
+        });
+
+        // Lab mode (no 15' timeline requirement) still keeps queue/remake/duration filters.
+        var lab = await repo.GetNewestMatchesAsync(
+            take: 10, minDurationSeconds: 25 * 60, requireMinute15Timeline: false);
+        Assert.Equal(
+            new[] { "OK_0", "OK_1", "OK_2", "OK_3", "OK_4", "OK_5", "NO_TIMELINE", "NO_GOLD" },
+            lab.Select(m => m.MatchId).ToArray());
+
+        Assert.Empty(await repo.GetNewestMatchesAsync(take: 0));
+        context.Database.EnsureDeleted();
+    }
+}

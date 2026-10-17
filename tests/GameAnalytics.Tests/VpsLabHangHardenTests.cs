@@ -82,6 +82,30 @@ public class VpsLabHangHardenTests
         Assert.Equal(6000f, rows[0].GoldDiff15); // NEW only
     }
 
+    [Fact]
+    public void ExtractFeatures_EarlyMaxRows_CountsOnlyTimelineEligibleRows()
+    {
+        var older = MakeEarly("OLD", daysAgo: 10, goldBlue: 26000, goldRed: 25000);
+        var newer = MakeEarly("NEW", daysAgo: 2, goldBlue: 27000, goldRed: 24000);
+        // Newest game has no real 15' timeline — must not use up the cap and push out real rows.
+        var placeholder = MakeEarly("PLACEHOLDER", daysAgo: 0, goldBlue: 25000, goldRed: 25000);
+        placeholder.HasMinute15Objectives = false;
+
+        var rows = RealMatchDatasetCollector.ExtractFeaturesFromMatches(
+            new[] { placeholder, older, newer }, PredictionHorizons.Early, timelineLookup: null, maxRows: 2);
+
+        Assert.Equal(new[] { 1000f, 3000f }, rows.Select(r => r.GoldDiff15).ToArray());
+    }
+
+    private static Match MakeEarly(string id, int daysAgo, int goldBlue, int goldRed)
+    {
+        var m = MakeHorizon(id, daysAgo, durationMin: 30, goldBlue, goldRed);
+        m.HasMinute15Objectives = true;
+        m.HasCsXp10Features = true;
+        m.HasVisionDeathFeatures = true;
+        return m;
+    }
+
     private static Match Make(string id, int daysAgo, int durationMin, int queueId = 420)
     {
         var m = new Match
