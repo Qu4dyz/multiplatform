@@ -25,6 +25,10 @@ public interface IMatchRepository
     Task<IReadOnlyList<Match>> GetAllMatchesAsync(CancellationToken ct = default);
     /// <summary>Recent matches for a Riot ID from local SQLite (no network).</summary>
     Task<IReadOnlyList<Match>> GetMatchesByRiotIdAsync(string gameName, string tagLine, int limit = 20, CancellationToken ct = default);
+    /// <summary>Newest-first page of saved matches for UI lists; never loads the whole table.</summary>
+    Task<IReadOnlyList<Match>> GetRecentMatchesPageAsync(int skip, int take, CancellationToken ct = default);
+    /// <summary>Newest saved matches where the given PUUID took part.</summary>
+    Task<IReadOnlyList<Match>> GetMatchesByPuuidAsync(string puuid, int limit = 20, CancellationToken ct = default);
     Task<Match?> GetMatchByMatchIdAsync(string matchId, CancellationToken ct = default);
     Task SaveMatchAsync(Match match, CancellationToken ct = default);
     Task UpsertMatchAsync(Match match, CancellationToken ct = default);
@@ -73,6 +77,7 @@ public interface IMatchAnalyticsService
     Task<IReadOnlyList<Match>> GetSavedMatchHistoryAsync(CancellationToken ct = default);
     /// <summary>Local SQLite matches for a Riot ID — used to paint UI before / without live API.</summary>
     Task<IReadOnlyList<Match>> GetSavedMatchesForPlayerAsync(string gameName, string tagLine, int limit = 20, CancellationToken ct = default);
+    Task<IReadOnlyList<Match>> GetSavedMatchesForPuuidAsync(string puuid, int limit = 20, CancellationToken ct = default);
     Task<MatchTimelineData?> GetMatchTimelineAsync(string matchId, CancellationToken ct = default);
     Task<bool> RetrainModelOnSavedMatchesAsync(CancellationToken ct = default);
     PredictionResult PredictOutcome(MatchInputFeatures features);

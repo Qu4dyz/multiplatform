@@ -110,6 +110,16 @@ public class MatchCollectorTests
             return Task.FromResult<IReadOnlyList<Match>>(list);
         }
 
+        public Task<IReadOnlyList<Match>> GetRecentMatchesPageAsync(int skip, int take, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<Match>>(Stored.Values.OrderByDescending(m => m.GameCreation).Skip(skip).Take(take).ToList());
+
+        public Task<IReadOnlyList<Match>> GetMatchesByPuuidAsync(string puuid, int limit = 20, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<Match>>(Stored.Values
+                .Where(m => m.Participants.Any(p => p.Puuid == puuid))
+                .OrderByDescending(m => m.GameCreation)
+                .Take(limit)
+                .ToList());
+
         public Task<Match?> GetMatchByMatchIdAsync(string matchId, CancellationToken ct = default)
             => Task.FromResult(Stored.TryGetValue(matchId, out var m) ? m : null);
 

@@ -403,12 +403,7 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
                         var cachedMatches = await _analyticsService.GetSavedMatchesForPlayerAsync(gameName, tagLine, _currentMatchCount);
                         if (cachedMatches.Count == 0)
                         {
-                            var allCached = await _analyticsService.GetSavedMatchHistoryAsync();
-                            cachedMatches = allCached
-                                .Where(m => m.Participants.Any(p => p.Puuid == profile.Puuid))
-                                .OrderByDescending(m => m.GameCreation)
-                                .Take(_currentMatchCount)
-                                .ToList();
+                            cachedMatches = await _analyticsService.GetSavedMatchesForPuuidAsync(profile.Puuid, _currentMatchCount);
                         }
 
                         if (cachedMatches.Count > 0 && RecentMatches.Count == 0)

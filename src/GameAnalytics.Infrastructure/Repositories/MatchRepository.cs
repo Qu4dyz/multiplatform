@@ -277,6 +277,39 @@ public class MatchRepository : IMatchRepository
             .ToListAsync(ct);
     }
 
+    public async Task<IReadOnlyList<Match>> GetRecentMatchesPageAsync(int skip, int take, CancellationToken ct = default)
+    {
+        if (take <= 0)
+            return Array.Empty<Match>();
+
+        return await _context.Matches
+            .Include(m => m.Participants)
+            .Include(m => m.Teams)
+            .AsNoTracking()
+            .OrderByDescending(m => m.GameCreation)
+            .ThenByDescending(m => m.Id)
+            .Skip(Math.Max(0, skip))
+            .Take(take)
+            .AsSplitQuery()
+            .ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<Match>> GetMatchesByPuuidAsync(string puuid, int limit = 20, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(puuid) || limit <= 0)
+            return Array.Empty<Match>();
+
+        return await _context.Matches
+            .Include(m => m.Participants)
+            .Include(m => m.Teams)
+            .AsNoTracking()
+            .Where(m => m.Participants.Any(p => p.Puuid == puuid))
+            .OrderByDescending(m => m.GameCreation)
+            .Take(limit)
+            .AsSplitQuery()
+            .ToListAsync(ct);
+    }
+
     public async Task<IReadOnlyList<Match>> GetMatchesByRiotIdAsync(string gameName, string tagLine, int limit = 20, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(gameName) || limit <= 0)

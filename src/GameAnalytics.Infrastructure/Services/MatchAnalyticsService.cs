@@ -197,6 +197,11 @@ public class MatchAnalyticsService : IMatchAnalyticsService
         return await _matchRepository.GetMatchesByRiotIdAsync(gameName, tagLine, limit, ct);
     }
 
+    public async Task<IReadOnlyList<Match>> GetSavedMatchesForPuuidAsync(string puuid, int limit = 20, CancellationToken ct = default)
+    {
+        return await _matchRepository.GetMatchesByPuuidAsync(puuid, limit, ct);
+    }
+
     public async Task<MatchTimelineData?> GetMatchTimelineAsync(string matchId, CancellationToken ct = default)
     {
         var cached = await _matchRepository.GetCachedTimelineAsync(matchId, ct);
