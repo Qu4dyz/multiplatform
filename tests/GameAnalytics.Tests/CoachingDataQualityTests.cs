@@ -140,6 +140,21 @@ public class CoachingDataQualityTests
     }
 
     [Fact]
+    public void MatchVerdict_SupportWin_IsNotCreditedToFarming()
+    {
+        var match = BuildMatch(0, Position.Utility);
+        var player = match.Participants[0];
+        player.Win = true;
+        player.TotalMinionsKilled = 40;
+        player.Deaths = 2;
+
+        var report = MatchTacticalAnalyzer.AnalyzeMatchTactics(match, player, null, GameTier.Gold);
+
+        Assert.DoesNotContain("фарм", report.OverallMatchVerdict);
+        Assert.Contains("лише 2 смертей", report.OverallMatchVerdict);
+    }
+
+    [Fact]
     public void FindTargetPlayer_PrefersExactPuuidOverNameMatch()
     {
         var match = BuildMatch(0, Position.Jungle);

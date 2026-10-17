@@ -183,7 +183,7 @@ public static class PlayerMomentumAnalyzer
         }
         else
         {
-            report.AiAdvice = $"Форма стабільна ({recentWinRate:F0}% за останні 5 ігор, KDA {recentKda:F1}). Для зростання вінрейту покращуйте контроль об'єктів (Дракони/Герольд) та контролюйте смерті після 20-ї хвилини.";
+            report.AiAdvice = $"Форма стабільна ({recentWinRate:F0}% за останні 5 ігор, KDA {recentKda:F1}). Тильту немає — грайте далі й тримайте фокус на головній звичці з блоку тактичного коучингу.";
         }
 
         return report;

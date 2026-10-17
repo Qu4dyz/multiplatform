@@ -155,9 +155,18 @@ public static class MatchTacticalAnalyzer
         // 3. SYNTHESIZE OVERALL MATCH VERDICT
         if (player.Win)
         {
-            report.OverallMatchVerdict = kp >= 50
-                ? $"Чудова перемога на {player.ChampionName}! Ви поєднували високий темп фарма ({csPerMin:F1} CS/хв) з відмінною участю в боях ({kp}% KP)."
-                : $"Перемога на {player.ChampionName} завдяки надійному фарму ({csPerMin:F1} CS/хв), однак у наступних іграх намагайтеся активніше допомагати лініям (KP був {kp}%).";
+            // Name only what really beat the rank median, so a support win is not credited to farming.
+            var champion = GameAnalytics.Core.Helpers.ChampionNameHelper.ToDisplayName(player.ChampionName);
+            var strong = new List<string>();
+            if (player.Position != Position.Utility && csPerMin > benchmark.TargetCsPerMin)
+                strong.Add($"фарм {csPerMin:F1} CS/хв (медіана {benchmark.TargetCsPerMin:F1})");
+            if (kp > benchmark.TargetKillParticipation)
+                strong.Add($"участь у вбивствах {kp}% (медіана {benchmark.TargetKillParticipation}%)");
+            if (player.Deaths < benchmark.MaxTargetDeaths)
+                strong.Add($"лише {player.Deaths} смертей");
+            report.OverallMatchVerdict = strong.Count > 0
+                ? $"Перемога на {champion}: {string.Join(", ", strong)}."
+                : $"Перемога на {champion}, хоча фарм, участь у бійках і смерті були не кращими за медіану рангу — гру витягнула команда.";
             report.KeyTakeaway = "Зберігайте дисципліну позиціонування та продовжуйте конвертувати виграні тімфайти в об'єкти.";
         }
         else
