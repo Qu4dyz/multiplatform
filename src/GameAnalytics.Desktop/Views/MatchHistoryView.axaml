@@ -27,8 +27,8 @@
             <Setter Property="Background" Value="Transparent" />
         </Style>
         <Style Selector="ListBox.match-list ListBoxItem Border.match-row">
-            <Setter Property="Background" Value="#161928" />
-            <Setter Property="BorderBrush" Value="#22263C" />
+            <Setter Property="Background" Value="{StaticResource Surface2Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
             <Setter Property="Transitions">
                 <Transitions>
                     <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
@@ -37,7 +37,7 @@
             </Setter>
         </Style>
         <Style Selector="ListBox.match-list ListBoxItem:pointerover Border.match-row">
-            <Setter Property="Background" Value="#1A1D30" />
+            <Setter Property="Background" Value="{StaticResource Surface3Brush}" />
             <Setter Property="BorderBrush" Value="#3E4466" />
         </Style>
         <Style Selector="ListBox.match-list ListBoxItem:selected Border.match-row">
@@ -49,11 +49,11 @@
     <Grid Margin="24" RowDefinitions="Auto, *">
         <!-- Top Controls & Metrics -->
         <Border Grid.Row="0"
-                Background="#131522"
+                Background="{StaticResource SurfaceBrush}"
                 CornerRadius="12"
                 Padding="16"
                 Margin="0,0,0,16"
-                BorderBrush="#22263C"
+                BorderBrush="{StaticResource BorderBrush}"
                 BorderThickness="1">
             <Grid ColumnDefinitions="*, Auto, Auto, Auto">
                 <StackPanel VerticalAlignment="Center" Spacing="4">
@@ -65,19 +65,19 @@
                                TextTrimming="CharacterEllipsis" />
                     <TextBlock Text="{Binding StatusMessage}"
                                FontSize="12"
-                               Foreground="#94A3B8"
+                               Foreground="{StaticResource TextMutedBrush}"
                                TextWrapping="Wrap" />
                 </StackPanel>
 
                 <Button Grid.Column="1"
                         Command="{Binding LoadMatchesCommand}"
-                        Content="🔄 Оновити дані"
+                        Content="Оновити дані"
                         Margin="12,0,10,0"
                         Background="#7C3AED"
                         Foreground="White"
                         FontWeight="SemiBold"
                         Padding="14,8"
-                        CornerRadius="6"
+                        CornerRadius="8"
                         VerticalAlignment="Center"
                         Cursor="Hand" />
 
@@ -86,25 +86,25 @@
                         Content="Скасувати"
                         IsVisible="{Binding IsClearConfirmPending}"
                         Margin="0,0,10,0"
-                        Background="#181B2B"
-                        BorderBrush="#252A42"
+                        Background="{StaticResource Surface2Brush}"
+                        BorderBrush="{StaticResource BorderBrush}"
                         BorderThickness="1"
-                        Foreground="#CBD5E1"
+                        Foreground="{StaticResource TextSecondaryBrush}"
                         Padding="14,8"
-                        CornerRadius="6"
+                        CornerRadius="8"
                         VerticalAlignment="Center"
                         Cursor="Hand" />
 
                 <Button Grid.Column="3"
                         Command="{Binding ClearHistoryCommand}"
                         Content="{Binding ClearButtonText}"
-                        Background="#181B2B"
-                        BorderBrush="#4C2433"
+                        Background="{StaticResource Surface2Brush}"
+                        BorderBrush="{StaticResource BorderBrush}"
                         BorderThickness="1"
                         Foreground="#FB7185"
                         FontWeight="SemiBold"
                         Padding="14,8"
-                        CornerRadius="6"
+                        CornerRadius="8"
                         VerticalAlignment="Center"
                         Cursor="Hand" />
             </Grid>
@@ -114,11 +114,11 @@
         <Grid Grid.Row="1" ColumnDefinitions="340, *">
             <!-- Matches List (ListBox scrolls and virtualizes on its own) -->
             <Border Grid.Column="0"
-                    Background="#131522"
+                    Background="{StaticResource SurfaceBrush}"
                     CornerRadius="12"
                     Padding="10"
                     Margin="0,0,12,0"
-                    BorderBrush="#22263C"
+                    BorderBrush="{StaticResource BorderBrush}"
                     BorderThickness="1">
                 <Grid RowDefinitions="*, Auto">
                     <ListBox Classes="match-list"
@@ -140,7 +140,7 @@
                                             <TextBlock Text="{Binding MatchId}"
                                                        FontWeight="Bold"
                                                        FontSize="13"
-                                                       Foreground="#F8FAFC"
+                                                       Foreground="{StaticResource TextPrimaryBrush}"
                                                        TextTrimming="CharacterEllipsis" />
                                             <TextBlock Text="{Binding QueueName}"
                                                        FontSize="11"
@@ -149,10 +149,10 @@
                                             <StackPanel Orientation="Horizontal" Spacing="8">
                                                 <TextBlock Text="{Binding GameCreation, Converter={x:Static conv:UtcToLocalTimeConverter.Instance}}"
                                                            FontSize="11"
-                                                           Foreground="#94A3B8" />
+                                                           Foreground="{StaticResource TextMutedBrush}" />
                                                 <TextBlock Text="{Binding FormattedDuration}"
                                                            FontSize="11"
-                                                           Foreground="#64748B" />
+                                                           Foreground="{StaticResource TextSubtleBrush}" />
                                             </StackPanel>
                                         </StackPanel>
 
@@ -183,23 +183,23 @@
                             HorizontalContentAlignment="Center"
                             Margin="0,8,0,0"
                             Padding="12,8"
-                            Background="#181B2B"
-                            BorderBrush="#252A42"
+                            Background="{StaticResource Surface2Brush}"
+                            BorderBrush="{StaticResource BorderBrush}"
                             BorderThickness="1"
                             Foreground="#C4B5FD"
                             FontSize="12"
                             FontWeight="SemiBold"
-                            CornerRadius="6"
+                            CornerRadius="8"
                             Cursor="Hand" />
                 </Grid>
             </Border>
 
             <!-- Selected Match Details -->
             <Border Grid.Column="1"
-                    Background="#131522"
+                    Background="{StaticResource SurfaceBrush}"
                     CornerRadius="12"
                     Padding="20"
-                    BorderBrush="#22263C"
+                    BorderBrush="{StaticResource BorderBrush}"
                     BorderThickness="1">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Spacing="16">
@@ -211,35 +211,35 @@
 
                         <TextBlock Text="Оберіть матч зі списку ліворуч."
                                    FontSize="12"
-                                   Foreground="#94A3B8"
+                                   Foreground="{StaticResource TextMutedBrush}"
                                    IsVisible="{Binding SelectedMatch, Converter={x:Static ObjectConverters.IsNull}}" />
 
                         <Grid ColumnDefinitions="*, *, *"
                               IsVisible="{Binding SelectedMatch, Converter={x:Static ObjectConverters.IsNotNull}}">
-                            <Border Grid.Column="0" Background="#161928" BorderBrush="#22263C" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,6,0">
+                            <Border Grid.Column="0" Background="{StaticResource Surface2Brush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,6,0">
                                 <StackPanel Spacing="2">
-                                    <TextBlock Text="Матч ID" FontSize="11" Foreground="#94A3B8" />
-                                    <TextBlock Text="{Binding SelectedMatch.MatchId}" FontWeight="Bold" FontSize="13" Foreground="#F8FAFC" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="Матч ID" FontSize="11" Foreground="{StaticResource TextMutedBrush}" />
+                                    <TextBlock Text="{Binding SelectedMatch.MatchId}" FontWeight="Bold" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis" />
                                     <TextBlock Text="{Binding SelectedMatch.QueueName}" FontSize="11" Foreground="#A78BFA" TextTrimming="CharacterEllipsis" />
                                 </StackPanel>
                             </Border>
 
-                            <Border Grid.Column="1" Background="#161928" BorderBrush="#22263C" BorderThickness="1" CornerRadius="8" Padding="12" Margin="3,0,3,0">
+                            <Border Grid.Column="1" Background="{StaticResource Surface2Brush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="3,0,3,0">
                                 <StackPanel Spacing="2">
-                                    <TextBlock Text="Патч гри" FontSize="11" Foreground="#94A3B8" />
-                                    <TextBlock Text="{Binding SelectedMatch.GameVersion}" FontWeight="Bold" FontSize="13" Foreground="#F8FAFC" TextTrimming="CharacterEllipsis" />
-                                    <TextBlock Text="{Binding SelectedMatch.FormattedDuration, StringFormat='Тривалість: {0}'}" FontSize="11" Foreground="#94A3B8" />
+                                    <TextBlock Text="Патч гри" FontSize="11" Foreground="{StaticResource TextMutedBrush}" />
+                                    <TextBlock Text="{Binding SelectedMatch.GameVersion}" FontWeight="Bold" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="{Binding SelectedMatch.FormattedDuration, StringFormat='Тривалість: {0}'}" FontSize="11" Foreground="{StaticResource TextMutedBrush}" />
                                 </StackPanel>
                             </Border>
 
-                            <Border Grid.Column="2" Background="#161928" BorderBrush="#22263C" BorderThickness="1" CornerRadius="8" Padding="12" Margin="6,0,0,0">
+                            <Border Grid.Column="2" Background="{StaticResource Surface2Brush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="6,0,0,0">
                                 <StackPanel Spacing="2">
-                                    <TextBlock Text="Переможець" FontSize="11" Foreground="#94A3B8" />
+                                    <TextBlock Text="Переможець" FontSize="11" Foreground="{StaticResource TextMutedBrush}" />
                                     <TextBlock Text="{Binding SelectedMatch.WinningTeam, StringFormat='{}{0} Team'}"
                                                FontWeight="Bold"
                                                FontSize="13"
                                                Foreground="{Binding SelectedMatch.WinningTeam, Converter={x:Static conv:TeamSideBrushConverter.Instance}}" />
-                                    <TextBlock Text="{Binding SelectedMatch.GameCreation, Converter={x:Static conv:UtcToLocalTimeConverter.Instance}}" FontSize="11" Foreground="#94A3B8" />
+                                    <TextBlock Text="{Binding SelectedMatch.GameCreation, Converter={x:Static conv:UtcToLocalTimeConverter.Instance}}" FontSize="11" Foreground="{StaticResource TextMutedBrush}" />
                                 </StackPanel>
                             </Border>
                         </Grid>
@@ -248,27 +248,27 @@
                             <TextBlock Text="УЧАСНИКИ МАТЧУ ТА ПОКАЗНИКИ"
                                        FontWeight="SemiBold"
                                        FontSize="12"
-                                       Foreground="#CBD5E1"
+                                       Foreground="{StaticResource TextSecondaryBrush}"
                                        Margin="0,4,0,4" />
 
                             <!-- Column header -->
                             <Grid ColumnDefinitions="*, 110, 80, 90, 60, 90" Margin="14,0,10,0">
-                                <TextBlock Grid.Column="0" Text="ГРАВЕЦЬ" FontSize="10" FontWeight="Bold" Foreground="#64748B" />
-                                <TextBlock Grid.Column="1" Text="ЧЕМПІОН" FontSize="10" FontWeight="Bold" Foreground="#64748B" />
-                                <TextBlock Grid.Column="2" Text="KDA" FontSize="10" FontWeight="Bold" Foreground="#64748B" />
-                                <TextBlock Grid.Column="3" Text="ЗОЛОТО" FontSize="10" FontWeight="Bold" Foreground="#64748B" HorizontalAlignment="Right" />
-                                <TextBlock Grid.Column="4" Text="CS" FontSize="10" FontWeight="Bold" Foreground="#64748B" HorizontalAlignment="Right" />
-                                <TextBlock Grid.Column="5" Text="ШКОДА" FontSize="10" FontWeight="Bold" Foreground="#64748B" HorizontalAlignment="Right" />
+                                <TextBlock Grid.Column="0" Text="ГРАВЕЦЬ" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextSubtleBrush}" />
+                                <TextBlock Grid.Column="1" Text="ЧЕМПІОН" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextSubtleBrush}" />
+                                <TextBlock Grid.Column="2" Text="KDA" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextSubtleBrush}" />
+                                <TextBlock Grid.Column="3" Text="ЗОЛОТО" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextSubtleBrush}" HorizontalAlignment="Right" />
+                                <TextBlock Grid.Column="4" Text="CS" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextSubtleBrush}" HorizontalAlignment="Right" />
+                                <TextBlock Grid.Column="5" Text="ШКОДА" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextSubtleBrush}" HorizontalAlignment="Right" />
                             </Grid>
 
                             <ItemsControl ItemsSource="{Binding SelectedMatch.Participants}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="core:Participant">
-                                        <Border Background="#161928"
-                                                CornerRadius="6"
+                                        <Border Background="{StaticResource Surface2Brush}"
+                                                CornerRadius="8"
                                                 Margin="0,0,0,6"
                                                 BorderThickness="1"
-                                                BorderBrush="#22263C"
+                                                BorderBrush="{StaticResource BorderBrush}"
                                                 ClipToBounds="True">
                                             <Grid ColumnDefinitions="3, *">
                                                 <Border Grid.Column="0"
@@ -278,7 +278,7 @@
                                                                Text="{Binding SummonerName}"
                                                                FontWeight="Bold"
                                                                FontSize="12"
-                                                               Foreground="#F8FAFC"
+                                                               Foreground="{StaticResource TextPrimaryBrush}"
                                                                TextTrimming="CharacterEllipsis"
                                                                Margin="0,0,10,0"
                                                                ToolTip.Tip="{Binding SummonerName}"
@@ -307,7 +307,7 @@
                                                     <TextBlock Grid.Column="4"
                                                                Text="{Binding TotalMinionsKilled}"
                                                                FontSize="12"
-                                                               Foreground="#CBD5E1"
+                                                               Foreground="{StaticResource TextSecondaryBrush}"
                                                                HorizontalAlignment="Right"
                                                                VerticalAlignment="Center" />
 

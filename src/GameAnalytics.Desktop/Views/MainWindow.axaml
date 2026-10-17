@@ -8,7 +8,7 @@
         Width="1260" Height="820"
         MinWidth="1050" MinHeight="680"
         WindowStartupLocation="CenterScreen"
-        Background="#0B0C12"
+        Background="{StaticResource BgBrush}"
         x:Class="GameAnalytics.Desktop.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Icon="/Assets/avalonia-logo.ico"
@@ -31,7 +31,7 @@
             </Setter>
         </Style>
         <Style Selector="Button.nav-btn:pointerover">
-            <Setter Property="Background" Value="#1C1F32" />
+            <Setter Property="Background" Value="{StaticResource Surface3Brush}" />
             <Setter Property="BorderBrush" Value="#7C3AED" />
         </Style>
 
@@ -56,8 +56,8 @@
     <Grid ColumnDefinitions="220, *">
         <!-- LEFT MODERN SIDEBAR NAVIGATION -->
         <Border Grid.Column="0"
-                Background="#0E101A"
-                BorderBrush="#1C1F32"
+                Background="{StaticResource SurfaceBrush}"
+                BorderBrush="{StaticResource Surface3Brush}"
                 BorderThickness="0,0,1,0"
                 Padding="16,18">
             <Grid RowDefinitions="Auto, *, Auto">
@@ -65,10 +65,9 @@
                 <StackPanel Grid.Row="0" Spacing="16" Margin="0,0,0,24">
                     <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                         <Border Background="#7C3AED"
-                                CornerRadius="10"
+                                CornerRadius="12"
                                 Width="38" Height="38">
-                            <TextBlock Text="⚔️"
-                                       FontSize="20"
+                            <PathIcon Data="{StaticResource IconBolt}" Width="20" Height="20" Foreground="White"
                                        HorizontalAlignment="Center"
                                        VerticalAlignment="Center" />
                         </Border>
@@ -76,9 +75,9 @@
                             <TextBlock Text="GameAnalytics"
                                        FontWeight="Bold"
                                        FontSize="15"
-                                       Foreground="#F8FAFC" />
+                                       Foreground="{StaticResource TextPrimaryBrush}" />
                             <TextBlock Text="LoL Ranked &amp; ML"
-                                       FontSize="10"
+                                       FontSize="11"
                                        Foreground="#A78BFA" />
                         </StackPanel>
                     </StackPanel>
@@ -93,7 +92,7 @@
                             Foreground="{Binding Tab0Fg}"
                             BorderBrush="{Binding Tab0Border}">
                         <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                            <TextBlock Text="🔍" FontSize="15" VerticalAlignment="Center" />
+                            <PathIcon Data="{StaticResource IconSearch}" VerticalAlignment="Center" />
                             <TextBlock Text="Аналітика гравця" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
@@ -105,7 +104,7 @@
                             Foreground="{Binding Tab1Fg}"
                             BorderBrush="{Binding Tab1Border}">
                         <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                            <TextBlock Text="🧠" FontSize="15" VerticalAlignment="Center" />
+                            <PathIcon Data="{StaticResource IconDraft}" VerticalAlignment="Center" />
                             <TextBlock Text="Аналіз драфту" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
@@ -117,7 +116,7 @@
                             Foreground="{Binding Tab2Fg}"
                             BorderBrush="{Binding Tab2Border}">
                         <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                            <TextBlock Text="📊" FontSize="15" VerticalAlignment="Center" />
+                            <PathIcon Data="{StaticResource IconChart}" VerticalAlignment="Center" />
                             <TextBlock Text="Історія матчів" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
@@ -129,7 +128,7 @@
                             Foreground="{Binding Tab3Fg}"
                             BorderBrush="{Binding Tab3Border}">
                         <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                            <TextBlock Text="⚙️" FontSize="15" VerticalAlignment="Center" />
+                            <PathIcon Data="{StaticResource IconSettings}" VerticalAlignment="Center" />
                             <TextBlock Text="Налаштування" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
@@ -138,33 +137,33 @@
                 <!-- Bottom User Profile & Scale Footer in Sidebar -->
                 <StackPanel Grid.Row="2" Spacing="12">
                     <!-- Zoom Scale Selector -->
-                    <Border Background="#151726" CornerRadius="8" Padding="6,4" BorderBrush="#24283E" BorderThickness="1">
+                    <Border Background="{StaticResource Surface2Brush}" CornerRadius="8" Padding="6,4" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
                         <StackPanel Spacing="4">
-                            <TextBlock Text="🔍 Масштаб інтерфейсу" FontSize="10" Foreground="#94A3B8" HorizontalAlignment="Center" />
+                            <TextBlock Text="Масштаб інтерфейсу" FontSize="11" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Center" />
                             <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center">
-                                <Button Content="100%" Command="{Binding SetScale100Command}" Classes="scale-btn" FontSize="10" FontWeight="Bold" Padding="8,4" CornerRadius="6" Background="{Binding Scale100Bg}" Foreground="{Binding Scale100Fg}" />
-                                <Button Content="115%" Command="{Binding SetScale115Command}" Classes="scale-btn" FontSize="10" FontWeight="Bold" Padding="8,4" CornerRadius="6" Background="{Binding Scale115Bg}" Foreground="{Binding Scale115Fg}" />
-                                <Button Content="125%" Command="{Binding SetScale125Command}" Classes="scale-btn" FontSize="10" FontWeight="Bold" Padding="8,4" CornerRadius="6" Background="{Binding Scale125Bg}" Foreground="{Binding Scale125Fg}" />
+                                <Button Content="100%" Command="{Binding SetScale100Command}" Classes="scale-btn" FontSize="11" FontWeight="Bold" Padding="8,4" CornerRadius="8" Background="{Binding Scale100Bg}" Foreground="{Binding Scale100Fg}" />
+                                <Button Content="115%" Command="{Binding SetScale115Command}" Classes="scale-btn" FontSize="11" FontWeight="Bold" Padding="8,4" CornerRadius="8" Background="{Binding Scale115Bg}" Foreground="{Binding Scale115Fg}" />
+                                <Button Content="125%" Command="{Binding SetScale125Command}" Classes="scale-btn" FontSize="11" FontWeight="Bold" Padding="8,4" CornerRadius="8" Background="{Binding Scale125Bg}" Foreground="{Binding Scale125Fg}" />
                             </StackPanel>
                         </StackPanel>
                     </Border>
 
                     <!-- User Tag Card -->
-                    <Border Background="#151726" CornerRadius="8" Padding="10,8" BorderBrush="#24283E" BorderThickness="1">
+                    <Border Background="{StaticResource Surface2Brush}" CornerRadius="8" Padding="10,8" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
                         <Grid ColumnDefinitions="Auto, *, Auto">
-                            <Border Grid.Column="0" Background="#7C3AED" CornerRadius="14" Width="28" Height="28">
-                                <TextBlock Text="👤" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <Border Grid.Column="0" Background="#7C3AED" CornerRadius="12" Width="28" Height="28">
+                                <PathIcon Data="{StaticResource IconUser}" Width="14" Height="14" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
                             </Border>
                             <StackPanel Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Center">
-                                <TextBlock Text="Qu4dyz" FontSize="12" FontWeight="Bold" Foreground="#F8FAFC" />
-                                <TextBlock Text=".NET 9 / Avalonia 11" FontSize="9" Foreground="#94A3B8" />
+                                <TextBlock Text="Qu4dyz" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" />
+                                <TextBlock Text=".NET 9 / Avalonia 11" FontSize="11" Foreground="{StaticResource TextMutedBrush}" />
                             </StackPanel>
                         </Grid>
                     </Border>
 
                     <!-- System Status Pill -->
-                    <Border Background="{Binding ConnectionStatusBg}" CornerRadius="6" Padding="8,4" BorderBrush="{Binding ConnectionStatusBorder}" BorderThickness="1">
-                        <TextBlock Text="{Binding ConnectionStatusText}" FontSize="10" FontWeight="SemiBold" Foreground="{Binding ConnectionStatusColor}" HorizontalAlignment="Center" />
+                    <Border Background="{Binding ConnectionStatusBg}" CornerRadius="8" Padding="8,4" BorderBrush="{Binding ConnectionStatusBorder}" BorderThickness="1">
+                        <TextBlock Text="{Binding ConnectionStatusText}" FontSize="11" FontWeight="SemiBold" Foreground="{Binding ConnectionStatusColor}" HorizontalAlignment="Center" />
                     </Border>
                 </StackPanel>
             </Grid>
@@ -174,8 +173,8 @@
         <Grid Grid.Column="1" RowDefinitions="Auto, *, Auto">
             <!-- Top Header Bar -->
             <Border Grid.Row="0"
-                    Background="#11131E"
-                    BorderBrush="#1E2235"
+                    Background="{StaticResource SurfaceBrush}"
+                    BorderBrush="{StaticResource Surface3Brush}"
                     BorderThickness="0,0,0,1"
                     Padding="20,12">
                 <Grid ColumnDefinitions="*, Auto">
@@ -193,7 +192,7 @@
                     </StackPanel>
 
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <Border Background="#151726" CornerRadius="6" Padding="10,4" BorderBrush="#252A3E" BorderThickness="1">
+                        <Border Background="{StaticResource Surface2Brush}" CornerRadius="8" Padding="10,4" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
                             <TextBlock Text="ML.NET FastTree + EF Core 9 SQLite" FontSize="11" Foreground="#A78BFA" />
                         </Border>
                     </StackPanel>
@@ -233,8 +232,8 @@
 
             <!-- Bottom Status Bar -->
             <Border Grid.Row="2"
-                    Background="#11131E"
-                    BorderBrush="#1E2235"
+                    Background="{StaticResource SurfaceBrush}"
+                    BorderBrush="{StaticResource Surface3Brush}"
                     BorderThickness="0,1,0,0"
                     Padding="16,6">
                 <!-- Side texts trim instead of overlapping when the window is narrow. -->
@@ -242,7 +241,7 @@
                     <TextBlock Grid.Column="0"
                                Text="{Binding OsInfo}"
                                FontSize="11"
-                               Foreground="#94A3B8"
+                               Foreground="{StaticResource TextMutedBrush}"
                                TextTrimming="CharacterEllipsis"
                                ToolTip.Tip="{Binding OsInfo}"
                                Margin="0,0,12,0" />
