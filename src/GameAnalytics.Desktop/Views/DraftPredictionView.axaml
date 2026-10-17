@@ -10,6 +10,24 @@
              x:DataType="vm:DraftPredictionViewModel"
              x:Name="RootControl">
 
+    <UserControl.Styles>
+        <Style Selector="Button.role-chip">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Padding" Value="10,4" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Background" Value="#181B2B" />
+            <Setter Property="BorderBrush" Value="#252A42" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Foreground" Value="#CBD5E1" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.role-chip.active">
+            <Setter Property="Background" Value="#7C3AED" />
+            <Setter Property="BorderBrush" Value="#A78BFA" />
+            <Setter Property="Foreground" Value="#FFFFFF" />
+        </Style>
+    </UserControl.Styles>
+
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="24" Spacing="20">
 
@@ -165,31 +183,30 @@
                                          Height="32"
                                          FontSize="12" />
 
-                                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
-                                    <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <Button Content="Всі"
-                                                Command="{Binding FilterByRoleCommand}" CommandParameter="All"
-                                                FontSize="11" Padding="8,4" Background="#2F3640" Foreground="White" />
-                                        <Button Content="Боєць"
-                                                Command="{Binding FilterByRoleCommand}" CommandParameter="Fighter"
-                                                FontSize="11" Padding="8,4" Background="#2F3640" Foreground="#F0E6D2" />
-                                        <Button Content="Маг"
-                                                Command="{Binding FilterByRoleCommand}" CommandParameter="Mage"
-                                                FontSize="11" Padding="8,4" Background="#2F3640" Foreground="#F0E6D2" />
-                                        <Button Content="Вбивця"
-                                                Command="{Binding FilterByRoleCommand}" CommandParameter="Assassin"
-                                                FontSize="11" Padding="8,4" Background="#2F3640" Foreground="#F0E6D2" />
-                                        <Button Content="Стрілець"
-                                                Command="{Binding FilterByRoleCommand}" CommandParameter="Marksman"
-                                                FontSize="11" Padding="8,4" Background="#2F3640" Foreground="#F0E6D2" />
-                                        <Button Content="Танк"
-                                                Command="{Binding FilterByRoleCommand}" CommandParameter="Tank"
-                                                FontSize="11" Padding="8,4" Background="#2F3640" Foreground="#F0E6D2" />
-                                        <Button Content="Підтримка"
-                                                Command="{Binding FilterByRoleCommand}" CommandParameter="Support"
-                                                FontSize="11" Padding="8,4" Background="#2F3640" Foreground="#F0E6D2" />
-                                    </StackPanel>
-                                </ScrollViewer>
+                                <!-- Role filter chips wrap to a second line instead of a clipped scroll strip -->
+                                <WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="6">
+                                    <Button Classes="role-chip" Content="Всі"
+                                            Classes.active="{Binding SelectedRoleFilter, Converter={x:Static conv:EqualsParameterConverter.Instance}, ConverterParameter=All}"
+                                            Command="{Binding FilterByRoleCommand}" CommandParameter="All" />
+                                    <Button Classes="role-chip" Content="Боєць"
+                                            Classes.active="{Binding SelectedRoleFilter, Converter={x:Static conv:EqualsParameterConverter.Instance}, ConverterParameter=Fighter}"
+                                            Command="{Binding FilterByRoleCommand}" CommandParameter="Fighter" />
+                                    <Button Classes="role-chip" Content="Маг"
+                                            Classes.active="{Binding SelectedRoleFilter, Converter={x:Static conv:EqualsParameterConverter.Instance}, ConverterParameter=Mage}"
+                                            Command="{Binding FilterByRoleCommand}" CommandParameter="Mage" />
+                                    <Button Classes="role-chip" Content="Вбивця"
+                                            Classes.active="{Binding SelectedRoleFilter, Converter={x:Static conv:EqualsParameterConverter.Instance}, ConverterParameter=Assassin}"
+                                            Command="{Binding FilterByRoleCommand}" CommandParameter="Assassin" />
+                                    <Button Classes="role-chip" Content="Стрілець"
+                                            Classes.active="{Binding SelectedRoleFilter, Converter={x:Static conv:EqualsParameterConverter.Instance}, ConverterParameter=Marksman}"
+                                            Command="{Binding FilterByRoleCommand}" CommandParameter="Marksman" />
+                                    <Button Classes="role-chip" Content="Танк"
+                                            Classes.active="{Binding SelectedRoleFilter, Converter={x:Static conv:EqualsParameterConverter.Instance}, ConverterParameter=Tank}"
+                                            Command="{Binding FilterByRoleCommand}" CommandParameter="Tank" />
+                                    <Button Classes="role-chip" Content="Підтримка"
+                                            Classes.active="{Binding SelectedRoleFilter, Converter={x:Static conv:EqualsParameterConverter.Instance}, ConverterParameter=Support}"
+                                            Command="{Binding FilterByRoleCommand}" CommandParameter="Support" />
+                                </WrapPanel>
 
                                 <!-- Champion Grid / List -->
                                 <Border Background="#091428"
@@ -340,7 +357,9 @@
                                        LetterSpacing="1.1" />
                             <TextBlock Text="Автоматичний розрахунок сили піків за фазами гри (Early 0-15m / Mid 15-25m / Late 25m+) та аналіз умов перемоги"
                                        FontSize="11"
-                                       Foreground="#A09B8C" />
+                                       Foreground="#A09B8C"
+                                       TextWrapping="Wrap"
+                                       Margin="0,0,12,0" />
                         </StackPanel>
 
                         <!-- Overall Verdict Banner -->
@@ -348,7 +367,7 @@
                             <TextBlock Text="{Binding PowerSpikes.ComparativeVerdict}"
                                        FontSize="11"
                                        Foreground="#0AC8B9"
-                                       MaxWidth="480"
+                                       MaxWidth="420"
                                        TextWrapping="Wrap" />
                         </Border>
                     </Grid>
@@ -446,10 +465,11 @@
                             <StackPanel Spacing="8">
                                 <Grid ColumnDefinitions="*, Auto">
                                     <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
-                                        <TextBlock Text="🎮 LIVE CLIENT LOL (СКАСУВАННЯ В РЕАЛЬНОМУ ЧАСІ)"
+                                        <TextBlock Text="🎮 LIVE CLIENT LOL (СКАНУВАННЯ В РЕАЛЬНОМУ ЧАСІ)"
                                                    FontWeight="Bold"
                                                    FontSize="12"
-                                                   Foreground="#A78BFA" />
+                                                   Foreground="#A78BFA"
+                                                   TextWrapping="Wrap" />
                                         <TextBlock Text="{Binding LiveGameStatusText}"
                                                    FontSize="11"
                                                    Foreground="#F8FAFC"
