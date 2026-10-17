@@ -12,12 +12,11 @@
             <!-- Header -->
             <Border Background="{StaticResource SurfaceBrush}" CornerRadius="12" Padding="20" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
                 <StackPanel Spacing="6">
-                    <TextBlock Text="НАЛАШТУВАННЯ СИСТЕМИ ТА МУЛЬТИПЛАТФОРМНОГО СЕРВЕРА"
+                    <TextBlock Text="Налаштування"
                                FontWeight="Bold"
-                               FontSize="14"
-                               Foreground="#C4B5FD"
-                               LetterSpacing="1.2" />
-                    <TextBlock Text="Керування конфігурацією Riot Games API, вибором ігрового сервера, збереженням у appsettings.json та базою даних SQLite"
+                               FontSize="20"
+                               Foreground="{StaticResource TextPrimaryBrush}" />
+                    <TextBlock Text="Курсовий проєкт «Мультиплатформне програмування» · ML.NET FastTree, EF Core 9, SQLite"
                                FontSize="12"
                                Foreground="{StaticResource TextMutedBrush}" />
                 </StackPanel>
@@ -27,9 +26,9 @@
             <Border Background="{StaticResource SurfaceBrush}" CornerRadius="12" Padding="20" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
                 <StackPanel Spacing="16">
                     <Grid ColumnDefinitions="*, Auto">
-                        <TextBlock Text="RIOT GAMES API КОНФІГУРАЦІЯ"
+                        <TextBlock Text="Riot API"
                                    FontWeight="Bold"
-                                   FontSize="13"
+                                   FontSize="16"
                                    Foreground="{StaticResource TextPrimaryBrush}" />
 
                         <Button Grid.Column="1"
@@ -80,8 +79,8 @@
                                 Content="Зберегти налаштування"
                                 Height="36"
                                 Padding="16,0"
-                                Background="#0AC8B9"
-                                Foreground="#010A13"
+                                Background="#7C3AED"
+                                Foreground="{StaticResource TextPrimaryBrush}"
                                 FontWeight="SemiBold"
                                 Cursor="Hand" />
 
@@ -105,9 +104,9 @@
             <!-- Database & Cache Card -->
             <Border Background="{StaticResource SurfaceBrush}" CornerRadius="8" Padding="20" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
                 <StackPanel Spacing="14">
-                    <TextBlock Text="ЛОКАЛЬНА БАЗА ДАНИХ ТА СХОВИЩЕ (SQLITE)"
+                    <TextBlock Text="Локальна база даних"
                                FontWeight="Bold"
-                               FontSize="13"
+                               FontSize="16"
                                Foreground="{StaticResource TextPrimaryBrush}" />
 
                     <Grid ColumnDefinitions="140, *" RowDefinitions="Auto, Auto">
@@ -133,9 +132,9 @@
             <!-- Platform & Cloud VPS Info Card -->
             <Border Background="{StaticResource SurfaceBrush}" CornerRadius="8" Padding="20" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
                 <StackPanel Spacing="12">
-                    <TextBlock Text="МУЛЬТИПЛАТФОРМНИЙ СТАТУС ТА СЕРВЕР"
+                    <TextBlock Text="Про систему"
                                FontWeight="Bold"
-                               FontSize="13"
+                               FontSize="16"
                                Foreground="{StaticResource TextPrimaryBrush}" />
 
                     <Grid ColumnDefinitions="160, *" RowDefinitions="Auto, Auto, Auto, Auto">
@@ -162,11 +161,10 @@
                 <StackPanel Spacing="16">
                     <Grid ColumnDefinitions="*, Auto">
                         <StackPanel Grid.Column="0" Spacing="4">
-                            <TextBlock Text="ХМАРНА СИНХРОНІЗАЦІЯ З VPS (CLOUD SYNC HUB)"
+                            <TextBlock Text="Синхронізація з VPS"
                                        FontWeight="Bold"
-                                       FontSize="14"
-                                       Foreground="#0AC8B9"
-                                       LetterSpacing="1.2" />
+                                       FontSize="16"
+                                       Foreground="#0AC8B9" />
                             <TextBlock Text="Миттєве отримання свіжих вагів натренованої моделі FastTree та бази реальних ігор з віддаленого сервера в один клік"
                                        FontSize="12"
                                        Foreground="{StaticResource TextMutedBrush}" />
@@ -196,8 +194,8 @@
                                 Content="Завантажити свіжу ML-модель з VPS"
                                 Height="38"
                                 Padding="16,0"
-                                Background="#0AC8B9"
-                                Foreground="#010A13"
+                                Background="#7C3AED"
+                                Foreground="{StaticResource TextPrimaryBrush}"
                                 FontWeight="Bold"
                                 Cursor="Hand" />
 

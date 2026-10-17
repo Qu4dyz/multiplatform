@@ -181,12 +181,11 @@
                     <!-- Title Bar -->
                     <Grid ColumnDefinitions="*, Auto">
                         <StackPanel Grid.Column="0" Spacing="2">
-                            <TextBlock Text="ПОШУК ГРАВЦЯ У СИСТЕМІ RIOT ID"
+                            <TextBlock Text="Пошук гравця"
                                        FontWeight="Bold"
-                                       FontSize="14"
-                                       Foreground="#C4B5FD"
-                                       LetterSpacing="1.2" />
-                            <TextBlock Text="Введіть ігрове ім'я, тег після # та оберіть ігровий сервер (EUW, EUNE, NA, KR тощо)"
+                                       FontSize="18"
+                                       Foreground="{StaticResource TextPrimaryBrush}" />
+                            <TextBlock Text="Riot ID у форматі ім'я#тег і сервер"
                                        FontSize="11"
                                        Foreground="{StaticResource TextMutedBrush}" />
                         </StackPanel>
@@ -248,7 +247,7 @@
                         <Button Grid.Column="4"
                                 Command="{Binding SearchPlayerCommand}"
                                 Classes="action-btn"
-                                Content="ЗНАЙТИ ГРАВЦЯ"
+                                Content="Знайти"
                                 Height="40"
                                 Background="#7C3AED"
                                 Foreground="{StaticResource TextPrimaryBrush}"
@@ -259,8 +258,9 @@
                                 Cursor="Hand" />
                     </Grid>
 
-                    <!-- Demo Mode Options & API Key Bar -->
-                    <Border Background="{StaticResource Surface2Brush}"
+                    <!-- Demo Mode Options & API Key Bar: only needed until a valid key is set -->
+                    <Border IsVisible="{Binding !HasApiKey}"
+                            Background="{StaticResource Surface2Brush}"
                             CornerRadius="8"
                             Padding="12,8"
                             BorderBrush="{StaticResource BorderBrush}"
@@ -601,11 +601,10 @@
                     <Grid RowDefinitions="Auto, Auto, *">
                         <!-- Header with ML.NET badge -->
                         <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="0,0,0,10">
-                            <TextBlock Grid.Column="0" Text="ОЦІНКА ФОРМИ (MOMENTUM)"
-                                       FontSize="13"
+                            <TextBlock Grid.Column="0" Text="Поточна форма"
+                                       FontSize="16"
                                        FontWeight="Bold"
                                        Foreground="#C4B5FD"
-                                       LetterSpacing="1.1"
                                        VerticalAlignment="Center" />
                             <Border Grid.Column="1" Background="#1B1634" BorderBrush="#7C3AED" BorderThickness="1" CornerRadius="4" Padding="6,2">
                                 <TextBlock Text="ML.NET FastTree" FontSize="11" Foreground="#A78BFA" FontWeight="Bold" />
@@ -777,11 +776,10 @@
                     <!-- Header with Role & Overall Score -->
                     <Grid ColumnDefinitions="*, Auto">
                         <WrapPanel Grid.Column="0" Orientation="Horizontal" ItemSpacing="12" LineSpacing="6" VerticalAlignment="Center" Margin="0,0,12,0">
-                            <TextBlock Text="ТАКТИЧНИЙ КОУЧИНГ ТА АНАЛІТИКА РОЛІ"
-                                       FontSize="14"
+                            <TextBlock Text="Коучинг"
+                                       FontSize="16"
                                        FontWeight="Bold"
                                        Foreground="#C4B5FD"
-                                       LetterSpacing="1.2"
                                        VerticalAlignment="Center" />
                             <Border Background="{StaticResource Surface2Brush}" CornerRadius="8" Padding="8,4" BorderBrush="#7C3AED" BorderThickness="1" VerticalAlignment="Center">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
@@ -798,7 +796,7 @@
 
                         <!-- Overall Grade Badge -->
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                            <TextBlock Text="ЗАГАЛЬНА ОЦІНКА МАЙСТЕРНОСТІ:"
+                            <TextBlock Text="Загальна оцінка:"
                                        FontSize="12"
                                        FontWeight="Bold"
                                        Foreground="{StaticResource TextMutedBrush}"
@@ -986,11 +984,10 @@
                                            VerticalAlignment="Center" />
                             </Border>
                             <StackPanel Grid.Column="1" Spacing="5">
-                                <TextBlock Text="РЕКОМЕНДАЦІЇ ТРЕНЕРА"
+                                <TextBlock Text="Рекомендації тренера"
                                            FontSize="12"
                                            FontWeight="Bold"
-                                           Foreground="#C4B5FD"
-                                           LetterSpacing="1.1" />
+                                           Foreground="#C4B5FD" />
                                 <TextBlock Text="{Binding CoachingReport.CoachAdvice}"
                                            FontSize="13"
                                            Foreground="{StaticResource TextPrimaryBrush}"
@@ -1062,11 +1059,10 @@
             <!-- 3. RECENT MATCHES SECTION HEADER & QUEUE FILTER -->
             <Grid ColumnDefinitions="*, Auto, Auto, Auto, Auto" Margin="0,4,0,0">
                 <TextBlock Grid.Column="0"
-                           Text="ІСТОРІЯ ОСТАННІХ МАТЧІВ"
+                           Text="Останні матчі"
                            FontWeight="Bold"
-                           FontSize="14"
+                           FontSize="16"
                            Foreground="#C4B5FD"
-                           LetterSpacing="1.2"
                            VerticalAlignment="Center" />
 
                 <!-- Auto-refresh status + pause -->
@@ -1848,7 +1844,7 @@
 
                                                 <!-- Comparative Gap Analysis ("Що пішло не так проти стандарту рангу") -->
                                                 <StackPanel Spacing="8">
-                                                    <TextBlock Text="ПОРІВНЯЛЬНИЙ АНАЛІЗ ЗІ СТАНДАРТОМ РАНГУ" FontSize="12" FontWeight="Bold" Foreground="#C4B5FD" LetterSpacing="1.1" />
+                                                    <TextBlock Text="Порівняння з нормою рангу" FontSize="12" FontWeight="Bold" Foreground="#C4B5FD" />
                                                     <ItemsControl ItemsSource="{Binding TacticalReport.GapAnalysis}">
                                                         <ItemsControl.ItemsPanel>
                                                             <ItemsPanelTemplate>
@@ -1880,7 +1876,7 @@
                                                         IsVisible="{Binding HasGoldCurve}">
                                                     <StackPanel Spacing="8">
                                                         <Grid ColumnDefinitions="*, Auto">
-                                                            <TextBlock Grid.Column="0" Text="КРИВА ЗОЛОТА (TEAM Δ)" FontSize="12" FontWeight="Bold" Foreground="#C4B5FD" LetterSpacing="1.1" VerticalAlignment="Center" />
+                                                            <TextBlock Grid.Column="0" Text="Різниця золота команд" FontSize="12" FontWeight="Bold" Foreground="#C4B5FD" VerticalAlignment="Center" />
                                                             <TextBlock Grid.Column="1" Text="{Binding GoldCurveSummary}" FontSize="11" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
                                                         </Grid>
                                                         <Grid Height="110">
@@ -1915,7 +1911,7 @@
                                                 <!-- Play-by-play Minute-by-Minute Timeline -->
                                                 <StackPanel Spacing="8">
                                                     <Grid ColumnDefinitions="*, Auto">
-                                                        <TextBlock Grid.Column="0" Text="ПОХВИЛИННИЙ РОЗБІР КЛЮЧОВИХ РІШЕНЬ" FontSize="12" FontWeight="Bold" Foreground="#C4B5FD" LetterSpacing="1.1" />
+                                                        <TextBlock Grid.Column="0" Text="Ключові моменти матчу" FontSize="12" FontWeight="Bold" Foreground="#C4B5FD" />
                                                         <TextBlock Grid.Column="1" Text="Завантаження подій Riot Timeline..." FontSize="11" Foreground="#A78BFA" IsVisible="{Binding IsLoadingTimeline}" />
                                                     </Grid>
 
