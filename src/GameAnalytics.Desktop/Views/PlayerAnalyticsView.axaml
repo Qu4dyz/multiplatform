@@ -996,6 +996,10 @@
                                            Foreground="#E2E8F0"
                                            TextWrapping="Wrap"
                                            LineHeight="21" />
+                                <TextBlock Text="{Binding CoachingReport.SampleNote}"
+                                           FontSize="11"
+                                           Foreground="#94A3B8"
+                                           TextWrapping="Wrap" />
                             </StackPanel>
                         </Grid>
                     </Border>

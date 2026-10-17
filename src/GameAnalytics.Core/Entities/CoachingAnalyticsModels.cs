@@ -14,6 +14,8 @@ public class SkillPillarScore
     public string DiffText { get; set; } = string.Empty;
     public string DiffColor { get; set; } = "#0AC8B9";
     public string Description { get; set; } = string.Empty;
+    /// <summary>False when the source data for this pillar is missing; the pillar is then left out of the overall score and advice.</summary>
+    public bool HasData { get; set; } = true;
 }
 
 public class RoleBenchmark
@@ -145,5 +147,7 @@ public class GlobalCoachingReport
 
     public int TotalMatchesAnalyzed { get; set; }
     public string CoachAdvice { get; set; } = string.Empty;
+    /// <summary>Which games the report is based on and which were left out (off-role, ARAM...).</summary>
+    public string SampleNote { get; set; } = string.Empty;
     public List<string> Highlights { get; set; } = new();
 }

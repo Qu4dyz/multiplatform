@@ -38,11 +38,7 @@ public static class PlayerMomentumAnalyzer
 
         foreach (var match in matches)
         {
-            var p = match.Participants.FirstOrDefault(x =>
-                (!string.IsNullOrWhiteSpace(x.Puuid) && !string.IsNullOrWhiteSpace(cleanTarget) && x.Puuid.Equals(cleanTarget, StringComparison.OrdinalIgnoreCase)) ||
-                (!string.IsNullOrWhiteSpace(x.SummonerName) && !string.IsNullOrWhiteSpace(cleanTarget) && x.SummonerName.Contains(cleanTarget, StringComparison.OrdinalIgnoreCase)));
-
-            p ??= match.Participants.FirstOrDefault();
+            var p = GlobalCoachingAnalyzer.FindTargetPlayer(match, cleanTarget);
 
             if (p != null)
             {

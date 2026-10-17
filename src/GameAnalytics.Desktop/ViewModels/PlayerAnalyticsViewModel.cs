@@ -1014,7 +1014,7 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
             return;
         }
 
-        var report = GlobalCoachingAnalyzer.Analyze(list, Summoner?.Puuid ?? GameName);
+        var report = GlobalCoachingAnalyzer.Analyze(list, Summoner?.Puuid ?? GameName, IsProfilePlaceholder ? GameTier.Unranked : Summoner?.Tier ?? GameTier.Unranked);
         CoachingReport = report;
         HasCoachingData = report != null && report.TotalMatchesAnalyzed > 0;
     }
