@@ -118,7 +118,7 @@
                     </Grid>
 
                     <Button Command="{Binding ClearDatabaseCommand}"
-                            Content="🗑 Очистити локальну базу даних"
+                            Content="{Binding ClearDatabaseButtonText}"
                             Height="36"
                             Padding="14,0"
                             Background="#3C3C41"

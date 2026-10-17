@@ -67,6 +67,14 @@ public partial class SettingsViewModel : ViewModelBase
     [ObservableProperty]
     private string _vpsSyncMessage = string.Empty;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ClearDatabaseButtonText))]
+    private bool _isClearConfirmPending;
+
+    public string ClearDatabaseButtonText => IsClearConfirmPending
+        ? "⚠ Натисніть ще раз для підтвердження"
+        : "🗑 Очистити локальну базу даних";
+
     public SettingsViewModel(
         RiotApiOptions options,
         IRiotApiClient apiClient,
@@ -300,17 +308,43 @@ public partial class SettingsViewModel : ViewModelBase
     [RelayCommand]
     public async Task ClearDatabaseAsync()
     {
-        await _matchRepository.ClearAllMatchesAsync();
-        UpdateDatabaseSize();
-        StatusMessage = "Базу даних SQLite очищено.";
+        // Wiping every saved match is irreversible: require a second click.
+        if (!IsClearConfirmPending)
+        {
+            IsClearConfirmPending = true;
+            StatusMessage = "Усі матчі буде видалено з локальної бази. Натисніть кнопку ще раз для підтвердження.";
+            return;
+        }
+
+        try
+        {
+            await _matchRepository.ClearAllMatchesAsync();
+            UpdateDatabaseSize();
+            StatusMessage = "Базу даних SQLite очищено.";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"❌ Помилка очищення бази: {ex.Message}";
+        }
+        finally
+        {
+            IsClearConfirmPending = false;
+        }
     }
+
+    internal static string FormatFileSize(long bytes) => bytes switch
+    {
+        >= 1L << 30 => $"{bytes / (double)(1L << 30):F2} GB",
+        >= 1L << 20 => $"{bytes / (double)(1L << 20):F1} MB",
+        _ => $"{bytes / 1024.0:F1} KB"
+    };
 
     private void UpdateDatabaseSize()
     {
         if (File.Exists(DatabasePath))
         {
             var info = new FileInfo(DatabasePath);
-            DatabaseSizeText = $"{info.Length / 1024.0:F1} KB ({info.Length} байт)";
+            DatabaseSizeText = $"{FormatFileSize(info.Length)} ({info.Length:N0} байт)";
         }
         else
         {
