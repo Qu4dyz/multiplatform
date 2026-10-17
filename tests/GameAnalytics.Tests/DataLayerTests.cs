@@ -1099,10 +1099,9 @@ public class DataLayerTests
         Assert.NotEmpty(report.OverallMatchVerdict);
         Assert.NotEmpty(report.KeyTakeaway);
 
-        // Assert 4-5 tactical play-by-play events
-        Assert.True(report.TimelineEvents.Count >= 4);
-        Assert.Contains(report.TimelineEvents, e => e.Minute <= 5); // Early game milestone
-        Assert.Contains(report.TimelineEvents, e => e.Minute >= 15); // Mid/late milestone
+        // No Riot timeline: the play-by-play list must stay empty instead of inventing events
+        Assert.False(report.HasRealTimeline);
+        Assert.Empty(report.TimelineEvents);
 
         // Assert 4 Gap Analysis items
         Assert.True(report.GapAnalysis.Count >= 4);
@@ -1365,6 +1364,7 @@ public class DataLayerTests
         var report = MatchTacticalAnalyzer.AnalyzeMatchTactics(match, player, timeline, GameTier.Diamond);
 
         Assert.NotNull(report);
+        Assert.True(report.HasRealTimeline);
         Assert.Equal(3, report.TimelineEvents.Count);
         Assert.Contains("Вбивство Wukong", report.TimelineEvents[0].Title);
         Assert.Equal("05:30", report.TimelineEvents[0].TimestampText);

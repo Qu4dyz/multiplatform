@@ -172,6 +172,8 @@ public class MatchTacticalReport
     public string KeyTakeaway { get; set; } = string.Empty;
 
     public List<TacticalTimelineEvent> TimelineEvents { get; set; } = new();
+    /// <summary>False when no Riot timeline was available, so the event list is intentionally empty.</summary>
+    public bool HasRealTimeline { get; set; }
     public List<MatchGapItem> GapAnalysis { get; set; } = new();
     public List<GoldCurveBuilder.GoldCurvePoint> GoldCurve { get; set; } = new();
 }

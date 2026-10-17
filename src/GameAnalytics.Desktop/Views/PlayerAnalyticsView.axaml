@@ -1859,6 +1859,16 @@
                                                         <TextBlock Grid.Column="1" Text="Завантаження подій Riot Timeline..." FontSize="11" Foreground="#A78BFA" IsVisible="{Binding IsLoadingTimeline}" />
                                                     </Grid>
 
+                                                    <TextBlock Text="Riot Timeline для цього матчу недоступний, тому похвилинні події не показуються."
+                                                               FontSize="11" Foreground="#94A3B8" TextWrapping="Wrap">
+                                                        <TextBlock.IsVisible>
+                                                            <MultiBinding Converter="{x:Static BoolConverters.And}">
+                                                                <Binding Path="!IsLoadingTimeline" />
+                                                                <Binding Path="!TacticalReport.HasRealTimeline" FallbackValue="False" />
+                                                            </MultiBinding>
+                                                        </TextBlock.IsVisible>
+                                                    </TextBlock>
+
                                                     <ItemsControl ItemsSource="{Binding TacticalReport.TimelineEvents}" x:Name="TacticalTimelineList">
                                                         <ItemsControl.ItemTemplate>
                                                             <DataTemplate>
