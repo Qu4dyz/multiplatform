@@ -298,12 +298,13 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
         ApplyQueueFilter();
     }
 
-    private void UpdateApiStatus()
+    // Also called when returning to this tab: the key may have been saved on the Settings tab.
+    public void UpdateApiStatus()
     {
         HasApiKey = _options.HasValidApiKey;
         ApiStatusText = HasApiKey
-            ? "🟢 Live Riot API (Живі дані з офіційних серверів)"
-            : "🟡 Демо-режим (введіть Riot API Key для реальної статистики)";
+            ? "Live Riot API"
+            : "Демо-режим: потрібен Riot API ключ";
     }
 
     [RelayCommand]

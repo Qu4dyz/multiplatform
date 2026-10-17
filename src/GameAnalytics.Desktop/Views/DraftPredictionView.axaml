@@ -41,7 +41,7 @@
                     <!-- Section Header -->
                     <Grid ColumnDefinitions="*, Auto">
                         <StackPanel Grid.Column="0" Spacing="4">
-                            <TextBlock Text="Драфт 5 на 5"
+                            <TextBlock Classes="title" Text="Драфт 5 на 5"
                                        FontWeight="Bold"
                                        FontSize="16"
                                        Foreground="#C4B5FD" />
@@ -349,7 +349,7 @@
                 <StackPanel Spacing="14">
                     <Grid ColumnDefinitions="*, Auto">
                         <StackPanel Grid.Column="0" Spacing="3">
-                            <TextBlock Text="Сила складів по фазах гри"
+                            <TextBlock Classes="title" Text="Сила складів по фазах гри"
                                        FontWeight="Bold"
                                        FontSize="16"
                                        Foreground="#C8AA6E" />
@@ -452,7 +452,7 @@
                         BorderBrush="{StaticResource BorderBrush}"
                         BorderThickness="1">
                     <StackPanel Spacing="14">
-                        <TextBlock Text="Стан гри на 15-й хвилині"
+                        <TextBlock Classes="title" Text="Стан гри на 15-й хвилині"
                                    FontWeight="Bold"
                                    FontSize="16"
                                    Foreground="#C4B5FD" />
@@ -707,7 +707,7 @@
                         BorderBrush="#C8AA6E"
                         BorderThickness="1">
                     <StackPanel Spacing="16">
-                        <TextBlock Text="Прогноз"
+                        <TextBlock Classes="title" Text="Прогноз"
                                    FontWeight="Bold"
                                    FontSize="16"
                                    Foreground="#C8AA6E" />
@@ -856,7 +856,7 @@
                                 BorderThickness="1"
                                 IsVisible="{Binding BenchmarkReport, Converter={x:Static ObjectConverters.IsNotNull}}">
                             <StackPanel Spacing="8">
-                                <TextBlock Text="Порівняння алгоритмів"
+                                <TextBlock Classes="title" Text="Порівняння алгоритмів"
                                            FontWeight="Bold"
                                            FontSize="11"
                                            Foreground="#C8AA6E" />

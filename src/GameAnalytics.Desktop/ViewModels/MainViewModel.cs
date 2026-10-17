@@ -112,7 +112,7 @@ public partial class MainViewModel : ViewModelBase
         _matchHistory = null!;
         _settings = null!;
 
-        SelectTab0Command = new CommunityToolkit.Mvvm.Input.RelayCommand(() => SelectedTabIndex = 0);
+        SelectTab0Command = new CommunityToolkit.Mvvm.Input.RelayCommand(() => { PlayerAnalytics.UpdateApiStatus(); SelectedTabIndex = 0; });
         SelectTab1Command = new CommunityToolkit.Mvvm.Input.RelayCommand(() => SelectedTabIndex = 1);
         SelectTab2Command = new CommunityToolkit.Mvvm.Input.RelayCommand(() => SelectedTabIndex = 2);
         SelectTab3Command = new CommunityToolkit.Mvvm.Input.RelayCommand(() => SelectedTabIndex = 3);

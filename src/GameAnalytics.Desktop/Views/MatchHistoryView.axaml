@@ -57,7 +57,7 @@
                 BorderThickness="1">
             <Grid ColumnDefinitions="*, Auto, Auto, Auto">
                 <StackPanel VerticalAlignment="Center" Spacing="4">
-                    <TextBlock Text="Історія матчів"
+                    <TextBlock Classes="title" Text="Історія матчів"
                                FontWeight="Bold"
                                FontSize="16"
                                Foreground="#C4B5FD"
@@ -202,7 +202,7 @@
                     BorderThickness="1">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Spacing="16">
-                        <TextBlock Text="Деталі матчу"
+                        <TextBlock Classes="title" Text="Деталі матчу"
                                    FontWeight="Bold"
                                    FontSize="16"
                                    Foreground="#C4B5FD" />

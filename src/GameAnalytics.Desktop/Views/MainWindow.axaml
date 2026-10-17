@@ -72,7 +72,7 @@
                                        VerticalAlignment="Center" />
                         </Border>
                         <StackPanel Spacing="1" VerticalAlignment="Center">
-                            <TextBlock Text="GameAnalytics"
+                            <TextBlock Classes="title" Text="GameAnalytics"
                                        FontWeight="Bold"
                                        FontSize="15"
                                        Foreground="{StaticResource TextPrimaryBrush}" />

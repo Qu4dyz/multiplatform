@@ -181,7 +181,7 @@
                     <!-- Title Bar -->
                     <Grid ColumnDefinitions="*, Auto">
                         <StackPanel Grid.Column="0" Spacing="2">
-                            <TextBlock Text="Пошук гравця"
+                            <TextBlock Classes="title" Text="Пошук гравця"
                                        FontWeight="Bold"
                                        FontSize="18"
                                        Foreground="{StaticResource TextPrimaryBrush}" />
@@ -601,7 +601,7 @@
                     <Grid RowDefinitions="Auto, Auto, *">
                         <!-- Header with ML.NET badge -->
                         <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="0,0,0,10">
-                            <TextBlock Grid.Column="0" Text="Поточна форма"
+                            <TextBlock Classes="title" Grid.Column="0" Text="Поточна форма"
                                        FontSize="16"
                                        FontWeight="Bold"
                                        Foreground="#C4B5FD"
@@ -776,7 +776,7 @@
                     <!-- Header with Role & Overall Score -->
                     <Grid ColumnDefinitions="*, Auto">
                         <WrapPanel Grid.Column="0" Orientation="Horizontal" ItemSpacing="12" LineSpacing="6" VerticalAlignment="Center" Margin="0,0,12,0">
-                            <TextBlock Text="Коучинг"
+                            <TextBlock Classes="title" Text="Коучинг"
                                        FontSize="16"
                                        FontWeight="Bold"
                                        Foreground="#C4B5FD"
@@ -796,6 +796,16 @@
 
                         <!-- Overall Grade Badge -->
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                            <ToggleButton x:Name="CoachDetailsToggle"
+                                          Background="{StaticResource Surface3Brush}"
+                                          Foreground="{StaticResource TextSecondaryBrush}"
+                                          FontSize="12" Padding="12,5" CornerRadius="8"
+                                          Cursor="Hand" VerticalAlignment="Center">
+                                <Panel>
+                                    <TextBlock Text="Детальніше" IsVisible="{Binding !#CoachDetailsToggle.IsChecked}" />
+                                    <TextBlock Text="Згорнути" IsVisible="{Binding #CoachDetailsToggle.IsChecked}" />
+                                </Panel>
+                            </ToggleButton>
                             <TextBlock Text="Загальна оцінка:"
                                        FontSize="12"
                                        FontWeight="Bold"
@@ -818,8 +828,8 @@
                         </StackPanel>
                     </Grid>
 
-                    <!-- 5 Skill Pillar Cards -->
-                    <UniformGrid Columns="3" Margin="0,4">
+                    <!-- 5 Skill Pillar Cards: collapsed by default so the first screen stays short -->
+                    <UniformGrid Columns="3" Margin="0,4" IsVisible="{Binding #CoachDetailsToggle.IsChecked}">
                         <!-- Pillar 1: Combat -->
                         <Border Classes="coach-pillar"
                                 Background="{StaticResource Surface2Brush}"
@@ -984,7 +994,7 @@
                                            VerticalAlignment="Center" />
                             </Border>
                             <StackPanel Grid.Column="1" Spacing="5">
-                                <TextBlock Text="Рекомендації тренера"
+                                <TextBlock Classes="title" Text="Рекомендації тренера"
                                            FontSize="12"
                                            FontWeight="Bold"
                                            Foreground="#C4B5FD" />
@@ -1058,7 +1068,7 @@
 
             <!-- 3. RECENT MATCHES SECTION HEADER & QUEUE FILTER -->
             <Grid ColumnDefinitions="*, Auto, Auto, Auto, Auto" Margin="0,4,0,0">
-                <TextBlock Grid.Column="0"
+                <TextBlock Classes="title" Grid.Column="0"
                            Text="Останні матчі"
                            FontWeight="Bold"
                            FontSize="16"
@@ -1911,7 +1921,7 @@
                                                 <!-- Play-by-play Minute-by-Minute Timeline -->
                                                 <StackPanel Spacing="8">
                                                     <Grid ColumnDefinitions="*, Auto">
-                                                        <TextBlock Grid.Column="0" Text="Ключові моменти матчу" FontSize="12" FontWeight="Bold" Foreground="#C4B5FD" />
+                                                        <TextBlock Classes="title" Grid.Column="0" Text="Ключові моменти матчу" FontSize="12" FontWeight="Bold" Foreground="#C4B5FD" />
                                                         <TextBlock Grid.Column="1" Text="Завантаження подій Riot Timeline..." FontSize="11" Foreground="#A78BFA" IsVisible="{Binding IsLoadingTimeline}" />
                                                     </Grid>
 

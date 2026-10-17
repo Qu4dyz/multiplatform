@@ -12,7 +12,7 @@
             <!-- Header -->
             <Border Background="{StaticResource SurfaceBrush}" CornerRadius="12" Padding="20" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
                 <StackPanel Spacing="6">
-                    <TextBlock Text="Налаштування"
+                    <TextBlock Classes="title" Text="Налаштування"
                                FontWeight="Bold"
                                FontSize="20"
                                Foreground="{StaticResource TextPrimaryBrush}" />
@@ -26,7 +26,7 @@
             <Border Background="{StaticResource SurfaceBrush}" CornerRadius="12" Padding="20" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
                 <StackPanel Spacing="16">
                     <Grid ColumnDefinitions="*, Auto">
-                        <TextBlock Text="Riot API"
+                        <TextBlock Classes="title" Text="Riot API"
                                    FontWeight="Bold"
                                    FontSize="16"
                                    Foreground="{StaticResource TextPrimaryBrush}" />
@@ -104,7 +104,7 @@
             <!-- Database & Cache Card -->
             <Border Background="{StaticResource SurfaceBrush}" CornerRadius="8" Padding="20" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
                 <StackPanel Spacing="14">
-                    <TextBlock Text="Локальна база даних"
+                    <TextBlock Classes="title" Text="Локальна база даних"
                                FontWeight="Bold"
                                FontSize="16"
                                Foreground="{StaticResource TextPrimaryBrush}" />
@@ -132,7 +132,7 @@
             <!-- Platform & Cloud VPS Info Card -->
             <Border Background="{StaticResource SurfaceBrush}" CornerRadius="8" Padding="20" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
                 <StackPanel Spacing="12">
-                    <TextBlock Text="Про систему"
+                    <TextBlock Classes="title" Text="Про систему"
                                FontWeight="Bold"
                                FontSize="16"
                                Foreground="{StaticResource TextPrimaryBrush}" />
@@ -161,7 +161,7 @@
                 <StackPanel Spacing="16">
                     <Grid ColumnDefinitions="*, Auto">
                         <StackPanel Grid.Column="0" Spacing="4">
-                            <TextBlock Text="Синхронізація з VPS"
+                            <TextBlock Classes="title" Text="Синхронізація з VPS"
                                        FontWeight="Bold"
                                        FontSize="16"
                                        Foreground="#0AC8B9" />
