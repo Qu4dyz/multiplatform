@@ -1,4 +1,5 @@
 using GameAnalytics.Core.Enums;
+using GameAnalytics.Core.Helpers;
 
 namespace GameAnalytics.Core.Entities;
 
@@ -29,6 +30,8 @@ public class RoleBenchmark
     /// <summary>Vision score per minute (Support highest, ADC lowest).</summary>
     public double TargetVisionScorePerMin { get; set; }
     public double TargetControlWardsPerGame { get; set; }
+    /// <summary>Measured distribution behind the targets; null when the hand-tuned fallback table is used.</summary>
+    public RoleTierBaseline? Baseline { get; set; }
 
     public static RoleBenchmark GetBenchmark(Position position, GameTier tier)
     {
@@ -45,6 +48,24 @@ public class RoleBenchmark
             GameTier.Bronze or GameTier.Iron => 0.75,
             _ => 1.00
         };
+
+        // Prefer medians measured on real ranked games of this role and rank.
+        var measured = RoleBaselines.Get(position, tier);
+        if (measured != null)
+        {
+            return new RoleBenchmark
+            {
+                Position = position,
+                TargetCsPerMin = Math.Round(measured.CsPerMin?.P50 ?? baseBenchmark.TargetCsPerMin, 1),
+                TargetKillParticipation = (int)Math.Round(measured.KillParticipation?.P50 ?? baseBenchmark.TargetKillParticipation),
+                TargetDpm = Math.Round(baseBenchmark.TargetDpm * tierMultiplier, 0),
+                MaxTargetDeaths = Math.Round(measured.Deaths?.P50 ?? baseBenchmark.MaxTargetDeaths, 1),
+                TargetDamageSharePercent = Math.Round(measured.DamageShare?.P50 ?? baseBenchmark.TargetDamageSharePercent, 1),
+                TargetVisionScorePerMin = Math.Round(measured.VisionPerMin?.P50 ?? baseBenchmark.TargetVisionScorePerMin, 2),
+                TargetControlWardsPerGame = Math.Round(baseBenchmark.TargetControlWardsPerGame * tierMultiplier, 1),
+                Baseline = measured
+            };
+        }
 
         return new RoleBenchmark
         {

@@ -73,6 +73,9 @@ public static class GlobalCoachingAnalyzer
         report.TotalMatchesAnalyzed = validGames.Count;
         report.PrimaryRole = primaryPos;
         var benchmark = RoleBenchmark.GetBenchmark(primaryPos, tier);
+        var benchLabel = benchmark.Baseline == null
+            ? "Еталон"
+            : benchmark.Baseline.Tier is { } baselineTier ? $"Медіана {baselineTier}" : "Медіана всіх рангів";
 
         var (roleName, roleIcon) = primaryPos switch
         {
@@ -185,7 +188,7 @@ public static class GlobalCoachingAnalyzer
             Grade = combatGrade,
             GradeColor = combatColor,
             PlayerValueText = $"{avgKp}% KP | {avgDamageShare}% DMG",
-            BenchmarkText = $"Еталон: {benchmark.TargetKillParticipation}% KP",
+            BenchmarkText = $"{benchLabel}: {benchmark.TargetKillParticipation}% KP",
             DiffText = avgKp >= benchmark.TargetKillParticipation
                 ? $"+{avgKp - benchmark.TargetKillParticipation}% (Висока участь)"
                 : $"{avgKp - benchmark.TargetKillParticipation}% (Нижче норми)",
@@ -216,7 +219,7 @@ public static class GlobalCoachingAnalyzer
             Grade = economyGrade,
             GradeColor = economyColor,
             PlayerValueText = $"{avgCsPerMin:F1} CS/хв",
-            BenchmarkText = $"Еталон: {benchmark.TargetCsPerMin:F1} CS/хв",
+            BenchmarkText = $"{benchLabel}: {benchmark.TargetCsPerMin:F1} CS/хв",
             DiffText = csDifference >= 0
                 ? $"+{csDifference:F1} CS/хв (Відмінний темп)"
                 : $"{csDifference:F1} CS/хв (Втрата пачок)",
@@ -270,7 +273,7 @@ public static class GlobalCoachingAnalyzer
             Grade = survivalGrade,
             GradeColor = survivalColor,
             PlayerValueText = $"{avgD:F1} Смертей / гру",
-            BenchmarkText = $"Еталон: < {benchmark.MaxTargetDeaths:F1}",
+            BenchmarkText = $"{benchLabel}: {benchmark.MaxTargetDeaths:F1} смертей",
             DiffText = deathDiff >= 0
                 ? $"{Math.Abs(deathDiff):F1} смертей менше норми"
                 : $"+{Math.Abs(deathDiff):F1} зайвих смертей",
@@ -296,7 +299,7 @@ public static class GlobalCoachingAnalyzer
             Grade = visionGrade,
             GradeColor = visionColor,
             PlayerValueText = $"{avgVisionPerMin:F2} VS/хв",
-            BenchmarkText = $"Еталон: {benchmark.TargetVisionScorePerMin:F2} VS/хв",
+            BenchmarkText = $"{benchLabel}: {benchmark.TargetVisionScorePerMin:F2} VS/хв",
             DiffText = visionDiff >= 0
                 ? $"+{visionDiff:F2} VS/хв (Контроль карти)"
                 : $"{visionDiff:F2} VS/хв (Сліпа зона)",
