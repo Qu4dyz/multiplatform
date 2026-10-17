@@ -67,6 +67,18 @@ public partial class MainViewModel : ViewModelBase
     private string _osInfo;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ConnectionStatusText))]
+    [NotifyPropertyChangedFor(nameof(ConnectionStatusColor))]
+    [NotifyPropertyChangedFor(nameof(ConnectionStatusBg))]
+    [NotifyPropertyChangedFor(nameof(ConnectionStatusBorder))]
+    private bool _hasRiotApiKey;
+
+    public string ConnectionStatusText => HasRiotApiKey ? "● Riot API: ключ активний" : "● Демо-режим (без ключа)";
+    public string ConnectionStatusColor => HasRiotApiKey ? "#10B981" : "#F59E0B";
+    public string ConnectionStatusBg => HasRiotApiKey ? "#131F1C" : "#211B10";
+    public string ConnectionStatusBorder => HasRiotApiKey ? "#1B3B32" : "#4A3712";
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsScale100))]
     [NotifyPropertyChangedFor(nameof(IsScale115))]
     [NotifyPropertyChangedFor(nameof(IsScale125))]
@@ -124,5 +136,13 @@ public partial class MainViewModel : ViewModelBase
         _draftPrediction = draftPrediction;
         _matchHistory = matchHistory;
         _settings = settings;
+
+        // The status pills used to say "online" unconditionally; follow the real key state instead.
+        HasRiotApiKey = playerAnalytics.HasApiKey;
+        playerAnalytics.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(PlayerAnalyticsViewModel.HasApiKey))
+                HasRiotApiKey = playerAnalytics.HasApiKey;
+        };
     }
 }

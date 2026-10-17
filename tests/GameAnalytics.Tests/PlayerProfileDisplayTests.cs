@@ -56,3 +56,21 @@ public class PlayerProfileDisplayTests
         Assert.Equal(new[] { "Elise", "Yone", "Ahri" }, profile.TopMasteries.Select(m => m.ChampionName));
     }
 }
+
+public class MainWindowStatusTests
+{
+    [Fact]
+    public void ConnectionStatus_FollowsPlayerAnalyticsKeyState()
+    {
+        var analytics = new PlayerAnalyticsViewModel();
+        var main = new MainViewModel(analytics, null!, null!, null!);
+
+        Assert.False(main.HasRiotApiKey);
+        Assert.Contains("Демо", main.ConnectionStatusText);
+
+        analytics.HasApiKey = true;
+
+        Assert.True(main.HasRiotApiKey);
+        Assert.Contains("ключ активний", main.ConnectionStatusText);
+    }
+}

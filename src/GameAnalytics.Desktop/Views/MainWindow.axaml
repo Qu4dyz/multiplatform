@@ -163,8 +163,8 @@
                     </Border>
 
                     <!-- System Status Pill -->
-                    <Border Background="#131F1C" CornerRadius="6" Padding="8,4" BorderBrush="#1B3B32" BorderThickness="1">
-                        <TextBlock Text="● Онлайн (API Ready)" FontSize="10" FontWeight="SemiBold" Foreground="#10B981" HorizontalAlignment="Center" />
+                    <Border Background="{Binding ConnectionStatusBg}" CornerRadius="6" Padding="8,4" BorderBrush="{Binding ConnectionStatusBorder}" BorderThickness="1">
+                        <TextBlock Text="{Binding ConnectionStatusText}" FontSize="10" FontWeight="SemiBold" Foreground="{Binding ConnectionStatusColor}" HorizontalAlignment="Center" />
                     </Border>
                 </StackPanel>
             </Grid>
@@ -237,23 +237,30 @@
                     BorderBrush="#1E2235"
                     BorderThickness="0,1,0,0"
                     Padding="16,6">
-                <Grid ColumnDefinitions="Auto, *, Auto">
+                <!-- Side texts trim instead of overlapping when the window is narrow. -->
+                <Grid ColumnDefinitions="*, Auto, *">
                     <TextBlock Grid.Column="0"
                                Text="{Binding OsInfo}"
                                FontSize="11"
-                               Foreground="#94A3B8" />
+                               Foreground="#94A3B8"
+                               TextTrimming="CharacterEllipsis"
+                               ToolTip.Tip="{Binding OsInfo}"
+                               Margin="0,0,12,0" />
 
                     <TextBlock Grid.Column="1"
-                               Text="ML Двигун: ML.NET FastTree (Active) | ORM: Entity Framework Core 9 (SQLite)"
+                               Text="ML.NET FastTree · EF Core 9 (SQLite)"
                                FontSize="11"
                                Foreground="#818CF8"
                                HorizontalAlignment="Center" />
 
                     <TextBlock Grid.Column="2"
-                               Text="● Стан системи: Онлайн (Mock/API Ready)"
+                               Text="{Binding ConnectionStatusText}"
                                FontSize="11"
                                FontWeight="SemiBold"
-                               Foreground="#10B981" />
+                               Foreground="{Binding ConnectionStatusColor}"
+                               TextTrimming="CharacterEllipsis"
+                               HorizontalAlignment="Right"
+                               Margin="12,0,0,0" />
                 </Grid>
             </Border>
         </Grid>
