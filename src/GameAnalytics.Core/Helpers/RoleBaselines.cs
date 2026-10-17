@@ -51,25 +51,47 @@ public sealed class RoleTierBaseline
 public static class RoleBaselines
 {
     private const string ResourceName = "GameAnalytics.Core.Data.role_baselines.json";
-    private static readonly Lazy<Dictionary<(Position, string), RoleTierBaseline>> Table = new(Load);
+    private static readonly Lazy<(Dictionary<(Position, string), RoleTierBaseline> Tiers, Dictionary<(Position, string), (double Worse, double Better)> Swing)> Table = new(Load);
 
     /// <summary>Baseline for the role at the given tier, or the all-ranks pool for Unranked / unknown tiers.</summary>
     public static RoleTierBaseline? Get(Position position, GameTier tier)
     {
-        var table = Table.Value;
+        var table = Table.Value.Tiers;
         if (tier != GameTier.Unranked && table.TryGetValue((position, tier.ToString()), out var exact))
             return exact;
         return table.TryGetValue((position, "All"), out var all) ? all : null;
     }
 
-    private static Dictionary<(Position, string), RoleTierBaseline> Load()
+    /// <summary>
+    /// Win rate of ranked games where the stat sits in the worse vs the better quartile for the role.
+    /// The gap says how much that stat moves games, so it is used to rank which habit to fix first.
+    /// </summary>
+    public static (double Worse, double Better)? WinSwing(Position position, string metric)
+        => Table.Value.Swing.TryGetValue((position, metric), out var swing) ? swing : null;
+
+    private static (Dictionary<(Position, string), RoleTierBaseline>, Dictionary<(Position, string), (double, double)>) Load()
     {
         var result = new Dictionary<(Position, string), RoleTierBaseline>();
+        var swing = new Dictionary<(Position, string), (double, double)>();
         using var stream = typeof(RoleBaselines).Assembly.GetManifestResourceStream(ResourceName);
         if (stream == null)
-            return result;
+            return (result, swing);
 
         using var doc = JsonDocument.Parse(stream);
+        if (doc.RootElement.TryGetProperty("WinSwing", out var swingRoot))
+        {
+            foreach (var role in swingRoot.EnumerateObject())
+            {
+                if (!Enum.TryParse<Position>(role.Name, out var position))
+                    continue;
+                foreach (var metric in role.Value.EnumerateObject())
+                {
+                    if (metric.Value.GetArrayLength() == 2)
+                        swing[(position, metric.Name)] = (metric.Value[0].GetDouble(), metric.Value[1].GetDouble());
+                }
+            }
+        }
+
         foreach (var role in doc.RootElement.GetProperty("Roles").EnumerateObject())
         {
             if (!Enum.TryParse<Position>(role.Name, out var position))
@@ -94,7 +116,7 @@ public static class RoleBaselines
             }
         }
 
-        return result;
+        return (result, swing);
     }
 
     private static MetricPercentiles? Read(JsonElement entry, string name)

@@ -343,6 +343,23 @@ public static class GlobalCoachingAnalyzer
 
         report.CoachAdvice = $"Коучинг-висновок: {advice} Найсильніша сторона: {strongest.PillarName} ({strongest.Grade}).";
 
+        var (habits, strengths) = CoachingHabitAnalyzer.Analyze(
+            validGames.Select(x => new CoachingHabitAnalyzer.GameSample(x.Match, x.Player)).ToList(),
+            riftGames.Select(x => new CoachingHabitAnalyzer.GameSample(x.Match, x.Player)).ToList(),
+            primaryPos,
+            benchmark);
+        report.TopHabits = habits;
+        report.Highlights = strengths;
+        if (habits.Count > 0)
+        {
+            var first = habits[0];
+            report.CoachAdvice = $"Головне зараз — {first.Title.ToLowerInvariant()}. {first.Evidence} {first.Action}";
+        }
+        else if (strengths.Count > 0)
+        {
+            report.CoachAdvice = $"Явних звичок, які коштують вам ігор, не знайдено. {strengths[0]}";
+        }
+
         return report;
     }
 

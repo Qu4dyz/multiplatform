@@ -1,5 +1,13 @@
 {
   "Source": "Ranked Solo/Duo games (15+ min) from the training crawl, split by lobby rank. Values are [P25, P50, P75].",
+  "WinSwingNote": "Per role: win rate when the stat is in the worse quartile vs the better quartile (all ranks).",
+  "WinSwing": {
+    "Bottom": {"CsPerMin": [0.385, 0.663], "KillParticipation": [0.413, 0.533], "Deaths": [0.282, 0.776], "DamageShare": [0.453, 0.577], "LaneGoldDiff15": [0.27, 0.73], "VisionPerMin": [0.456, 0.559]},
+    "Jungle": {"CsPerMin": [0.264, 0.782], "KillParticipation": [0.477, 0.484], "Deaths": [0.231, 0.858], "DamageShare": [0.512, 0.518], "LaneGoldDiff15": [0.298, 0.702], "VisionPerMin": [0.411, 0.58]},
+    "Middle": {"CsPerMin": [0.424, 0.62], "KillParticipation": [0.431, 0.507], "Deaths": [0.282, 0.811], "DamageShare": [0.505, 0.514], "LaneGoldDiff15": [0.299, 0.7], "VisionPerMin": [0.437, 0.561]},
+    "Top": {"CsPerMin": [0.404, 0.631], "KillParticipation": [0.436, 0.499], "Deaths": [0.293, 0.807], "DamageShare": [0.545, 0.465], "LaneGoldDiff15": [0.352, 0.648], "VisionPerMin": [0.447, 0.551]},
+    "Utility": {"CsPerMin": [0.525, 0.452], "KillParticipation": [0.437, 0.522], "Deaths": [0.287, 0.811], "DamageShare": [0.587, 0.429], "LaneGoldDiff15": [0.27, 0.73], "VisionPerMin": [0.42, 0.569]}
+  },
   "Roles": {
     "Bottom": {
       "Iron": {"Games": 2146, "CsPerMin": [4.68, 5.57, 6.41], "KillParticipation": [33.33, 42.86, 54.17], "Deaths": [4.21, 6.83, 9.77], "DamageShare": [15.17, 20.11, 26.29], "VisionPerMin": [0.45, 0.61, 0.77], "LaneGoldDiff15": [-1697.0, 2.0, 1697.0]},

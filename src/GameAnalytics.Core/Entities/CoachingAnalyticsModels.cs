@@ -151,6 +151,20 @@ public class RoleBenchmark
     };
 }
 
+/// <summary>One concrete habit to work on, backed by numbers from the player's own games.</summary>
+public class CoachingHabit
+{
+    public string Key { get; set; } = string.Empty;
+    /// <summary>Pillar code the habit belongs to (CMB/ECO/OBJ/SRV/VIS/POOL/ROLE/LANE).</summary>
+    public string Icon { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+    public string Evidence { get; set; } = string.Empty;
+    public string Action { get; set; } = string.Empty;
+    /// <summary>Expected share of games this habit costs; higher is fixed first.</summary>
+    public double Priority { get; set; }
+    public int Rank { get; set; }
+}
+
 public class GlobalCoachingReport
 {
     public int OverallScore { get; set; } = 50;
@@ -171,4 +185,6 @@ public class GlobalCoachingReport
     /// <summary>Which games the report is based on and which were left out (off-role, ARAM...).</summary>
     public string SampleNote { get; set; } = string.Empty;
     public List<string> Highlights { get; set; } = new();
+    /// <summary>Top habits to fix, most costly first (at most three).</summary>
+    public List<CoachingHabit> TopHabits { get; set; } = new();
 }
