@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using GameAnalytics.Core.Entities;
 using GameAnalytics.Core.Enums;
 using GameAnalytics.Core.Helpers;
@@ -10,8 +11,18 @@ using Avalonia.Input;
 
 namespace GameAnalytics.Desktop.ViewModels;
 
+/// <summary>Sent once Data Dragon item data arrives, so tooltips built earlier pick up names.</summary>
+public sealed record ItemDataLoadedMessage;
+
 public partial class ItemSlotViewModel : ObservableObject
 {
+    public ItemSlotViewModel()
+    {
+        // Weak registration: item slots come and go with every match list rebuild.
+        WeakReferenceMessenger.Default.Register<ItemSlotViewModel, ItemDataLoadedMessage>(
+            this, static (slot, _) => slot.OnPropertyChanged(nameof(ToolTipText)));
+    }
+
     private int _itemId;
     public int ItemId
     {

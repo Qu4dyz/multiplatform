@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using GameAnalytics.Core.Entities;
 using GameAnalytics.Core.Enums;
 using GameAnalytics.Core.Interfaces;
@@ -243,11 +244,23 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
 
         UpdateApiStatus();
         UpdateAutoRefreshStatusText();
-        _ = _dataDragonService?.PreloadItemDataAsync();
+        _ = LoadItemDataAsync();
         _ = SearchPlayerAsync();
     }
 
-    partial void OnIsAutoRefreshEnabledChanged(bool value)
+    private async Task LoadItemDataAsync()
+    {
+        if (_dataDragonService == null) return;
+        try
+        {
+            await _dataDragonService.PreloadItemDataAsync();
+            // Cards painted from cache before item.json arrived still show "Предмет #id"; refresh them.
+            WeakReferenceMessenger.Default.Send(new ItemDataLoadedMessage());
+        }
+        catch { /* tooltips keep the fallback text */ }
+    }
+
+        partial void OnIsAutoRefreshEnabledChanged(bool value)
     {
         if (value && HasLoadedProfile && Summoner != null)
         {
