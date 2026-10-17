@@ -249,7 +249,7 @@ public class BitmapAssetValueConverter : IValueConverter
             }
         }
 
-        // Download in background — binding will not auto-refresh; callers should preload first.
+        // Download in background. A converter binding will not re-run; views use RemoteImage.Url for live refresh.
         _ = Task.Run(async () =>
         {
             try

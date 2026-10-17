@@ -10,10 +10,6 @@
              x:DataType="vm:DraftPredictionViewModel"
              x:Name="RootControl">
 
-    <UserControl.Resources>
-        <conv:BitmapAssetValueConverter x:Key="BitmapAssetConverter" />
-    </UserControl.Resources>
-
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="24" Spacing="20">
 
@@ -107,7 +103,7 @@
                                                             ClipToBounds="True"
                                                             Background="#091428"
                                                             Margin="4,0">
-                                                        <Image Source="{Binding ChampionIconUrl, Converter={StaticResource BitmapAssetConverter}}"
+                                                        <Image conv:RemoteImage.Url="{Binding ChampionIconUrl}"
                                                                Width="34" Height="34"
                                                                Stretch="UniformToFill" />
                                                     </Border>
@@ -225,7 +221,7 @@
                                                                     CornerRadius="4"
                                                                     ClipToBounds="True"
                                                                     Background="#0A1428">
-                                                                <Image Source="{Binding IconUrl, Converter={StaticResource BitmapAssetConverter}}"
+                                                                <Image conv:RemoteImage.Url="{Binding IconUrl}"
                                                                        Width="38" Height="38"
                                                                        Stretch="UniformToFill" />
                                                             </Border>
@@ -293,7 +289,7 @@
                                                             ClipToBounds="True"
                                                             Background="#091428"
                                                             Margin="4,0">
-                                                        <Image Source="{Binding ChampionIconUrl, Converter={StaticResource BitmapAssetConverter}}"
+                                                        <Image conv:RemoteImage.Url="{Binding ChampionIconUrl}"
                                                                Width="34" Height="34"
                                                                Stretch="UniformToFill" />
                                                     </Border>
