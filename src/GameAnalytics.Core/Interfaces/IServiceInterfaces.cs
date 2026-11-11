@@ -29,6 +29,17 @@ public interface IMatchRepository
     Task<IReadOnlyList<Match>> GetRecentMatchesPageAsync(int skip, int take, CancellationToken ct = default);
     /// <summary>Newest saved matches where the given PUUID took part.</summary>
     Task<IReadOnlyList<Match>> GetMatchesByPuuidAsync(string puuid, int limit = 20, CancellationToken ct = default);
+    /// <summary>
+    /// Newest <paramref name="take"/> train-eligible Solo/Duo (420) matches, filtered and ordered in SQL,
+    /// returned oldest → newest so chronological holdout/calibration splits keep working.
+    /// <paramref name="requireMinute15Timeline"/> = early-model eligibility (real 15' timeline + 10' CS/XP + vision/death + gold@15).
+    /// Participants.ChallengesJson is not loaded (not a training feature; dominates RAM on large DBs).
+    /// </summary>
+    Task<IReadOnlyList<Match>> GetNewestMatchesAsync(
+        int take,
+        int minDurationSeconds = 900,
+        bool requireMinute15Timeline = true,
+        CancellationToken ct = default);
     Task<Match?> GetMatchByMatchIdAsync(string matchId, CancellationToken ct = default);
     Task SaveMatchAsync(Match match, CancellationToken ct = default);
     Task UpsertMatchAsync(Match match, CancellationToken ct = default);
@@ -59,7 +70,19 @@ public interface IMatchRepository
 public interface IPredictionEngine
 {
     PredictionResult PredictMatchOutcome(MatchInputFeatures features);
+    /// <summary>Lab multi-horizon predict. Minute 15 = production ensemble; 25/35 = lab FastTree zips when present.</summary>
+    PredictionResult PredictMatchOutcome(MatchInputFeatures features, int predictionMinute);
+    bool HasHorizonModel(int predictionMinute);
     Task TrainModelAsync(IEnumerable<Match> historicalMatches, CancellationToken ct = default);
+    /// <summary>
+    /// Lab-only FastTree train for mid/late horizons (no elo specialists). Skips when rows &lt; 10.
+    /// </summary>
+    Task TrainHorizonModelAsync(
+        IEnumerable<Match> historicalMatches,
+        int predictionMinute,
+        Func<string, MatchTimelineData?> timelineLookup,
+        int? maxRows = 5_000,
+        CancellationToken ct = default);
     ModelBenchmarkReport RunAlgorithmsBenchmark(int sampleCount = 2000);
     void SetActiveAlgorithm(GameAnalytics.Core.Enums.MLAlgorithmType algorithm);
     bool ReloadModel();
@@ -83,6 +106,8 @@ public interface IMatchAnalyticsService
     Task<MatchTimelineData?> GetMatchTimelineAsync(string matchId, CancellationToken ct = default);
     Task<bool> RetrainModelOnSavedMatchesAsync(CancellationToken ct = default);
     PredictionResult PredictOutcome(MatchInputFeatures features);
+    PredictionResult PredictOutcome(MatchInputFeatures features, int predictionMinute);
+    bool HasHorizonModel(int predictionMinute);
     ModelBenchmarkReport RunBenchmark(int sampleCount = 2000);
     void SetActiveMLAlgorithm(GameAnalytics.Core.Enums.MLAlgorithmType algorithm);
     bool ReloadModel();

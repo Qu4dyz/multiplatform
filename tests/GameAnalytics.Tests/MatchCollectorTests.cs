@@ -120,6 +120,14 @@ public class MatchCollectorTests
                 .Take(limit)
                 .ToList());
 
+        public Task<IReadOnlyList<Match>> GetNewestMatchesAsync(
+            int take, int minDurationSeconds = 900, bool requireMinute15Timeline = true, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<Match>>(Stored.Values
+                .OrderByDescending(m => m.GameCreation)
+                .Take(take)
+                .OrderBy(m => m.GameCreation)
+                .ToList());
+
         public Task<Match?> GetMatchByMatchIdAsync(string matchId, CancellationToken ct = default)
             => Task.FromResult(Stored.TryGetValue(matchId, out var m) ? m : null);
 
