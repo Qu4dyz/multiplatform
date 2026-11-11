@@ -38,13 +38,23 @@ jobs:
         run: dotnet build GameAnalytics.sln --configuration Release --no-restore
 
       - name: Run Unit Tests with Code Coverage
-        run: dotnet test GameAnalytics.sln --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage"
+        run: dotnet test GameAnalytics.sln --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage" --results-directory TestResults
+
+      - name: Coverage report
+        if: always() && runner.os == 'Linux'
+        run: |
+          dotnet tool install --global dotnet-reportgenerator-globaltool --version 5.4.4
+          reportgenerator -reports:"TestResults/**/coverage.cobertura.xml" -targetdir:coverage-report -reporttypes:"Html;MarkdownSummaryGithub;TextSummary"
+          cat coverage-report/Summary.txt
+          cat coverage-report/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload Test Coverage Artifacts
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: code-coverage-${{ matrix.os }}
-          path: '**/TestResults/**/coverage.cobertura.xml'
+          path: |
+            TestResults/**/coverage.cobertura.xml
+            coverage-report/
           if-no-files-found: ignore
 
