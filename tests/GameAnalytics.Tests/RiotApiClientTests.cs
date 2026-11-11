@@ -15,7 +15,7 @@ public class RiotApiClientTests
 {
     private const string Puuid = "puuid-test-0001";
 
-    private static RiotApiClient CreateClient(Func<string, HttpResponseMessage> respond, bool mockFallback = false)
+    internal static RiotApiClient CreateClient(Func<string, HttpResponseMessage> respond, bool mockFallback = false)
     {
         var http = new HttpClient(new RouteHandler(respond)) { Timeout = TimeSpan.FromSeconds(10) };
         var options = new RiotApiOptions
@@ -29,12 +29,12 @@ public class RiotApiClientTests
         return new RiotApiClient(http, options, new RiotRateLimiter());
     }
 
-    private static HttpResponseMessage Json(object body) => new(HttpStatusCode.OK)
+    internal static HttpResponseMessage Json(object body) => new(HttpStatusCode.OK)
     {
         Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json")
     };
 
-    private static HttpResponseMessage Status(HttpStatusCode code) => new(code) { Content = new StringContent("") };
+    internal static HttpResponseMessage Status(HttpStatusCode code) => new(code) { Content = new StringContent("") };
 
     [Fact]
     public async Task GetSummonerByRiotId_MapsAccountSummonerRankAndMasteries()
@@ -308,9 +308,9 @@ public class RiotApiClientTests
         };
     }
 
-    private static object TimelineJson()
+    internal static object TimelineJson(int minutes = 20)
     {
-        var frames = Enumerable.Range(0, 21).Select(minute =>
+        var frames = Enumerable.Range(0, minutes + 1).Select(minute =>
         {
             var participantFrames = Enumerable.Range(1, 10).ToDictionary(
                 i => i.ToString(),
