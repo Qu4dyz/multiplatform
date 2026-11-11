@@ -38,7 +38,7 @@ jobs:
         run: dotnet build GameAnalytics.sln --configuration Release --no-restore
 
       - name: Run Unit Tests with Code Coverage
-        run: dotnet test GameAnalytics.sln --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage" --results-directory TestResults
+        run: dotnet test GameAnalytics.sln --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage" --settings coverage.runsettings --results-directory TestResults
 
       - name: Coverage report
         if: always() && runner.os == 'Linux'
