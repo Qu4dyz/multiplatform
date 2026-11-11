@@ -6,6 +6,7 @@ using GameAnalytics.Core.Interfaces;
 
 namespace GameAnalytics.Infrastructure.Services;
 
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "CA1001", Justification = "App-lifetime singleton; SemaphoreSlim holds no unmanaged handle unless AvailableWaitHandle is used.")]
 public class DataDragonService : IDataDragonService
 {
     private readonly HttpClient _httpClient;
@@ -80,7 +81,7 @@ public class DataDragonService : IDataDragonService
                     foreach (var kvp in response.Data)
                     {
                         var dto = kvp.Value;
-                        int.TryParse(dto.Key, out var key);
+                        if (!int.TryParse(dto.Key, out var key)) continue;
 
                         GameAnalytics.Core.Helpers.ChampionNameHelper.RegisterChampion(key, dto.Name);
 

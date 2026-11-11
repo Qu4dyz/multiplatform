@@ -7,6 +7,8 @@ namespace GameAnalytics.Infrastructure.Services;
 
 public class VpsSyncService : IVpsSyncService
 {
+    private static readonly JsonSerializerOptions ReadOptions = new() { PropertyNameCaseInsensitive = true };
+
     private readonly HttpClient _httpClient;
 
     public VpsSyncService(HttpClient httpClient)
@@ -28,10 +30,7 @@ public class VpsSyncService : IVpsSyncService
             if (!response.IsSuccessStatusCode) return null;
 
             var json = await response.Content.ReadAsStringAsync(cts.Token);
-            return JsonSerializer.Deserialize<VpsServerStatus>(json, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            });
+            return JsonSerializer.Deserialize<VpsServerStatus>(json, ReadOptions);
         }
         catch
         {
