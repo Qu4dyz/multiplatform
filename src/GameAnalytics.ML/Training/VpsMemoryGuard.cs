@@ -21,10 +21,13 @@ public static class VpsMemoryGuard
     /// </summary>
     public static bool ShouldAllowHeavyTrain(out string reason)
     {
-        var isLinux = OperatingSystem.IsLinux();
-        long? memAvailable = TryReadMemAvailableBytes();
         var (cgroupCurrent, cgroupLimit) = TryReadCgroupMemory();
+        return Decide(TryReadMemAvailableBytes(), cgroupCurrent, cgroupLimit, OperatingSystem.IsLinux(), out reason);
+    }
 
+    /// <summary>The decision itself, separated from reading /proc and cgroup files so it can be tested.</summary>
+    public static bool Decide(long? memAvailable, long? cgroupCurrent, long? cgroupLimit, bool isLinux, out string reason)
+    {
         if (cgroupCurrent is > 0 && cgroupLimit is > 0)
         {
             var fraction = (double)cgroupCurrent.Value / cgroupLimit.Value;
