@@ -65,6 +65,11 @@ public interface IMatchRepository
     Task SaveLpSnapshotAsync(PlayerLpSnapshot snapshot, CancellationToken ct = default);
     Task<MatchTimelineData?> GetCachedTimelineAsync(string matchId, CancellationToken ct = default);
     Task SaveTimelineCacheAsync(string matchId, MatchTimelineData data, CancellationToken ct = default);
+    /// <summary>
+    /// Deletes up to <paramref name="maxDelete"/> of the oldest timeline cache rows beyond the newest
+    /// <paramref name="keepNewest"/>. Returns the number of deleted rows.
+    /// </summary>
+    Task<int> PruneTimelineCacheAsync(int keepNewest, int maxDelete = 2_000, CancellationToken ct = default);
 }
 
 public interface IPredictionEngine

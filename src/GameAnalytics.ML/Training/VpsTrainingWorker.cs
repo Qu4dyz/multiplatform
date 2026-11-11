@@ -19,6 +19,11 @@ public class VpsTrainingWorker
     public const int EarlyTrainFetchRows = EarlyTrainMaxRows + 250;
     /// <summary>Newest duration-eligible rows for lab m25/m35 (was 12k — hung the 2GB host after epoch 60).</summary>
     public const int LabHorizonMaxRows = 5_000;
+    /// <summary>
+    /// Full timeline JSON kept for the newest matches only (~120 KB each; 208k rows filled a 40 GB disk).
+    /// Lab horizons need timelines for their newest 5k rows, the desktop only shows recent matches.
+    /// </summary>
+    public const int TimelineCacheKeepNewest = 30_000;
 
     private readonly IRiotApiClient _apiClient;
     private readonly IMatchRepository _matchRepo;
@@ -74,6 +79,10 @@ public class VpsTrainingWorker
                 // Count-only: never materialize the full ~67k match graph (5GB DB) on a 2GB host.
                 var totalMatches = await _matchRepo.GetTotalMatchesCountAsync(ct);
                 log($"[VPS ML Trainer] Всього матчів у базі даних: {totalMatches} (нових у цій епосі: {newMatches})");
+
+                var pruned = await _matchRepo.PruneTimelineCacheAsync(TimelineCacheKeepNewest, ct: ct);
+                if (pruned > 0)
+                    log($"[VPS ML Trainer] Кеш таймлайнів: видалено {pruned} найстаріших (лишаємо {TimelineCacheKeepNewest} найновіших).");
 
                 if (totalMatches >= 5 && shouldRetrain)
                 {
