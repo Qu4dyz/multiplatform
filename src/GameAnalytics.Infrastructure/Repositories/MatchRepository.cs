@@ -274,6 +274,14 @@ public class MatchRepository : IMatchRepository
                 "CREATE INDEX IF NOT EXISTS IX_Matches_GameCreation ON Matches (GameCreation);");
         }
         catch { /* Best-effort index */ }
+
+        // Player history filters Participants by Puuid; same name EF uses for HasIndex on new databases.
+        try
+        {
+            _context.Database.ExecuteSqlRaw(
+                "CREATE INDEX IF NOT EXISTS IX_Participants_Puuid ON Participants (Puuid);");
+        }
+        catch { /* Best-effort index */ }
     }
 
     public async Task<IReadOnlyList<Match>> GetAllMatchesAsync(CancellationToken ct = default)
@@ -502,6 +510,10 @@ public class MatchRepository : IMatchRepository
             .Include(m => m.Teams)
             .FirstOrDefaultAsync(m => m.MatchId == match.MatchId, ct);
 
+        // Delete + insert must succeed together, otherwise a failed insert loses the stored match.
+        var ownsTransaction = _context.Database.CurrentTransaction == null;
+        await using var tx = ownsTransaction ? await _context.Database.BeginTransactionAsync(ct) : null;
+
         if (existing != null)
         {
             _context.Matches.Remove(existing);
@@ -510,6 +522,9 @@ public class MatchRepository : IMatchRepository
 
         await _context.Matches.AddAsync(match, ct);
         await _context.SaveChangesAsync(ct);
+
+        if (tx != null)
+            await tx.CommitAsync(ct);
     }
 
     public async Task<int> GetTotalMatchesCountAsync(CancellationToken ct = default)
