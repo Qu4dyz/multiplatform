@@ -793,5 +793,21 @@ public class MatchRepository : IMatchRepository
 
         await _context.SaveChangesAsync(ct);
     }
+
+    public async Task<int> PruneTimelineCacheAsync(int keepNewest, int maxDelete = 2_000, CancellationToken ct = default)
+    {
+        if (keepNewest < 0 || maxDelete <= 0)
+            return 0;
+
+        // A full timeline is ~120 KB; deleting in small batches keeps the WAL small on a nearly full disk,
+        // and SQLite reuses the freed pages for new rows, so the file stops growing.
+        return await _context.Database.ExecuteSqlInterpolatedAsync($@"
+            DELETE FROM MatchTimelineCaches
+            WHERE Id IN (
+                SELECT Id FROM MatchTimelineCaches
+                WHERE Id <= (SELECT Id FROM MatchTimelineCaches ORDER BY Id DESC LIMIT 1 OFFSET {keepNewest})
+                ORDER BY Id
+                LIMIT {maxDelete})", ct);
+    }
 }
 

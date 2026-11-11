@@ -158,6 +158,30 @@ public class RepositoryTests
     }
 
     [Fact]
+    public async Task PruneTimelineCache_KeepsNewestAndDeletesInBatches()
+    {
+        var dbFile = Path.Combine(Path.GetTempPath(), $"ga_prune_{Guid.NewGuid():N}.db");
+        var options = new DbContextOptionsBuilder<GameAnalyticsDbContext>()
+            .UseSqlite($"Data Source={dbFile};Pooling=False")
+            .Options;
+        using var context = new GameAnalyticsDbContext(options);
+        var repo = new MatchRepository(context);
+        for (var i = 1; i <= 5; i++)
+            await repo.SaveTimelineCacheAsync($"EUW1_T{i}", new MatchTimelineData());
+
+        Assert.Equal(1, await repo.PruneTimelineCacheAsync(keepNewest: 2, maxDelete: 1));
+        Assert.Equal(2, await repo.PruneTimelineCacheAsync(keepNewest: 2));
+        Assert.Equal(0, await repo.PruneTimelineCacheAsync(keepNewest: 2));
+        Assert.Equal(0, await repo.PruneTimelineCacheAsync(keepNewest: 100));
+
+        Assert.Null(await repo.GetCachedTimelineAsync("EUW1_T3"));
+        Assert.NotNull(await repo.GetCachedTimelineAsync("EUW1_T4"));
+        Assert.NotNull(await repo.GetCachedTimelineAsync("EUW1_T5"));
+
+        context.Database.EnsureDeleted();
+    }
+
+    [Fact]
     public async Task SaveMatchAsync_DuplicateMatchId_DoesNotThrowOrDuplicate()
     {
         // Arrange
