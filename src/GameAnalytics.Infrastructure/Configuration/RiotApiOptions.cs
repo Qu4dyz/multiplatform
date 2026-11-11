@@ -16,6 +16,9 @@ public class ServerRegionInfo
 
 public class RiotApiOptions
 {
+    private static readonly JsonSerializerOptions ReadOptions = new() { PropertyNameCaseInsensitive = true };
+    private static readonly JsonSerializerOptions WriteOptions = new() { WriteIndented = true };
+
     public const string SectionName = "RiotApi";
 
     public string ApiKey { get; set; } = string.Empty;
@@ -122,10 +125,7 @@ public class RiotApiOptions
                 using var doc = JsonDocument.Parse(json);
                 if (doc.RootElement.TryGetProperty("RiotApi", out var section))
                 {
-                    return JsonSerializer.Deserialize<RiotApiOptions>(section.GetRawText(), new JsonSerializerOptions
-                    {
-                        PropertyNameCaseInsensitive = true
-                    });
+                    return JsonSerializer.Deserialize<RiotApiOptions>(section.GetRawText(), ReadOptions);
                 }
             }
         }
@@ -166,7 +166,7 @@ public class RiotApiOptions
         }
 
         config["RiotApi"] = this;
-        var updatedJson = JsonSerializer.Serialize(config, new JsonSerializerOptions { WriteIndented = true });
+        var updatedJson = JsonSerializer.Serialize(config, WriteOptions);
         File.WriteAllText(path, updatedJson);
     }
 }

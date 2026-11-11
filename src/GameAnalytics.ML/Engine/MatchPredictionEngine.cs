@@ -43,10 +43,20 @@ public class MatchPredictionEngine : IPredictionEngine
     public int? MaxTrainRows { get; set; }
     private int _completedTrainPasses;
 
-    public MatchPredictionEngine()
+    public MatchPredictionEngine() : this(ResolveDefaultModelDirectory())
+    {
+    }
+
+    /// <summary>Engine that loads and saves its zips in <paramref name="modelDirectory"/> (experiments keep production models untouched).</summary>
+    public MatchPredictionEngine(string modelDirectory)
     {
         _mlContext = new MLContext(seed: 42);
-        
+        _modelDirectory = modelDirectory;
+        InitializeModel();
+    }
+
+    private static string ResolveDefaultModelDirectory()
+    {
         var baseDir = AppContext.BaseDirectory;
         var candidateDir = Path.Combine(baseDir, "models");
         if (!Directory.Exists(candidateDir))
@@ -62,15 +72,14 @@ public class MatchPredictionEngine : IPredictionEngine
                 if (Directory.Exists(rootDir)) candidateDir = rootDir;
             }
         }
-        _modelDirectory = candidateDir;
-        InitializeModel();
+        return candidateDir;
     }
 
     private void InitializeModel()
     {
         lock (_lock)
         {
-            var modelFile = Path.Combine(_modelDirectory, $"{ActiveAlgorithm.ToString().ToLower()}_model.zip");
+            var modelFile = Path.Combine(_modelDirectory, $"{ActiveAlgorithm.ToString().ToLowerInvariant()}_model.zip");
 
             if (File.Exists(modelFile))
             {
@@ -199,7 +208,7 @@ public class MatchPredictionEngine : IPredictionEngine
             var dataView = _mlContext.Data.LoadFromEnumerable(syntheticData);
 
             _model = pipeline.Fit(dataView);
-            var modelFile = Path.Combine(_modelDirectory, $"{ActiveAlgorithm.ToString().ToLower()}_model.zip");
+            var modelFile = Path.Combine(_modelDirectory, $"{ActiveAlgorithm.ToString().ToLowerInvariant()}_model.zip");
             try
             {
                 var trainer = new ModelTrainer();
@@ -762,7 +771,7 @@ public class MatchPredictionEngine : IPredictionEngine
                     }
 
                     var trainer = new ModelTrainer();
-                    var modelFile = Path.Combine(_modelDirectory, $"{ActiveAlgorithm.ToString().ToLower()}_model.zip");
+                    var modelFile = Path.Combine(_modelDirectory, $"{ActiveAlgorithm.ToString().ToLowerInvariant()}_model.zip");
                     var forestFile = Path.Combine(_modelDirectory, "fastforest_model.zip");
                     var highFile = Path.Combine(_modelDirectory, "fasttree_highelo_model.zip");
                     var midFile = Path.Combine(_modelDirectory, "fasttree_midelo_model.zip");

@@ -244,6 +244,9 @@ public class MatchCollectorTests
             _timelines[matchId] = data;
             return Task.CompletedTask;
         }
+
+        public Task<int> PruneTimelineCacheAsync(int keepNewest, int maxDelete = 2_000, CancellationToken ct = default)
+            => Task.FromResult(0);
     }
 
     private static Match MakeStoredMatch(string matchId, params string[] puuids)

@@ -48,6 +48,7 @@ public class RiotRateLimiter
         return string.IsNullOrWhiteSpace(region) ? "global" : region.Trim().ToLowerInvariant();
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "CA1001", Justification = "Buckets live as long as the limiter; SemaphoreSlim holds no unmanaged handle unless AvailableWaitHandle is used.")]
     private class RegionBucket
     {
         private readonly SemaphoreSlim _semaphore = new(1, 1);

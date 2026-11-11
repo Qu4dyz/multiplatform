@@ -23,6 +23,13 @@ sealed class Program
     {
         AttachCrashLogging();
 
+        var curveIndex = Array.FindIndex(args, a => a.Equals("--train-curve", StringComparison.OrdinalIgnoreCase));
+        if (curveIndex >= 0)
+        {
+            await RunLearningCurveAsync(curveIndex + 1 < args.Length ? args[curveIndex + 1] : "20000,40000,60000");
+            return;
+        }
+
         if (args.Any(a => a.Equals("--vps-train", StringComparison.OrdinalIgnoreCase) || a.Equals("--train", StringComparison.OrdinalIgnoreCase)))
         {
             await RunHeadlessVpsTrainerAsync(args);
@@ -47,7 +54,7 @@ sealed class Program
             if (e.ExceptionObject is Exception ex)
                 WriteCrashLog(ex);
             else
-                WriteCrashLog(new Exception(e.ExceptionObject?.ToString() ?? "Unknown unhandled exception"));
+                WriteCrashLog(new InvalidOperationException(e.ExceptionObject?.ToString() ?? "Unknown unhandled exception"));
         };
 
         TaskScheduler.UnobservedTaskException += (_, e) =>
@@ -72,6 +79,52 @@ sealed class Program
         catch
         {
             // Best-effort diagnostics only.
+        }
+    }
+
+    /// <summary>
+    /// One-off experiment: train the early model on the newest N eligible matches for each N and append
+    /// the metrics to models-curve/curve.csv. Models go to models-curve/N, production zips stay untouched.
+    /// Each N uses a temporal holdout of its own newest 20%, so all test sets cover the latest matches.
+    /// </summary>
+    private static async Task RunLearningCurveAsync(string sizesArg)
+    {
+        var sizes = sizesArg
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(s => int.Parse(s, System.Globalization.CultureInfo.InvariantCulture))
+            .Where(n => n > 0)
+            .ToList();
+
+        using var context = new GameAnalyticsDbContext();
+        var repo = new MatchRepository(context);
+        var outDir = Path.Combine(AppContext.BaseDirectory, "models-curve");
+        Directory.CreateDirectory(outDir);
+        var csv = Path.Combine(outDir, "curve.csv");
+        if (!File.Exists(csv))
+            File.WriteAllText(csv, "utc,rows,loaded,accuracy,auc,f1,brier,confident_accuracy,confident_coverage,seconds\n");
+
+        foreach (var rows in sizes)
+        {
+            var started = DateTime.UtcNow;
+            var matches = await repo.GetNewestMatchesAsync(
+                rows + 250, GameAnalytics.Core.Entities.PredictionHorizons.Early * 60, requireMinute15Timeline: true);
+            var engine = new MatchPredictionEngine(Path.Combine(outDir, rows.ToString(System.Globalization.CultureInfo.InvariantCulture)))
+            {
+                MaxTrainRows = rows,
+                AblationIntervalEpochs = int.MaxValue // ablation only measures; skip it to keep runs short
+            };
+            Console.WriteLine($"[Curve] rows={rows}: loaded {matches.Count} matches, training...");
+            await engine.TrainModelAsync(matches);
+
+            var m = engine.CurrentModelMetrics;
+            var seconds = (DateTime.UtcNow - started).TotalSeconds;
+            var line = string.Create(System.Globalization.CultureInfo.InvariantCulture,
+                $"{DateTime.UtcNow:o},{rows},{matches.Count},{m?.Accuracy:F4},{m?.AreaUnderRocCurve:F4},{m?.F1Score:F4},{m?.BrierScore:F4},{m?.AccuracyWhenConfident:F4},{m?.ConfidentCoverage:F4},{seconds:F0}");
+            File.AppendAllText(csv, line + "\n");
+            Console.WriteLine($"[Curve] {line}");
+
+            repo.ResetTrackedState();
+            GC.Collect();
         }
     }
 

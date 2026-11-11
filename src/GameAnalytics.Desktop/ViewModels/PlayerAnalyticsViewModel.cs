@@ -30,7 +30,7 @@ public partial class RecentChampionStatViewModel : ObservableObject
     public string KdaText => $"{AvgKda:F2}:1 KDA";
 }
 
-public partial class PlayerAnalyticsViewModel : ViewModelBase
+public partial class PlayerAnalyticsViewModel : ViewModelBase, IDisposable
 {
     private readonly IMatchAnalyticsService _analyticsService;
     private readonly RiotApiOptions _options;
@@ -718,6 +718,12 @@ public partial class PlayerAnalyticsViewModel : ViewModelBase
         _autoRefreshCts = new CancellationTokenSource();
         _ = RunAutoRefreshLoopAsync(_autoRefreshCts.Token);
         UpdateAutoRefreshStatusText();
+    }
+
+    public void Dispose()
+    {
+        StopAutoRefreshLoop();
+        GC.SuppressFinalize(this);
     }
 
     private void StopAutoRefreshLoop()

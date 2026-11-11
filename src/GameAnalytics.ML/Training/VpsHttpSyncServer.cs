@@ -5,8 +5,10 @@ using GameAnalytics.Core.Entities;
 
 namespace GameAnalytics.ML.Training;
 
-public class VpsHttpSyncServer
+public class VpsHttpSyncServer : IDisposable
 {
+    private static readonly JsonSerializerOptions StatusJsonOptions = new() { WriteIndented = true };
+
     private readonly int _port;
     private readonly string _modelDirectory;
     private readonly string _databasePath;
@@ -59,7 +61,7 @@ public class VpsHttpSyncServer
             try
             {
                 var context = await _listener.GetContextAsync();
-                _ = Task.Run(() => HandleRequestAsync(context, log));
+                _ = Task.Run(() => HandleRequestAsync(context, log), CancellationToken.None); // a started response finishes even during shutdown
             }
             catch (HttpListenerException) when (ct.IsCancellationRequested)
             {
@@ -100,7 +102,7 @@ public class VpsHttpSyncServer
             if (path == "" || path == "/api/status" || path == "/api/health")
             {
                 var status = _statusProvider();
-                var json = JsonSerializer.Serialize(status, new JsonSerializerOptions { WriteIndented = true });
+                var json = JsonSerializer.Serialize(status, StatusJsonOptions);
                 var bytes = Encoding.UTF8.GetBytes(json);
 
                 resp.ContentType = "application/json; charset=utf-8";
@@ -190,5 +192,11 @@ public class VpsHttpSyncServer
             _listener?.Close();
         }
         catch { }
+    }
+
+    public void Dispose()
+    {
+        Stop();
+        GC.SuppressFinalize(this);
     }
 }
