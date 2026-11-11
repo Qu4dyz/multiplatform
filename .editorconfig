@@ -1,0 +1,8 @@
+root = true
+
+[*.cs]
+# Analyzer severities on top of AnalysisLevel=latest-recommended (Directory.Build.props).
+
+[tests/**/*.cs]
+# xUnit test names follow Method_Scenario_Result with underscores.
+dotnet_diagnostic.CA1707.severity = none

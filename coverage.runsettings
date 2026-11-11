@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Coverage counts logic, not the Avalonia shell: views (compiled XAML), App, Program and ViewLocator are UI wiring. -->
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat code coverage">
+        <Configuration>
+          <Format>cobertura</Format>
+          <Exclude>[GameAnalytics.Desktop]GameAnalytics.Desktop.Views.*,[GameAnalytics.Desktop]GameAnalytics.Desktop.App,[GameAnalytics.Desktop]GameAnalytics.Desktop.Program,[GameAnalytics.Desktop]GameAnalytics.Desktop.ViewLocator</Exclude>
+          <ExcludeByAttribute>Obsolete,GeneratedCodeAttribute,CompilerGeneratedAttribute,ExcludeFromCodeCoverageAttribute</ExcludeByAttribute>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>

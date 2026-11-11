@@ -35,16 +35,52 @@ jobs:
         run: dotnet restore GameAnalytics.sln
 
       - name: Build solution (Release)
-        run: dotnet build GameAnalytics.sln --configuration Release --no-restore
+        shell: bash
+        run: dotnet build GameAnalytics.sln --configuration Release --no-restore 2>&1 | tee build.log; exit ${PIPESTATUS[0]}
+
+      - name: Static analysis report
+        if: runner.os == 'Linux'
+        run: |
+          # Unique analyzer warnings (file, line, rule) from the build; the same warning repeats per target.
+          grep -oE '[^ ]+\.cs\([0-9]+,[0-9]+\): warning [A-Z]+[0-9]+' build.log | sort -u > warnings.txt || true
+          loc=$(find src tests -name '*.cs' -not -path '*/obj/*' -not -path '*/bin/*' -exec cat {} + | wc -l)
+          total=$(wc -l < warnings.txt)
+          {
+            echo "## Static analysis"
+            echo "C# lines: $loc, unique warnings: $total, per 1000 lines: $(awk "BEGIN{printf \"%.2f\", $total*1000/$loc}")"
+            echo
+            echo "| Rule | Count |"
+            echo "|---|---|"
+            grep -oE 'warning [A-Z]+[0-9]+' warnings.txt | awk '{print $2}' | sort | uniq -c | sort -rn | awk '{print "| "$2" | "$1" |"}'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload static analysis
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: static-analysis
+          path: |
+            warnings.txt
+            build.log
 
       - name: Run Unit Tests with Code Coverage
-        run: dotnet test GameAnalytics.sln --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage"
+        run: dotnet test GameAnalytics.sln --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage" --settings coverage.runsettings --results-directory TestResults
+
+      - name: Coverage report
+        if: always() && runner.os == 'Linux'
+        run: |
+          dotnet tool install --global dotnet-reportgenerator-globaltool --version 5.4.4
+          reportgenerator -reports:"TestResults/**/coverage.cobertura.xml" -targetdir:coverage-report -reporttypes:"Html;MarkdownSummaryGithub;TextSummary"
+          cat coverage-report/Summary.txt
+          cat coverage-report/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload Test Coverage Artifacts
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: code-coverage-${{ matrix.os }}
-          path: '**/TestResults/**/coverage.cobertura.xml'
+          path: |
+            TestResults/**/coverage.cobertura.xml
+            coverage-report/
           if-no-files-found: ignore
 

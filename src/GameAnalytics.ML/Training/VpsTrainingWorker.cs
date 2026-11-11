@@ -129,7 +129,7 @@ public class VpsTrainingWorker
                             log($"[VPS ML Trainer] Топ фактори перемоги (Feature Importance): {topFeatures}");
                         }
                     }
-                    log($"[VPS ML Trainer] Модель успішно експортована в директорію models/{_predictionEngine.ActiveAlgorithm.ToString().ToLower()}_model.zip.");
+                    log($"[VPS ML Trainer] Модель успішно експортована в директорію models/{_predictionEngine.ActiveAlgorithm.ToString().ToLowerInvariant()}_model.zip.");
 
                     // Release training graphs ASAP on 1–2GB VPS hosts.
                     ForceGc();

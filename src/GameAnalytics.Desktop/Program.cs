@@ -54,7 +54,7 @@ sealed class Program
             if (e.ExceptionObject is Exception ex)
                 WriteCrashLog(ex);
             else
-                WriteCrashLog(new Exception(e.ExceptionObject?.ToString() ?? "Unknown unhandled exception"));
+                WriteCrashLog(new InvalidOperationException(e.ExceptionObject?.ToString() ?? "Unknown unhandled exception"));
         };
 
         TaskScheduler.UnobservedTaskException += (_, e) =>
