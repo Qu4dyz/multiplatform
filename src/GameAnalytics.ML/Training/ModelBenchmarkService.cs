@@ -21,7 +21,7 @@ public class ModelBenchmarkService
 
         var split = _mlContext.Data.TrainTestSplit(_mlContext.Data.LoadFromEnumerable(data), testFraction: 0.2);
 
-        foreach (MLAlgorithmType algo in Enum.GetValues(typeof(MLAlgorithmType)))
+        foreach (var algo in Enum.GetValues<MLAlgorithmType>())
         {
             var pipeline = BuildPipeline(algo);
             var model = pipeline.Fit(split.TrainSet);

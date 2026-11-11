@@ -330,6 +330,8 @@ public class MatchRepository : IMatchRepository
         var namePrefix = cleanName + "#";
 
         // Prefer exact Riot ID, then same game name with any tag, capped for UI.
+        // CA1310: EF Core translates StartsWith(string) to SQL LIKE; the StringComparison overload is not translatable.
+#pragma warning disable CA1310
         var matches = await _context.Matches
             .Include(m => m.Participants)
             .Include(m => m.Teams)
@@ -340,6 +342,8 @@ public class MatchRepository : IMatchRepository
             .OrderByDescending(m => m.GameCreation)
             .Take(limit)
             .ToListAsync(ct);
+
+#pragma warning restore CA1310
 
         if (matches.Count > 0 || string.IsNullOrEmpty(cleanTag))
             return matches;

@@ -70,7 +70,7 @@ public class MatchPredictionEngine : IPredictionEngine
     {
         lock (_lock)
         {
-            var modelFile = Path.Combine(_modelDirectory, $"{ActiveAlgorithm.ToString().ToLower()}_model.zip");
+            var modelFile = Path.Combine(_modelDirectory, $"{ActiveAlgorithm.ToString().ToLowerInvariant()}_model.zip");
 
             if (File.Exists(modelFile))
             {
@@ -199,7 +199,7 @@ public class MatchPredictionEngine : IPredictionEngine
             var dataView = _mlContext.Data.LoadFromEnumerable(syntheticData);
 
             _model = pipeline.Fit(dataView);
-            var modelFile = Path.Combine(_modelDirectory, $"{ActiveAlgorithm.ToString().ToLower()}_model.zip");
+            var modelFile = Path.Combine(_modelDirectory, $"{ActiveAlgorithm.ToString().ToLowerInvariant()}_model.zip");
             try
             {
                 var trainer = new ModelTrainer();
@@ -762,7 +762,7 @@ public class MatchPredictionEngine : IPredictionEngine
                     }
 
                     var trainer = new ModelTrainer();
-                    var modelFile = Path.Combine(_modelDirectory, $"{ActiveAlgorithm.ToString().ToLower()}_model.zip");
+                    var modelFile = Path.Combine(_modelDirectory, $"{ActiveAlgorithm.ToString().ToLowerInvariant()}_model.zip");
                     var forestFile = Path.Combine(_modelDirectory, "fastforest_model.zip");
                     var highFile = Path.Combine(_modelDirectory, "fasttree_highelo_model.zip");
                     var midFile = Path.Combine(_modelDirectory, "fasttree_midelo_model.zip");
