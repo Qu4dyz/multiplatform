@@ -78,6 +78,7 @@ public class GameAnalyticsDbContext : DbContext
             entity.Property(p => p.SummonerName).HasMaxLength(128);
             entity.Property(p => p.ChampionName).HasMaxLength(64);
             entity.Property(p => p.Puuid).HasMaxLength(128);
+            entity.HasIndex(p => p.Puuid);
         });
 
         modelBuilder.Entity<TeamStats>(entity =>
