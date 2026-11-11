@@ -43,10 +43,20 @@ public class MatchPredictionEngine : IPredictionEngine
     public int? MaxTrainRows { get; set; }
     private int _completedTrainPasses;
 
-    public MatchPredictionEngine()
+    public MatchPredictionEngine() : this(ResolveDefaultModelDirectory())
+    {
+    }
+
+    /// <summary>Engine that loads and saves its zips in <paramref name="modelDirectory"/> (experiments keep production models untouched).</summary>
+    public MatchPredictionEngine(string modelDirectory)
     {
         _mlContext = new MLContext(seed: 42);
-        
+        _modelDirectory = modelDirectory;
+        InitializeModel();
+    }
+
+    private static string ResolveDefaultModelDirectory()
+    {
         var baseDir = AppContext.BaseDirectory;
         var candidateDir = Path.Combine(baseDir, "models");
         if (!Directory.Exists(candidateDir))
@@ -62,8 +72,7 @@ public class MatchPredictionEngine : IPredictionEngine
                 if (Directory.Exists(rootDir)) candidateDir = rootDir;
             }
         }
-        _modelDirectory = candidateDir;
-        InitializeModel();
+        return candidateDir;
     }
 
     private void InitializeModel()
