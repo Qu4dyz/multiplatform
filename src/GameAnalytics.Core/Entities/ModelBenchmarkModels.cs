@@ -50,6 +50,12 @@ public class ModelMetrics
     /// <summary>FastTree weight in the soft ensemble (FastForest = 1 − TreeWeight).</summary>
     public float EnsembleTreeWeight { get; set; } = 0.5f;
 
+    /// <summary>Specialist share when a rank-band model is blended (0.25–0.70).</summary>
+    public float SpecialistBlendWeight { get; set; } = 0.55f;
+
+    /// <summary>Temperature scaling on final ensemble probability (1 = identity).</summary>
+    public float EnsembleTemperature { get; set; } = 1f;
+
     /// <summary>
     /// Leave-one-group-out ablation: accuracy drop when a feature group is zeroed and FastTree is retrained.
     /// Key = group name, Value = baselineAcc − ablatedAcc (positive ⇒ group helps).

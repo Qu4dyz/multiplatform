@@ -128,15 +128,63 @@ public class DataLayerTests
     {
         var limiter = new RiotRateLimiter();
 
-        // Hit rate limit on euw1 for 600ms
         limiter.NotifyRateLimitHit("euw1", TimeSpan.FromMilliseconds(600));
 
-        // Call to europe should complete almost instantaneously (<100ms)
         var sw = System.Diagnostics.Stopwatch.StartNew();
         await limiter.WaitForSlotAsync("europe");
         sw.Stop();
 
         Assert.True(sw.ElapsedMilliseconds < 250, $"europe was blocked unexpectedly: {sw.ElapsedMilliseconds}ms");
+    }
+
+    [Fact]
+    public async Task RiotRateLimiter_FailFast_WhenBlockExceedsMaxWait()
+    {
+        var limiter = new RiotRateLimiter();
+        limiter.NotifyRateLimitHit("europe", TimeSpan.FromSeconds(30));
+
+        var ex = await Assert.ThrowsAsync<GameAnalytics.Core.Exceptions.RiotApiException>(
+            () => limiter.WaitForSlotAsync("europe", TimeSpan.FromSeconds(2)));
+
+        Assert.True(ex.IsRateLimited);
+        Assert.Equal(429, ex.StatusCode);
+    }
+
+    [Fact]
+    public async Task RiotApiClient_GetSummoner_ThrowsOn429WithoutLongSleep()
+    {
+        var handler = new StubHttpHandler(req =>
+        {
+            var resp = new HttpResponseMessage((System.Net.HttpStatusCode)429);
+            resp.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(TimeSpan.FromSeconds(60));
+            return resp;
+        });
+        using var http = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(10) };
+        var options = new RiotApiOptions
+        {
+            ApiKey = "RGAPI-test-key-not-a-real-key-xxxxxx",
+            PlatformRegion = "euw1",
+            RoutingRegion = "europe",
+            UseMockFallback = false,
+            MaxRateLimitBlockSeconds = 5
+        };
+        var client = new GameAnalytics.Infrastructure.Clients.RiotApiClient(http, options, new RiotRateLimiter());
+
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var ex = await Assert.ThrowsAsync<GameAnalytics.Core.Exceptions.RiotApiException>(
+            () => client.GetSummonerByRiotIdAsync("Qu4dyz", "qu4"));
+        sw.Stop();
+
+        Assert.True(ex.IsRateLimited);
+        Assert.True(sw.Elapsed < TimeSpan.FromSeconds(8), $"429 path took too long: {sw.Elapsed}");
+    }
+
+    private sealed class StubHttpHandler : HttpMessageHandler
+    {
+        private readonly Func<HttpRequestMessage, HttpResponseMessage> _responder;
+        public StubHttpHandler(Func<HttpRequestMessage, HttpResponseMessage> responder) => _responder = responder;
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+            => Task.FromResult(_responder(request));
     }
 
     [Fact]
@@ -789,9 +837,9 @@ public class DataLayerTests
 
         // Check pillars
         Assert.NotNull(report.Combat);
-        Assert.Equal("⚔️", report.Combat.Icon);
+        Assert.Equal("CMB", report.Combat.Icon);
         Assert.NotNull(report.Economy);
-        Assert.Equal("🌾", report.Economy.Icon);
+        Assert.Equal("ECO", report.Economy.Icon);
         Assert.True(report.Economy.Score > 70, "7.3 CS/M exceeds 6.8 benchmark");
         Assert.NotNull(report.Objectives);
         Assert.NotNull(report.Survival);
@@ -1051,10 +1099,9 @@ public class DataLayerTests
         Assert.NotEmpty(report.OverallMatchVerdict);
         Assert.NotEmpty(report.KeyTakeaway);
 
-        // Assert 4-5 tactical play-by-play events
-        Assert.True(report.TimelineEvents.Count >= 4);
-        Assert.Contains(report.TimelineEvents, e => e.Minute <= 5); // Early game milestone
-        Assert.Contains(report.TimelineEvents, e => e.Minute >= 15); // Mid/late milestone
+        // No Riot timeline: the play-by-play list must stay empty instead of inventing events
+        Assert.False(report.HasRealTimeline);
+        Assert.Empty(report.TimelineEvents);
 
         // Assert 4 Gap Analysis items
         Assert.True(report.GapAnalysis.Count >= 4);
@@ -1112,6 +1159,44 @@ public class DataLayerTests
         Assert.Equal(0, vm.ActiveDetailTab);
         Assert.True(vm.IsScoreboardTabActive);
         Assert.False(vm.IsTacticalTabActive);
+    }
+
+    [Fact]
+    public void PlayerMatchItemViewModel_GoldCurvePoints_NeverNullForAvaloniaPolyline()
+    {
+        // Avalonia Polyline.CreateDefiningGeometry throws ArgumentNullException on null Points
+        // and kills the desktop process with no dialog — keep collections non-null always.
+        var match = new Match
+        {
+            MatchId = "EUW1_GOLD_CURVE",
+            GameDurationSeconds = 1800,
+            QueueId = 420,
+            Participants = new List<Participant>
+            {
+                new()
+                {
+                    Puuid = "gold-puuid",
+                    SummonerName = "Qu4dyz#qu4",
+                    ChampionName = "Ahri",
+                    Position = Position.Middle,
+                    TeamSide = TeamSide.Blue,
+                    Kills = 5,
+                    Deaths = 2,
+                    Assists = 7
+                }
+            }
+        };
+
+        var vm = PlayerMatchItemViewModel.FromMatch(match, "gold-puuid");
+        Assert.NotNull(vm.GoldDiffChartPoints);
+        Assert.NotNull(vm.PlayerGoldChartPoints);
+        Assert.False(vm.HasGoldCurve);
+
+        var fresh = new PlayerMatchItemViewModel();
+        Assert.NotNull(fresh.GoldDiffChartPoints);
+        Assert.NotNull(fresh.PlayerGoldChartPoints);
+        Assert.Empty(fresh.GoldDiffChartPoints);
+        Assert.Empty(fresh.PlayerGoldChartPoints);
     }
 
     [Fact]
@@ -1279,6 +1364,7 @@ public class DataLayerTests
         var report = MatchTacticalAnalyzer.AnalyzeMatchTactics(match, player, timeline, GameTier.Diamond);
 
         Assert.NotNull(report);
+        Assert.True(report.HasRealTimeline);
         Assert.Equal(3, report.TimelineEvents.Count);
         Assert.Contains("Вбивство Wukong", report.TimelineEvents[0].Title);
         Assert.Equal("05:30", report.TimelineEvents[0].TimestampText);
@@ -1328,6 +1414,9 @@ public class DataLayerTests
                 MatchId = "EUW1_1",
                 GameDurationSeconds = 1500,
                 WinningTeam = TeamSide.Blue,
+                HasMinute15Objectives = true,
+                HasCsXp10Features = true,
+                HasVisionDeathFeatures = true,
                 Teams = new List<TeamStats>
                 {
                     new TeamStats { TeamSide = TeamSide.Blue, GoldAt15 = 26000, KillsAt15 = 10, CsAt15 = 240, XpAt15 = 18000, VoidgrubKills = 5, RiftHeraldKills = 1, FirstBlood = true, FirstTower = true, FirstDragon = true, TowersAt15 = 2, DragonsAt15 = 1, TowerKills = 7, DragonKills = 3 },
@@ -1353,8 +1442,10 @@ public class DataLayerTests
         // Must use at-15 towers/dragons, never end-of-game 7-2 / 3-1.
         Assert.Equal(2f, features[0].TowerDiff);
         Assert.Equal(1f, features[0].DragonDiff);
-        Assert.True(features[0].AvgRankScore > 0);
-        Assert.Equal(features[0].GoldDiff15 * (features[0].AvgRankScore / 5.5f), features[0].RankAdjustedGoldDiff, 2);
+        // Unknown ApproxRankScore stays 0 (never imputed into MidElo band).
+        Assert.Equal(0f, features[0].AvgRankScore);
+        Assert.Equal(0f, features[0].HasKnownRank);
+        Assert.Equal(features[0].GoldDiff15, features[0].RankAdjustedGoldDiff, 2);
     }
 
     [Fact]
@@ -1369,6 +1460,9 @@ public class DataLayerTests
                 GameDurationSeconds = 1600,
                 WinningTeam = TeamSide.Blue,
                 ApproxRankScore = 8f,
+                HasMinute15Objectives = true,
+                HasCsXp10Features = true,
+                HasVisionDeathFeatures = true,
                 Teams =
                 {
                     new TeamStats { TeamSide = TeamSide.Blue, GoldAt15 = 27000, KillsAt15 = 9, CsAt15 = 230, XpAt15 = 17500, TowersAt15 = 1, DragonsAt15 = 1 },
@@ -1393,6 +1487,7 @@ public class DataLayerTests
         var features = GameAnalytics.ML.Training.RealMatchDatasetCollector.ExtractFeaturesFromMatches(matches);
         Assert.Equal(12, features.Count);
         Assert.Equal(8f, features[0].AvgRankScore);
+        Assert.Equal(1f, features[0].HasKnownRank);
         // First match has no past history → neutral WR; later matches see rolling blue-favoring WR.
         Assert.Equal(50f, features[0].BlueAvgWinRate);
         Assert.Equal(50f, features[0].RedAvgWinRate);
@@ -1436,6 +1531,9 @@ public class DataLayerTests
                 MatchId = "EUW1_LEAK",
                 GameDurationSeconds = 2000,
                 WinningTeam = TeamSide.Red,
+                HasMinute15Objectives = true,
+                HasCsXp10Features = true,
+                HasVisionDeathFeatures = true,
                 Teams = new List<TeamStats>
                 {
                     // Blue slightly ahead at 15', but crushed end-game scoreboard — must not leak.

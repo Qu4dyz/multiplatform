@@ -204,5 +204,15 @@ public class MatchInputFeatures
     public float VisionWardDiff15 { get; set; }
     /// <summary>Blue − Red control wards placed by 15'.</summary>
     public float ControlWardDiff15 { get; set; }
+
+    /// <summary>1 when early-window challenges are available for this prediction.</summary>
+    public float HasEarlyChallenges { get; set; }
+    public float ChallengeJungleCs10Diff { get; set; }
+    public float ChallengeLaneCs10Diff { get; set; }
+    public float EarlyTakedownDiff { get; set; }
+    /// <summary>(Blue − Red) dragons@15 / 4 — soul race, not end-game soul.</summary>
+    public float DragonSoulRace { get; set; }
+    public float SideObjectiveLead { get; set; }
+    public float BotDuoMatchupDiff { get; set; }
 }
 

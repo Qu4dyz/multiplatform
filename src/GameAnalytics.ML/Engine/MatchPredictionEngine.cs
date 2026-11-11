@@ -22,7 +22,11 @@ public class MatchPredictionEngine : IPredictionEngine
     private PredictionEngine<MatchInputData, MatchPrediction>? _highEloEngine;
     private PredictionEngine<MatchInputData, MatchPrediction>? _midEloEngine;
     private PredictionEngine<MatchInputData, MatchPrediction>? _lowEloEngine;
+    private PredictionEngine<MatchInputData, MatchPrediction>? _m25Engine;
+    private PredictionEngine<MatchInputData, MatchPrediction>? _m35Engine;
     private float _ensembleTreeWeight = 0.55f;
+    private float _specialistBlendWeight = ModelBenchmarkService.SpecialistBlendDefault;
+    private float _ensembleTemperature = 1f;
     private readonly Dictionary<string, double> _ablationEma = new(StringComparer.Ordinal);
     private readonly object _lock = new();
 
@@ -33,6 +37,10 @@ public class MatchPredictionEngine : IPredictionEngine
     public DateTime? LastTrainedAt { get; private set; }
     /// <summary>Run leave-one-group ablation every N train passes (1 = every time). Higher = lighter VPS load.</summary>
     public int AblationIntervalEpochs { get; set; } = 1;
+    /// <summary>Retrain elo specialists every N train passes (1 = every time). Reuses prior zips when skipped.</summary>
+    public int SpecialistIntervalEpochs { get; set; } = 1;
+    /// <summary>Optional newest-N cap for early train rows (null = no cap). 2GB VPS sets ~20k.</summary>
+    public int? MaxTrainRows { get; set; }
     private int _completedTrainPasses;
 
     public MatchPredictionEngine()
@@ -99,6 +107,9 @@ public class MatchPredictionEngine : IPredictionEngine
                         _lowEloEngine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(_lowEloModel);
                     }
 
+                    TryLoadHorizonEngine(PredictionHorizons.Mid, out _m25Engine);
+                    TryLoadHorizonEngine(PredictionHorizons.Late, out _m35Engine);
+
                     IsTrainedOnRealData = true;
                     return;
                 }
@@ -127,6 +138,39 @@ public class MatchPredictionEngine : IPredictionEngine
             }
 
             _predictionEngine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(_model);
+        }
+    }
+
+    private bool TryLoadHorizonEngine(int minute, out PredictionEngine<MatchInputData, MatchPrediction>? engine)
+    {
+        engine = null;
+        if (minute is not (PredictionHorizons.Mid or PredictionHorizons.Late)) return false;
+        var path = Path.Combine(_modelDirectory, PredictionHorizons.ModelFileName(minute));
+        if (!File.Exists(path)) return false;
+        try
+        {
+            var model = _mlContext.Model.Load(path, out _);
+            engine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(model);
+            return true;
+        }
+        catch
+        {
+            engine = null;
+            return false;
+        }
+    }
+
+    public bool HasHorizonModel(int predictionMinute)
+    {
+        lock (_lock)
+        {
+            return predictionMinute switch
+            {
+                PredictionHorizons.Early => _predictionEngine != null,
+                PredictionHorizons.Mid => _m25Engine != null,
+                PredictionHorizons.Late => _m35Engine != null,
+                _ => false
+            };
         }
     }
 
@@ -186,6 +230,9 @@ public class MatchPredictionEngine : IPredictionEngine
     }
 
     public PredictionResult PredictMatchOutcome(MatchInputFeatures features)
+        => PredictMatchOutcome(features, PredictionHorizons.Early);
+
+    public PredictionResult PredictMatchOutcome(MatchInputFeatures features, int predictionMinute)
     {
         lock (_lock)
         {
@@ -215,7 +262,9 @@ public class MatchPredictionEngine : IPredictionEngine
                 LatePowerDiff = features.LatePowerDiff != 0
                     ? features.LatePowerDiff
                     : (float)features.BlueScalingAdvantage,
-                AvgRankScore = features.AvgRankScore > 0 ? features.AvgRankScore : 5.5f,
+                // Keep unknown as 0 so rank specialists do not fire on imputed mid-elo.
+                AvgRankScore = features.AvgRankScore > 0 ? features.AvgRankScore : 0f,
+                HasKnownRank = features.AvgRankScore > 0 ? 1f : 0f,
                 GoldPace15 = (Math.Abs(features.GoldDiffAt15) + 48000) / 1000f,
                 TopGoldDiff15 = features.TopGoldDiff15,
                 JungleGoldDiff15 = features.JungleGoldDiff15,
@@ -230,7 +279,7 @@ public class MatchPredictionEngine : IPredictionEngine
                     features.VoidgrubDiff * 0.35f +
                     features.HeraldDiff,
                 RankAdjustedGoldDiff = features.GoldDiffAt15 *
-                    ((features.AvgRankScore > 0 ? features.AvgRankScore : 5.5f) / 5.5f),
+                    ((features.AvgRankScore > 0 ? features.AvgRankScore : RankScoreHelper.DefaultMixedLobby) / RankScoreHelper.DefaultMixedLobby),
                 GoldDiff10 = features.GoldDiff10 != 0
                     ? features.GoldDiff10
                     : features.GoldDiffAt15 * 0.65f,
@@ -266,8 +315,54 @@ public class MatchPredictionEngine : IPredictionEngine
                     : features.CsDiffAt15 * 0.65f,
                 XpDiff10 = features.XpDiff10 != 0
                     ? features.XpDiff10
-                    : features.XpDiffAt15 * 0.65f
+                    : features.XpDiffAt15 * 0.65f,
+                HasEarlyChallenges = features.HasEarlyChallenges,
+                ChallengeJungleCs10Diff = features.ChallengeJungleCs10Diff,
+                ChallengeLaneCs10Diff = features.ChallengeLaneCs10Diff,
+                EarlyTakedownDiff = features.EarlyTakedownDiff,
+                DragonSoulRace = features.DragonSoulRace != 0
+                    ? features.DragonSoulRace
+                    : (features.BlueDragonCount - features.RedDragonCount) / 4f,
+                SideObjectiveLead = features.SideObjectiveLead != 0
+                    ? features.SideObjectiveLead
+                    : EarlyChallengeFeatureHelper.SideObjectiveLead(
+                        features.BlueFirstBlood, features.BlueFirstTower, features.BlueFirstDragon),
+                BotDuoMatchupDiff = features.BotDuoMatchupDiff
             };
+
+            // Lab mid/late: dedicated FastTree only (no forest/specialists) when zip is present.
+            if (predictionMinute is PredictionHorizons.Mid or PredictionHorizons.Late)
+            {
+                var horizonEngine = predictionMinute == PredictionHorizons.Mid ? _m25Engine : _m35Engine;
+                float labProb;
+                var labFactors = new List<string> { $"Lab horizon {predictionMinute}' (add-on, not production 15')" };
+                if (horizonEngine != null)
+                {
+                    labProb = Math.Clamp(horizonEngine.Predict(input).Probability, 0.05f, 0.95f);
+                }
+                else
+                {
+                    labProb = Math.Clamp(_predictionEngine!.Predict(input).Probability, 0.05f, 0.95f);
+                    labFactors.Insert(0, $"Lab {predictionMinute}' model missing — placeholder via production FastTree.");
+                }
+
+                if (Math.Abs(features.GoldDiffAt15) >= 1500)
+                {
+                    labFactors.Add(features.GoldDiffAt15 > 0
+                        ? $"Gold @{predictionMinute}': +{features.GoldDiffAt15:N0} blue"
+                        : $"Gold @{predictionMinute}': {features.GoldDiffAt15:N0} (red lead)");
+                }
+
+                return new PredictionResult
+                {
+                    BlueWinProbability = labProb,
+                    RedWinProbability = 1.0f - labProb,
+                    PredictedWinner = labProb >= 0.5f ? TeamSide.Blue : TeamSide.Red,
+                    ConfidenceScore = Math.Abs(labProb - 0.5f) * 2.0,
+                    KeyFactors = labFactors,
+                    Timestamp = DateTime.UtcNow
+                };
+            }
 
             var prediction = _predictionEngine!.Predict(input);
             var blueProb = Math.Clamp(prediction.Probability, 0.05f, 0.95f);
@@ -276,32 +371,41 @@ public class MatchPredictionEngine : IPredictionEngine
             if (_ensembleForestEngine != null)
             {
                 var forestProb = Math.Clamp(_ensembleForestEngine.Predict(input).Probability, 0.05f, 0.95f);
-                var tw = Math.Clamp(_ensembleTreeWeight, 0.25f, 0.75f);
+                var tw = Math.Clamp(_ensembleTreeWeight, ModelBenchmarkService.TreeWeightMin, ModelBenchmarkService.TreeWeightMax);
                 blueProb = Math.Clamp(blueProb * tw + forestProb * (1f - tw), 0.05f, 0.95f);
             }
+
+            var specW = Math.Clamp(_specialistBlendWeight, ModelBenchmarkService.SpecialistBlendMin, ModelBenchmarkService.SpecialistBlendMax);
+            var baseW = 1f - specW;
 
             // Diamond+ lobbies: blend in the high-elo specialist (ranks convert leads differently).
             if (_highEloEngine != null && input.AvgRankScore >= ModelBenchmarkService.HighEloRankThreshold)
             {
                 var highProb = Math.Clamp(_highEloEngine.Predict(input).Probability, 0.05f, 0.95f);
-                blueProb = Math.Clamp(blueProb * 0.40f + highProb * 0.60f, 0.05f, 0.95f);
+                blueProb = Math.Clamp(blueProb * baseW + highProb * specW, 0.05f, 0.95f);
             }
-            // Gold–Emerald: mid-elo specialist — different snowball / throw rates than high or low.
+            // Gold–Emerald: mid-elo specialist — only when rank is known (never imputed).
             else if (_midEloEngine != null
+                     && input.HasKnownRank > 0.5f
                      && input.AvgRankScore >= ModelBenchmarkService.MidEloRankMin
                      && input.AvgRankScore < ModelBenchmarkService.MidEloRankMax)
             {
                 var midProb = Math.Clamp(_midEloEngine.Predict(input).Probability, 0.05f, 0.95f);
-                blueProb = Math.Clamp(blueProb * 0.45f + midProb * 0.55f, 0.05f, 0.95f);
+                blueProb = Math.Clamp(blueProb * baseW + midProb * specW, 0.05f, 0.95f);
             }
             // Iron–Silver: low-elo specialist — leads throw more often, variance is higher.
             else if (_lowEloEngine != null
+                     && input.HasKnownRank > 0.5f
                      && input.AvgRankScore > 0
                      && input.AvgRankScore < ModelBenchmarkService.LowEloRankMax)
             {
                 var lowProb = Math.Clamp(_lowEloEngine.Predict(input).Probability, 0.05f, 0.95f);
-                blueProb = Math.Clamp(blueProb * 0.45f + lowProb * 0.55f, 0.05f, 0.95f);
+                blueProb = Math.Clamp(blueProb * baseW + lowProb * specW, 0.05f, 0.95f);
             }
+
+            blueProb = Math.Clamp(
+                ModelBenchmarkService.ApplyTemperature(blueProb, _ensembleTemperature),
+                0.05f, 0.95f);
 
             var redProb = 1.0f - blueProb;
             var predictedWinner = blueProb >= 0.5f ? TeamSide.Blue : TeamSide.Red;
@@ -445,7 +549,9 @@ public class MatchPredictionEngine : IPredictionEngine
                 .ThenBy(m => m.MatchId, StringComparer.Ordinal)
                 .ToList();
 
-            var matchDataList = RealMatchDatasetCollector.ExtractFeaturesFromMatches(orderedMatches);
+            // Optional newest-N cap (2GB VPS) — same ExtractFeatures maxRows path as lab horizons.
+            var matchDataList = RealMatchDatasetCollector.ExtractFeaturesFromMatches(
+                orderedMatches, PredictionHorizons.Early, timelineLookup: null, maxRows: MaxTrainRows);
 
             if (matchDataList.Count >= 10)
             {
@@ -477,44 +583,107 @@ public class MatchPredictionEngine : IPredictionEngine
                         _ensembleTreeWeight = ModelBenchmarkService.OptimizeEnsembleTreeWeight(
                             treeEngine, forestEngine, calSet, previousWeight: _ensembleTreeWeight);
 
+                        // Decide specialist refresh before holdout fits (pass counter bumps with ablation below).
+                        var nextPass = _completedTrainPasses + 1;
+                        var runSpecialists = SpecialistIntervalEpochs <= 1
+                            || nextPass == 1
+                            || (nextPass % SpecialistIntervalEpochs == 0);
+
                         PredictionEngine<MatchInputData, MatchPrediction>? highEloEngine = null;
-                        var highTrain = trainSet
-                            .Where(r => r.AvgRankScore >= ModelBenchmarkService.HighEloRankThreshold)
-                            .ToList();
-                        if (highTrain.Count >= 180)
-                        {
-                            var highView = _mlContext.Data.LoadFromEnumerable(highTrain);
-                            var highModel = treePipeline.Fit(highView);
-                            highEloEngine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(highModel);
-                        }
-
                         PredictionEngine<MatchInputData, MatchPrediction>? midEloEngine = null;
-                        var midTrain = trainSet
-                            .Where(r => r.AvgRankScore >= ModelBenchmarkService.MidEloRankMin
-                                        && r.AvgRankScore < ModelBenchmarkService.MidEloRankMax)
-                            .ToList();
-                        if (midTrain.Count >= 220)
+                        PredictionEngine<MatchInputData, MatchPrediction>? lowEloEngine = null;
+
+                        if (runSpecialists)
                         {
-                            var midView = _mlContext.Data.LoadFromEnumerable(midTrain);
-                            var midModel = treePipeline.Fit(midView);
-                            midEloEngine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(midModel);
+                            var highTrain = trainSet
+                                .Where(r => r.HasKnownRank > 0.5f
+                                            && r.AvgRankScore >= ModelBenchmarkService.HighEloRankThreshold)
+                                .ToList();
+                            if (highTrain.Count >= 180)
+                            {
+                                var highView = _mlContext.Data.LoadFromEnumerable(highTrain);
+                                var highModel = treePipeline.Fit(highView);
+                                highEloEngine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(highModel);
+                            }
+
+                            var midTrain = trainSet
+                                .Where(r => r.HasKnownRank > 0.5f
+                                            && r.AvgRankScore >= ModelBenchmarkService.MidEloRankMin
+                                            && r.AvgRankScore < ModelBenchmarkService.MidEloRankMax)
+                                .ToList();
+                            if (midTrain.Count >= 220)
+                            {
+                                var midView = _mlContext.Data.LoadFromEnumerable(midTrain);
+                                var midModel = treePipeline.Fit(midView);
+                                midEloEngine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(midModel);
+                            }
+
+                            var lowTrain = trainSet
+                                .Where(r => r.HasKnownRank > 0.5f
+                                            && r.AvgRankScore > 0
+                                            && r.AvgRankScore < ModelBenchmarkService.LowEloRankMax)
+                                .ToList();
+                            if (lowTrain.Count >= 180)
+                            {
+                                var lowView = _mlContext.Data.LoadFromEnumerable(lowTrain);
+                                var lowModel = treePipeline.Fit(lowView);
+                                lowEloEngine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(lowModel);
+                            }
+                        }
+                        else
+                        {
+                            // Keep prior specialist engines for metrics / blend; skip 3× FastTree fits.
+                            highEloEngine = _highEloEngine;
+                            midEloEngine = _midEloEngine;
+                            lowEloEngine = _lowEloEngine;
                         }
 
-                        PredictionEngine<MatchInputData, MatchPrediction>? lowEloEngine = null;
-                        var lowTrain = trainSet
-                            .Where(r => r.AvgRankScore > 0
-                                        && r.AvgRankScore < ModelBenchmarkService.LowEloRankMax)
-                            .ToList();
-                        if (lowTrain.Count >= 180)
+                        _specialistBlendWeight = ModelBenchmarkService.OptimizeSpecialistBlendWeight(
+                            treeEngine, forestEngine, highEloEngine, midEloEngine, lowEloEngine,
+                            calSet, _ensembleTreeWeight, previousBlend: _specialistBlendWeight);
+
+                        // Fit temperature on calibration probs AFTER tree/forest + specialist blend.
+                        var calProbs = new List<(bool Label, float Prob)>(calSet.Count);
+                        var calSpecW = Math.Clamp(_specialistBlendWeight, ModelBenchmarkService.SpecialistBlendMin, ModelBenchmarkService.SpecialistBlendMax);
+                        var calBaseW = 1f - calSpecW;
+                        var calTw = Math.Clamp(_ensembleTreeWeight, ModelBenchmarkService.TreeWeightMin, ModelBenchmarkService.TreeWeightMax);
+                        var calFw = 1f - calTw;
+                        foreach (var row in calSet)
                         {
-                            var lowView = _mlContext.Data.LoadFromEnumerable(lowTrain);
-                            var lowModel = treePipeline.Fit(lowView);
-                            lowEloEngine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(lowModel);
+                            var p = Math.Clamp(treeEngine.Predict(row).Probability, 0.01f, 0.99f) * calTw
+                                    + Math.Clamp(forestEngine.Predict(row).Probability, 0.01f, 0.99f) * calFw;
+                            if (highEloEngine != null && row.AvgRankScore >= ModelBenchmarkService.HighEloRankThreshold)
+                            {
+                                var ph = Math.Clamp(highEloEngine.Predict(row).Probability, 0.01f, 0.99f);
+                                p = p * calBaseW + ph * calSpecW;
+                            }
+                            else if (midEloEngine != null
+                                     && row.HasKnownRank > 0.5f
+                                     && row.AvgRankScore >= ModelBenchmarkService.MidEloRankMin
+                                     && row.AvgRankScore < ModelBenchmarkService.MidEloRankMax)
+                            {
+                                var pm = Math.Clamp(midEloEngine.Predict(row).Probability, 0.01f, 0.99f);
+                                p = p * calBaseW + pm * calSpecW;
+                            }
+                            else if (lowEloEngine != null
+                                     && row.HasKnownRank > 0.5f
+                                     && row.AvgRankScore > 0
+                                     && row.AvgRankScore < ModelBenchmarkService.LowEloRankMax)
+                            {
+                                var pl = Math.Clamp(lowEloEngine.Predict(row).Probability, 0.01f, 0.99f);
+                                p = p * calBaseW + pl * calSpecW;
+                            }
+
+                            calProbs.Add((row.Label, p));
                         }
+
+                        _ensembleTemperature = ModelBenchmarkService.OptimizeTemperature(
+                            calProbs, previousTemperature: _ensembleTemperature);
 
                         CurrentModelMetrics = ModelBenchmarkService.EvaluateSoftEnsemble(
                             _mlContext, treeEngine, forestEngine, testSet,
-                            highEloEngine, midEloEngine, lowEloEngine, _ensembleTreeWeight);
+                            highEloEngine, midEloEngine, lowEloEngine,
+                            _ensembleTreeWeight, _specialistBlendWeight, _ensembleTemperature);
 
                         _completedTrainPasses++;
                         var runAblation = AblationIntervalEpochs <= 1
@@ -553,28 +722,35 @@ public class MatchPredictionEngine : IPredictionEngine
                         _model = treePipeline.Fit(dataView);
                         _ensembleForestModel = forestPipeline.Fit(dataView);
 
-                        var highFull = matchDataList
-                            .Where(r => r.AvgRankScore >= ModelBenchmarkService.HighEloRankThreshold)
-                            .ToList();
-                        _highEloModel = highFull.Count >= 180
-                            ? treePipeline.Fit(_mlContext.Data.LoadFromEnumerable(highFull))
-                            : null;
+                        if (runSpecialists)
+                        {
+                            var highFull = matchDataList
+                                .Where(r => r.HasKnownRank > 0.5f
+                                            && r.AvgRankScore >= ModelBenchmarkService.HighEloRankThreshold)
+                                .ToList();
+                            _highEloModel = highFull.Count >= 180
+                                ? treePipeline.Fit(_mlContext.Data.LoadFromEnumerable(highFull))
+                                : null;
 
-                        var midFull = matchDataList
-                            .Where(r => r.AvgRankScore >= ModelBenchmarkService.MidEloRankMin
-                                        && r.AvgRankScore < ModelBenchmarkService.MidEloRankMax)
-                            .ToList();
-                        _midEloModel = midFull.Count >= 220
-                            ? treePipeline.Fit(_mlContext.Data.LoadFromEnumerable(midFull))
-                            : null;
+                            var midFull = matchDataList
+                                .Where(r => r.HasKnownRank > 0.5f
+                                            && r.AvgRankScore >= ModelBenchmarkService.MidEloRankMin
+                                            && r.AvgRankScore < ModelBenchmarkService.MidEloRankMax)
+                                .ToList();
+                            _midEloModel = midFull.Count >= 220
+                                ? treePipeline.Fit(_mlContext.Data.LoadFromEnumerable(midFull))
+                                : null;
 
-                        var lowFull = matchDataList
-                            .Where(r => r.AvgRankScore > 0
-                                        && r.AvgRankScore < ModelBenchmarkService.LowEloRankMax)
-                            .ToList();
-                        _lowEloModel = lowFull.Count >= 180
-                            ? treePipeline.Fit(_mlContext.Data.LoadFromEnumerable(lowFull))
-                            : null;
+                            var lowFull = matchDataList
+                                .Where(r => r.HasKnownRank > 0.5f
+                                            && r.AvgRankScore > 0
+                                            && r.AvgRankScore < ModelBenchmarkService.LowEloRankMax)
+                                .ToList();
+                            _lowEloModel = lowFull.Count >= 180
+                                ? treePipeline.Fit(_mlContext.Data.LoadFromEnumerable(lowFull))
+                                : null;
+                        }
+                        // else: keep prior _high/_mid/_low elo models + zips (lighter 2GB path).
                     }
                     else
                     {
@@ -626,6 +802,53 @@ public class MatchPredictionEngine : IPredictionEngine
                     LastTrainedAt = DateTime.UtcNow;
                 }
             }
+        }, ct);
+    }
+
+    /// <summary>
+    /// Lab mid/late FastTree-only train. Reuses MatchInputData schema (*15 columns = at-horizon).
+    /// No elo specialists / ablation — keeps 2GB VPS RAM in check. Call less often than early train.
+    /// Caller should pass a pre-slimmed newest-eligible pool; default cap is 5k (was 12k).
+    /// </summary>
+    public Task TrainHorizonModelAsync(
+        IEnumerable<Match> historicalMatches,
+        int predictionMinute,
+        Func<string, MatchTimelineData?> timelineLookup,
+        int? maxRows = 5_000,
+        CancellationToken ct = default)
+    {
+        if (predictionMinute is not (PredictionHorizons.Mid or PredictionHorizons.Late))
+            return Task.CompletedTask;
+
+        return Task.Run(() =>
+        {
+            // Prefer the caller's list as-is when already materialized — avoid a full extra copy of 50k matches.
+            IList<Match> source = historicalMatches as IList<Match> ?? historicalMatches.ToList();
+
+            var matchDataList = RealMatchDatasetCollector.ExtractFeaturesFromMatches(
+                source, predictionMinute, timelineLookup, maxRows);
+
+            if (matchDataList.Count < 10) return;
+
+            lock (_lock)
+            {
+                Directory.CreateDirectory(_modelDirectory);
+                var dataView = _mlContext.Data.LoadFromEnumerable(matchDataList);
+                var benchmark = new ModelBenchmarkService();
+                var treePipeline = benchmark.BuildPipeline(MLAlgorithmType.FastTree);
+                var model = treePipeline.Fit(dataView);
+                var engine = _mlContext.Model.CreatePredictionEngine<MatchInputData, MatchPrediction>(model);
+                var path = Path.Combine(_modelDirectory, PredictionHorizons.ModelFileName(predictionMinute));
+                new ModelTrainer().SaveModel(model, dataView.Schema, path);
+
+                if (predictionMinute == PredictionHorizons.Mid)
+                    _m25Engine = engine;
+                else
+                    _m35Engine = engine;
+            }
+
+            // Drop feature rows ASAP; engines keep only the fitted model.
+            matchDataList.Clear();
         }, ct);
     }
 }

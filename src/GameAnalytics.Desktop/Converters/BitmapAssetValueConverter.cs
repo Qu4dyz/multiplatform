@@ -131,28 +131,99 @@ public class BitmapAssetValueConverter : IValueConverter
             catch { }
         }
 
-        // Asynchronously load and notify UI thread
-        _ = Task.Run(async () =>
+        var download = StartDownload(url);
+        if (onLoaded != null)
+        {
+            // Every caller gets the bitmap, not only the first one: lists that are rebuilt while the
+            // download runs (top champions, match cards) used to keep a blank image forever.
+            _ = download.ContinueWith(t =>
+            {
+                if (t.Status == TaskStatus.RanToCompletion && t.Result is { } bmp)
+                    Dispatcher.UIThread.Post(() => onLoaded(bmp));
+            }, TaskScheduler.Default);
+        }
+
+        return null;
+    }
+
+    private static readonly ConcurrentDictionary<string, Task<Bitmap?>> InFlight = new();
+    private static readonly ConcurrentDictionary<string, DateTime> FailedUntil = new();
+    private static readonly TimeSpan FailureBackoff = TimeSpan.FromSeconds(30);
+
+    /// <summary>One shared download per URL; a failed URL may be retried after a short back-off.</summary>
+    private static Task<Bitmap?> StartDownload(string url)
+    {
+        if (FailedUntil.TryGetValue(url, out var until) && until > DateTime.UtcNow)
+            return Task.FromResult<Bitmap?>(null);
+
+        return InFlight.GetOrAdd(url, u => Task.Run(async () =>
         {
             try
             {
-                var bytes = await HttpClient.GetByteArrayAsync(url);
-                await File.WriteAllBytesAsync(localPath, bytes);
-                using var memStream = new MemoryStream(bytes);
-                var bmp = new Bitmap(memStream);
-                Cache[url] = bmp;
-                if (onLoaded != null)
+                var bmp = await DownloadWithFallbackAsync(u);
+                if (bmp != null)
                 {
-                    Dispatcher.UIThread.Post(() => onLoaded(bmp));
+                    Cache[u] = bmp;
+                    FailedUntil.TryRemove(u, out _);
+                }
+                else
+                {
+                    FailedUntil[u] = DateTime.UtcNow + FailureBackoff;
+                }
+                return bmp;
+            }
+            finally
+            {
+                InFlight.TryRemove(u, out _);
+            }
+        }));
+    }
+
+    private static async Task<Bitmap?> DownloadWithFallbackAsync(string url)
+    {
+        foreach (var candidate in CandidateUrls(url))
+        {
+            for (var attempt = 0; attempt < 2; attempt++)
+            {
+                try
+                {
+                    using var response = await HttpClient.GetAsync(candidate);
+                    if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                        break; // wrong key or patch: try the next candidate instead of retrying
+
+                    response.EnsureSuccessStatusCode();
+                    var bytes = await response.Content.ReadAsByteArrayAsync();
+                    using var memStream = new MemoryStream(bytes);
+                    var bmp = new Bitmap(memStream);
+                    try { await File.WriteAllBytesAsync(GetLocalPathForUrl(url), bytes); } catch { }
+                    return bmp;
+                }
+                catch
+                {
+                    // transient network error: one more try, then the next candidate
                 }
             }
-            catch
-            {
-                // Silently ignore failed network requests
-            }
-        });
+        }
 
         return null;
+    }
+
+    /// <summary>
+    /// Data Dragon first; champion portraits fall back to CommunityDragon, which also accepts
+    /// aliases and serves champions a fresh Data Dragon patch may not list yet.
+    /// </summary>
+    internal static IEnumerable<string> CandidateUrls(string url)
+    {
+        yield return url;
+
+        const string marker = "/img/champion/";
+        var idx = url.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+        if (idx >= 0 && url.Contains("ddragon.leagueoflegends.com", StringComparison.OrdinalIgnoreCase))
+        {
+            var key = Path.GetFileNameWithoutExtension(url[(idx + marker.Length)..]);
+            if (!string.IsNullOrWhiteSpace(key))
+                yield return $"https://cdn.communitydragon.org/latest/champion/{key}/square";
+        }
     }
 
     public static async Task PreloadImagesAsync(IEnumerable<string> urls)
@@ -161,7 +232,7 @@ public class BitmapAssetValueConverter : IValueConverter
 
         var tasks = distinctUrls.Select(async url =>
         {
-            if (Cache.ContainsKey(url) && Cache[url] != null) return;
+            if (Cache.TryGetValue(url, out var known) && known != null) return;
 
             if (url == GameConstants.SummonersRiftMinimapAsset || url.StartsWith("avares://", StringComparison.OrdinalIgnoreCase))
             {
@@ -191,10 +262,7 @@ public class BitmapAssetValueConverter : IValueConverter
                     catch { }
                 }
 
-                var bytes = await HttpClient.GetByteArrayAsync(url);
-                await File.WriteAllBytesAsync(localPath, bytes);
-                using var memStream = new MemoryStream(bytes);
-                Cache[url] = new Bitmap(memStream);
+                await StartDownload(url);
             }
             catch
             {
@@ -249,22 +317,8 @@ public class BitmapAssetValueConverter : IValueConverter
             }
         }
 
-        // Download in background — binding will not auto-refresh; callers should preload first.
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                var bytes = await HttpClient.GetByteArrayAsync(url);
-                await File.WriteAllBytesAsync(localPath, bytes);
-                using var stream = new MemoryStream(bytes);
-                var bitmap = new Bitmap(stream);
-                Cache[url] = bitmap;
-            }
-            catch
-            {
-                // Ignore download errors (e.g. offline)
-            }
-        });
+        // Download in background. A converter binding will not re-run; views use RemoteImage.Url for live refresh.
+        _ = StartDownload(url);
 
         return null;
     }

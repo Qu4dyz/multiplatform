@@ -1,11 +1,12 @@
 using GameAnalytics.Core.Enums;
+using GameAnalytics.Core.Helpers;
 
 namespace GameAnalytics.Core.Entities;
 
 public class SkillPillarScore
 {
     public string PillarName { get; set; } = string.Empty;
-    public string Icon { get; set; } = "⚔️";
+    public string Icon { get; set; } = "CMB";
     public int Score { get; set; } = 50;
     public string Grade { get; set; } = "B";
     public string GradeColor { get; set; } = "#5383E8";
@@ -14,6 +15,8 @@ public class SkillPillarScore
     public string DiffText { get; set; } = string.Empty;
     public string DiffColor { get; set; } = "#0AC8B9";
     public string Description { get; set; } = string.Empty;
+    /// <summary>False when the source data for this pillar is missing; the pillar is then left out of the overall score and advice.</summary>
+    public bool HasData { get; set; } = true;
 }
 
 public class RoleBenchmark
@@ -27,6 +30,8 @@ public class RoleBenchmark
     /// <summary>Vision score per minute (Support highest, ADC lowest).</summary>
     public double TargetVisionScorePerMin { get; set; }
     public double TargetControlWardsPerGame { get; set; }
+    /// <summary>Measured distribution behind the targets; null when the hand-tuned fallback table is used.</summary>
+    public RoleTierBaseline? Baseline { get; set; }
 
     public static RoleBenchmark GetBenchmark(Position position, GameTier tier)
     {
@@ -43,6 +48,24 @@ public class RoleBenchmark
             GameTier.Bronze or GameTier.Iron => 0.75,
             _ => 1.00
         };
+
+        // Prefer medians measured on real ranked games of this role and rank.
+        var measured = RoleBaselines.Get(position, tier);
+        if (measured != null)
+        {
+            return new RoleBenchmark
+            {
+                Position = position,
+                TargetCsPerMin = Math.Round(measured.CsPerMin?.P50 ?? baseBenchmark.TargetCsPerMin, 1),
+                TargetKillParticipation = (int)Math.Round(measured.KillParticipation?.P50 ?? baseBenchmark.TargetKillParticipation),
+                TargetDpm = Math.Round(baseBenchmark.TargetDpm * tierMultiplier, 0),
+                MaxTargetDeaths = Math.Round(measured.Deaths?.P50 ?? baseBenchmark.MaxTargetDeaths, 1),
+                TargetDamageSharePercent = Math.Round(measured.DamageShare?.P50 ?? baseBenchmark.TargetDamageSharePercent, 1),
+                TargetVisionScorePerMin = Math.Round(measured.VisionPerMin?.P50 ?? baseBenchmark.TargetVisionScorePerMin, 2),
+                TargetControlWardsPerGame = Math.Round(baseBenchmark.TargetControlWardsPerGame * tierMultiplier, 1),
+                Baseline = measured
+            };
+        }
 
         return new RoleBenchmark
         {
@@ -128,6 +151,30 @@ public class RoleBenchmark
     };
 }
 
+/// <summary>One concrete habit to work on, backed by numbers from the player's own games.</summary>
+public class CoachingHabit
+{
+    public string Key { get; set; } = string.Empty;
+    /// <summary>Pillar code the habit belongs to (CMB/ECO/OBJ/SRV/VIS/POOL/ROLE/LANE).</summary>
+    public string Icon { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+    public string Evidence { get; set; } = string.Empty;
+    public string Action { get; set; } = string.Empty;
+    /// <summary>Expected share of games this habit costs; higher is fixed first.</summary>
+    public double Priority { get; set; }
+    public int Rank { get; set; }
+}
+
+/// <summary>How one stat moved over the latest games compared with the games before them.</summary>
+public class CoachingTrend
+{
+    public string Metric { get; set; } = string.Empty;
+    public string Text { get; set; } = string.Empty;
+    /// <summary>+1 better, -1 worse, 0 about the same.</summary>
+    public int Direction { get; set; }
+    public string Color => Direction > 0 ? "#0AC8B9" : Direction < 0 ? "#E84057" : "#94A3B8";
+}
+
 public class GlobalCoachingReport
 {
     public int OverallScore { get; set; } = 50;
@@ -135,7 +182,7 @@ public class GlobalCoachingReport
     public string OverallGradeColor { get; set; } = "#5383E8";
     public Position PrimaryRole { get; set; } = Position.Middle;
     public string RoleName { get; set; } = "MID";
-    public string RoleIcon { get; set; } = "⚡";
+    public string RoleIcon { get; set; } = "MID";
 
     public SkillPillarScore Combat { get; set; } = new();
     public SkillPillarScore Economy { get; set; } = new();
@@ -145,5 +192,15 @@ public class GlobalCoachingReport
 
     public int TotalMatchesAnalyzed { get; set; }
     public string CoachAdvice { get; set; } = string.Empty;
+    /// <summary>Which games the report is based on and which were left out (off-role, ARAM...).</summary>
+    public string SampleNote { get; set; } = string.Empty;
     public List<string> Highlights { get; set; } = new();
+    /// <summary>Top habits to fix, most costly first (at most three).</summary>
+    public List<CoachingHabit> TopHabits { get; set; } = new();
+    /// <summary>Latest games vs the ones before them; empty when there are too few games.</summary>
+    public List<CoachingTrend> Trends { get; set; } = new();
+
+    public bool HasHabits => TopHabits.Count > 0;
+    public bool HasHighlights => Highlights.Count > 0;
+    public bool HasTrends => Trends.Count > 0;
 }

@@ -91,6 +91,7 @@ public class ModelBenchmarkService
                 nameof(MatchInputData.EarlyPowerDiff),
                 nameof(MatchInputData.LatePowerDiff),
                 nameof(MatchInputData.AvgRankScore),
+                nameof(MatchInputData.HasKnownRank),
                 nameof(MatchInputData.GoldPace15),
                 nameof(MatchInputData.TopGoldDiff15),
                 nameof(MatchInputData.JungleGoldDiff15),
@@ -120,7 +121,14 @@ public class ModelBenchmarkService
                 nameof(MatchInputData.VisionWardDiff15),
                 nameof(MatchInputData.ControlWardDiff15),
                 nameof(MatchInputData.CsDiff10),
-                nameof(MatchInputData.XpDiff10))
+                nameof(MatchInputData.XpDiff10),
+                nameof(MatchInputData.HasEarlyChallenges),
+                nameof(MatchInputData.ChallengeJungleCs10Diff),
+                nameof(MatchInputData.ChallengeLaneCs10Diff),
+                nameof(MatchInputData.EarlyTakedownDiff),
+                nameof(MatchInputData.DragonSoulRace),
+                nameof(MatchInputData.SideObjectiveLead),
+                nameof(MatchInputData.BotDuoMatchupDiff))
             .Append(_mlContext.Transforms.NormalizeMinMax("Features"));
 
         return algorithmType switch
@@ -167,6 +175,17 @@ public class ModelBenchmarkService
     public const double SoftPruneNegativeDrop = -0.008;
     public const double AblationEmaAlpha = 0.40; // weight of the newest epoch in the EMA
     public const float TreeWeightEmaAlpha = 0.55f; // blend new optimum with previous TreeW
+    public const float TreeWeightMin = 0.25f;
+    public const float TreeWeightMax = 0.80f;
+    public const float SpecialistBlendMin = 0.25f;
+    public const float SpecialistBlendMax = 0.55f; // keep base ensemble dominant — SpecW>0.60 hurt temporal holdout
+    public const float SpecialistBlendDefault = 0.40f; // slightly lower default; cal can raise toward 0.55
+    public const float TemperatureMin = 0.55f;
+    public const float TemperatureMax = 1.80f;
+    /// <summary>Extra weight on mid-band cal rows when fitting SpecW (mid was the weak bucket).</summary>
+    public const double MidBandSpecWCalWeight = 1.75;
+    /// <summary>Minimum mid-band cal rows before SpecW may exceed the default.</summary>
+    public const int MidBandSpecWRaiseMinSamples = 40;
 
     public static ModelMetrics EvaluateSoftEnsemble(
         MLContext mlContext,
@@ -176,10 +195,15 @@ public class ModelBenchmarkService
         PredictionEngine<MatchInputData, MatchPrediction>? highEloEngine = null,
         PredictionEngine<MatchInputData, MatchPrediction>? midEloEngine = null,
         PredictionEngine<MatchInputData, MatchPrediction>? lowEloEngine = null,
-        float treeWeight = 0.5f)
+        float treeWeight = 0.5f,
+        float specialistBlend = SpecialistBlendDefault,
+        float temperature = 1f)
     {
-        treeWeight = Math.Clamp(treeWeight, 0.25f, 0.75f);
+        treeWeight = Math.Clamp(treeWeight, TreeWeightMin, TreeWeightMax);
+        specialistBlend = Math.Clamp(specialistBlend, SpecialistBlendMin, SpecialistBlendMax);
+        temperature = Math.Clamp(temperature, TemperatureMin, TemperatureMax);
         var forestWeight = 1f - treeWeight;
+        var baseBlend = 1f - specialistBlend;
 
         var rows = new List<(bool Label, float Prob, float Rank)>(testSet.Count);
         foreach (var row in testSet)
@@ -191,23 +215,26 @@ public class ModelBenchmarkService
             if (highEloEngine != null && row.AvgRankScore >= HighEloRankThreshold)
             {
                 var ph = Math.Clamp(highEloEngine.Predict(row).Probability, 0.01f, 0.99f);
-                p = p * 0.40f + ph * 0.60f;
+                p = p * baseBlend + ph * specialistBlend;
             }
             else if (midEloEngine != null
+                     && row.HasKnownRank > 0.5f
                      && row.AvgRankScore >= MidEloRankMin
                      && row.AvgRankScore < MidEloRankMax)
             {
                 var pm = Math.Clamp(midEloEngine.Predict(row).Probability, 0.01f, 0.99f);
-                p = p * 0.45f + pm * 0.55f;
+                p = p * baseBlend + pm * specialistBlend;
             }
             else if (lowEloEngine != null
+                     && row.HasKnownRank > 0.5f
                      && row.AvgRankScore > 0
                      && row.AvgRankScore < LowEloRankMax)
             {
                 var pl = Math.Clamp(lowEloEngine.Predict(row).Probability, 0.01f, 0.99f);
-                p = p * 0.45f + pl * 0.55f;
+                p = p * baseBlend + pl * specialistBlend;
             }
 
+            p = ApplyTemperature(p, temperature);
             rows.Add((row.Label, p, row.AvgRankScore));
         }
 
@@ -260,8 +287,181 @@ public class ModelBenchmarkService
             UsedHighEloSpecialist = highEloEngine != null,
             UsedMidEloSpecialist = midEloEngine != null,
             UsedLowEloSpecialist = lowEloEngine != null,
-            EnsembleTreeWeight = treeWeight
+            EnsembleTreeWeight = treeWeight,
+            SpecialistBlendWeight = specialistBlend,
+            EnsembleTemperature = temperature
         };
+    }
+
+    /// <summary>Temperature scaling: T&gt;1 softens, T&lt;1 sharpens. Identity at T=1.</summary>
+    public static float ApplyTemperature(float probability, float temperature)
+    {
+        var p = Math.Clamp(probability, 1e-4f, 1f - 1e-4f);
+        var t = Math.Clamp(temperature, TemperatureMin, TemperatureMax);
+        if (Math.Abs(t - 1f) < 0.02f) return p;
+        var logit = Math.Log(p / (1.0 - p));
+        return (float)(1.0 / (1.0 + Math.Exp(-logit / t)));
+    }
+
+    /// <summary>
+    /// Grid-search temperature on a calibration slice to minimise Brier (keeps accuracy roughly intact).
+    /// </summary>
+    public static float OptimizeTemperature(
+        IReadOnlyList<(bool Label, float Prob)> calibratedProbs,
+        float? previousTemperature = null)
+    {
+        if (calibratedProbs.Count < 40) return previousTemperature ?? 1f;
+
+        float bestT = 1f;
+        double bestBrier = double.MaxValue;
+        double bestAcc = 0;
+
+        for (var t = TemperatureMin; t <= TemperatureMax + 1e-6f; t += 0.05f)
+        {
+            double brierSum = 0;
+            var correct = 0;
+            foreach (var (label, prob) in calibratedProbs)
+            {
+                var p = ApplyTemperature(prob, t);
+                var y = label ? 1.0 : 0.0;
+                var d = p - y;
+                brierSum += d * d;
+                if ((p >= 0.5f) == label) correct++;
+            }
+
+            var brier = brierSum / calibratedProbs.Count;
+            var acc = correct / (double)calibratedProbs.Count;
+            var better =
+                brier < bestBrier - 0.001 ||
+                (Math.Abs(brier - bestBrier) < 0.001 && acc > bestAcc + 0.005) ||
+                (Math.Abs(brier - bestBrier) < 0.001 && Math.Abs(acc - bestAcc) < 0.005 && Math.Abs(t - 1f) < Math.Abs(bestT - 1f));
+
+            if (better)
+            {
+                bestBrier = brier;
+                bestAcc = acc;
+                bestT = t;
+            }
+        }
+
+        if (previousTemperature is >= TemperatureMin and <= TemperatureMax)
+        {
+            bestT = 0.55f * bestT + 0.45f * previousTemperature.Value;
+            bestT = MathF.Round(bestT * 20f) / 20f;
+        }
+
+        return Math.Clamp(bestT, TemperatureMin, TemperatureMax);
+    }
+
+    /// <summary>
+    /// Pick specialist blend weight on calibration rows that fall in a specialist band.
+    /// </summary>
+    public static float OptimizeSpecialistBlendWeight(
+        PredictionEngine<MatchInputData, MatchPrediction> treeEngine,
+        PredictionEngine<MatchInputData, MatchPrediction> forestEngine,
+        PredictionEngine<MatchInputData, MatchPrediction>? highEloEngine,
+        PredictionEngine<MatchInputData, MatchPrediction>? midEloEngine,
+        PredictionEngine<MatchInputData, MatchPrediction>? lowEloEngine,
+        IReadOnlyList<MatchInputData> calibrationSet,
+        float treeWeight,
+        float? previousBlend = null)
+    {
+        treeWeight = Math.Clamp(treeWeight, TreeWeightMin, TreeWeightMax);
+        if (calibrationSet.Count < 40) return previousBlend ?? SpecialistBlendDefault;
+        if (highEloEngine == null && midEloEngine == null && lowEloEngine == null)
+            return previousBlend ?? SpecialistBlendDefault;
+
+        var forestWeight = 1f - treeWeight;
+        float bestW = SpecialistBlendDefault;
+        double bestBrier = double.MaxValue;
+        double bestAcc = 0;
+        double bestCenterDist = double.MaxValue;
+
+        var midCalCount = calibrationSet.Count(r =>
+            r.HasKnownRank > 0.5f
+            && r.AvgRankScore >= MidEloRankMin
+            && r.AvgRankScore < MidEloRankMax);
+        // Without enough mid cal signal, keep SpecW ≤ default to avoid high/low overfitting.
+        var allowRaiseAboveDefault = midCalCount >= MidBandSpecWRaiseMinSamples;
+
+        var candidates = allowRaiseAboveDefault
+            ? new[] { 0.25f, 0.30f, 0.35f, 0.40f, 0.45f, 0.50f, 0.55f }
+            : new[] { 0.25f, 0.30f, 0.35f, 0.40f };
+
+        foreach (var w in candidates)
+        {
+            var baseW = 1f - w;
+            double brierSum = 0;
+            double weightSum = 0;
+            var correct = 0;
+            double correctWeight = 0;
+            var n = 0;
+            foreach (var row in calibrationSet)
+            {
+                var p1 = Math.Clamp(treeEngine.Predict(row).Probability, 0.01f, 0.99f);
+                var p2 = Math.Clamp(forestEngine.Predict(row).Probability, 0.01f, 0.99f);
+                var p = p1 * treeWeight + p2 * forestWeight;
+
+                float? spec = null;
+                var isMid = row.HasKnownRank > 0.5f
+                            && row.AvgRankScore >= MidEloRankMin
+                            && row.AvgRankScore < MidEloRankMax;
+                if (highEloEngine != null && row.AvgRankScore >= HighEloRankThreshold)
+                    spec = Math.Clamp(highEloEngine.Predict(row).Probability, 0.01f, 0.99f);
+                else if (midEloEngine != null && isMid)
+                    spec = Math.Clamp(midEloEngine.Predict(row).Probability, 0.01f, 0.99f);
+                else if (lowEloEngine != null
+                         && row.HasKnownRank > 0.5f
+                         && row.AvgRankScore > 0
+                         && row.AvgRankScore < LowEloRankMax)
+                    spec = Math.Clamp(lowEloEngine.Predict(row).Probability, 0.01f, 0.99f);
+
+                if (spec.HasValue)
+                    p = p * baseW + spec.Value * w;
+
+                // Watch mid bucket: overweight mid cal rows when scoring SpecW.
+                var sampleWeight = isMid ? MidBandSpecWCalWeight : 1.0;
+                n++;
+                var y = row.Label ? 1.0 : 0.0;
+                var d = p - y;
+                brierSum += sampleWeight * d * d;
+                weightSum += sampleWeight;
+                if ((p >= 0.5f) == row.Label)
+                {
+                    correct++;
+                    correctWeight += sampleWeight;
+                }
+            }
+
+            if (n == 0 || weightSum <= 0) continue;
+            var brier = brierSum / weightSum;
+            var acc = correctWeight / weightSum;
+            var centerDist = Math.Abs(w - SpecialistBlendDefault);
+            var better =
+                brier < bestBrier - 0.002 ||
+                (brier < bestBrier - 1e-6 && acc >= bestAcc - 0.005) ||
+                (Math.Abs(brier - bestBrier) < 0.002 && acc > bestAcc + 0.005) ||
+                (Math.Abs(brier - bestBrier) < 0.002 && Math.Abs(acc - bestAcc) < 0.005 && centerDist < bestCenterDist);
+
+            if (better)
+            {
+                bestBrier = brier;
+                bestAcc = acc;
+                bestW = w;
+                bestCenterDist = centerDist;
+            }
+        }
+
+        if (previousBlend is >= SpecialistBlendMin and <= SpecialistBlendMax)
+        {
+            bestW = TreeWeightEmaAlpha * bestW + (1f - TreeWeightEmaAlpha) * previousBlend.Value;
+            bestW = MathF.Round(bestW * 20f) / 20f;
+        }
+
+        var capped = Math.Clamp(bestW, SpecialistBlendMin, SpecialistBlendMax);
+        if (!allowRaiseAboveDefault)
+            capped = Math.Min(capped, SpecialistBlendDefault);
+        return capped;
     }
 
     /// <summary>
@@ -400,7 +600,7 @@ public class ModelBenchmarkService
                 r.TowerDiff *= scale; r.DragonDiff *= scale; r.VoidgrubDiff *= scale; r.HeraldDiff *= scale;
                 r.ObjectiveScoreDiff *= scale; r.FirstTower *= scale; r.FirstDragon *= scale;
                 r.FirstTowerTempo *= scale; r.FirstDragonTempo *= scale; r.FirstDragonValue *= scale;
-                r.PlatesDiff15 *= scale;
+                r.PlatesDiff15 *= scale; r.DragonSoulRace *= scale; r.SideObjectiveLead *= scale;
                 break;
             case "Vision":
                 r.VisionWardDiff15 *= scale; r.ControlWardDiff15 *= scale;
@@ -408,7 +608,7 @@ public class ModelBenchmarkService
             case "Draft":
                 r.EarlyPowerDiff *= scale; r.LatePowerDiff *= scale; r.EngageDiff *= scale;
                 r.TankDiff *= scale; r.AdApBalanceDiff *= scale; r.WinRateDiff *= scale;
-                r.LaneMatchupDiff *= scale;
+                r.LaneMatchupDiff *= scale; r.BotDuoMatchupDiff *= scale;
                 r.BlueAvgWinRate = 50f + (r.BlueAvgWinRate - 50f) * scale;
                 r.RedAvgWinRate = 50f + (r.RedAvgWinRate - 50f) * scale;
                 break;
@@ -417,25 +617,31 @@ public class ModelBenchmarkService
                 r.BotDuoGoldDiff15 *= scale; r.LevelDiff15 *= scale; r.CsDiff15 *= scale;
                 r.XpDiff15 *= scale; r.CsDiff10 *= scale; r.XpDiff10 *= scale;
                 break;
+            case "EarlyChallenges":
+                r.HasEarlyChallenges *= scale;
+                r.ChallengeJungleCs10Diff *= scale; r.ChallengeLaneCs10Diff *= scale;
+                r.EarlyTakedownDiff *= scale;
+                break;
         }
     }
 
     public static Dictionary<string, double> ComputeRankBucketAccuracy(
         IReadOnlyList<(bool Label, float Prob, float Rank)> rows)
     {
-        static string Bucket(float rank) => rank switch
+        static string? Bucket(float rank)
         {
-            <= 3.5f => "Low (Iron–Silver)",
-            <= 6.5f => "Mid (Gold–Emerald)",
-            _ => "High (Diamond+)"
-        };
+            if (rank <= 0) return null; // unknown rank — exclude from specialist lab buckets
+            if (rank < MidEloRankMin) return "Low (Iron–Silver)";
+            if (rank < MidEloRankMax) return "Mid (Gold–Emerald)";
+            return "High (Diamond+)";
+        }
 
         var result = new Dictionary<string, double>();
-        foreach (var group in rows.GroupBy(r => Bucket(r.Rank)))
+        foreach (var group in rows.GroupBy(r => Bucket(r.Rank)).Where(g => g.Key != null))
         {
             var list = group.ToList();
             if (list.Count < 5) continue; // skip tiny buckets — noisy for labs
-            result[group.Key] = list.Count(r => (r.Prob >= 0.5f) == r.Label) / (double)list.Count;
+            result[group.Key!] = list.Count(r => (r.Prob >= 0.5f) == r.Label) / (double)list.Count;
         }
 
         return result;
@@ -500,6 +706,7 @@ public class ModelBenchmarkService
             ["HeraldDiff"] = 0.02,
             ["KillDiff10"] = 0.02,
             ["AvgRankScore"] = 0.02,
+            ["HasKnownRank"] = 0.02,
             ["GoldPace15"] = 0.02,
             ["FirstDragon"] = 0.01,
             ["FirstBlood"] = 0.01,
@@ -508,7 +715,14 @@ public class ModelBenchmarkService
             ["VisionWardDiff15"] = 0.04,
             ["ControlWardDiff15"] = 0.04,
             ["CsDiff10"] = 0.04,
-            ["XpDiff10"] = 0.03
+            ["XpDiff10"] = 0.03,
+            ["EarlyTakedownDiff"] = 0.04,
+            ["ChallengeJungleCs10Diff"] = 0.03,
+            ["ChallengeLaneCs10Diff"] = 0.03,
+            ["DragonSoulRace"] = 0.04,
+            ["SideObjectiveLead"] = 0.03,
+            ["BotDuoMatchupDiff"] = 0.03,
+            ["HasEarlyChallenges"] = 0.01
         };
 
         return result.OrderByDescending(kv => kv.Value).ToDictionary(kv => kv.Key, kv => kv.Value);
@@ -544,7 +758,7 @@ public class ModelBenchmarkService
                 r.TowerDiff = 0; r.DragonDiff = 0; r.VoidgrubDiff = 0; r.HeraldDiff = 0;
                 r.ObjectiveScoreDiff = 0; r.FirstTower = 0; r.FirstDragon = 0;
                 r.FirstTowerTempo = 0; r.FirstDragonTempo = 0; r.FirstDragonValue = 0;
-                r.PlatesDiff15 = 0;
+                r.PlatesDiff15 = 0; r.DragonSoulRace = 0; r.SideObjectiveLead = 0;
             }),
             ("Vision", r =>
             {
@@ -554,13 +768,20 @@ public class ModelBenchmarkService
             {
                 r.EarlyPowerDiff = 0; r.LatePowerDiff = 0; r.EngageDiff = 0;
                 r.TankDiff = 0; r.AdApBalanceDiff = 0; r.WinRateDiff = 0;
-                r.LaneMatchupDiff = 0; r.BlueAvgWinRate = 50; r.RedAvgWinRate = 50;
+                r.LaneMatchupDiff = 0; r.BotDuoMatchupDiff = 0;
+                r.BlueAvgWinRate = 50; r.RedAvgWinRate = 50;
             }),
             ("Lanes", r =>
             {
                 r.TopGoldDiff15 = 0; r.JungleGoldDiff15 = 0; r.MidGoldDiff15 = 0;
                 r.BotDuoGoldDiff15 = 0; r.LevelDiff15 = 0; r.CsDiff15 = 0; r.XpDiff15 = 0;
                 r.CsDiff10 = 0; r.XpDiff10 = 0;
+            }),
+            ("EarlyChallenges", r =>
+            {
+                r.HasEarlyChallenges = 0;
+                r.ChallengeJungleCs10Diff = 0; r.ChallengeLaneCs10Diff = 0;
+                r.EarlyTakedownDiff = 0;
             })
         };
 
@@ -619,6 +840,7 @@ public class ModelBenchmarkService
         EarlyPowerDiff = r.EarlyPowerDiff,
         LatePowerDiff = r.LatePowerDiff,
         AvgRankScore = r.AvgRankScore,
+        HasKnownRank = r.HasKnownRank,
         GoldPace15 = r.GoldPace15,
         TopGoldDiff15 = r.TopGoldDiff15,
         JungleGoldDiff15 = r.JungleGoldDiff15,
@@ -649,6 +871,13 @@ public class ModelBenchmarkService
         ControlWardDiff15 = r.ControlWardDiff15,
         CsDiff10 = r.CsDiff10,
         XpDiff10 = r.XpDiff10,
+        HasEarlyChallenges = r.HasEarlyChallenges,
+        ChallengeJungleCs10Diff = r.ChallengeJungleCs10Diff,
+        ChallengeLaneCs10Diff = r.ChallengeLaneCs10Diff,
+        EarlyTakedownDiff = r.EarlyTakedownDiff,
+        DragonSoulRace = r.DragonSoulRace,
+        SideObjectiveLead = r.SideObjectiveLead,
+        BotDuoMatchupDiff = r.BotDuoMatchupDiff,
         Label = r.Label
     };
 }

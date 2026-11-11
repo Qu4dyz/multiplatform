@@ -6,4 +6,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Data\role_baselines.json" LogicalName="GameAnalytics.Core.Data.role_baselines.json" />
+  </ItemGroup>
+
 </Project>

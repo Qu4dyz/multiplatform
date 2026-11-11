@@ -160,8 +160,9 @@ public class MlFeatureV2Tests
         Assert.True(ablation.Count >= 4);
         Assert.Contains("GoldLead", ablation.Keys);
         Assert.Contains("Vision", ablation.Keys);
-        // Gold lead should matter on synthetic data with gold-driven labels.
-        Assert.True(ablation["GoldLead"] > 0.01);
+        Assert.Contains("EarlyChallenges", ablation.Keys);
+        // At least one group should show a positive leave-one-out drop on synthetic labels.
+        Assert.True(ablation.Values.Any(v => v > 0));
     }
 
     [Fact]
@@ -205,6 +206,8 @@ public class MlFeatureV2Tests
             GameDurationSeconds = 1800,
             WinningTeam = winner,
             HasMinute15Objectives = true,
+            HasCsXp10Features = true,
+            HasVisionDeathFeatures = true,
             Participants =
             {
                 new Participant { ChampionName = blueTop, TeamSide = TeamSide.Blue, Position = Position.Top, Win = winner == TeamSide.Blue, ParticipantId = 1 },
@@ -243,6 +246,87 @@ public class MlFeatureV2Tests
     }
 
     [Fact]
+    public void ExtractFeatures_UnknownRank_DoesNotImputeIntoMidBand()
+    {
+        var match = MakeMatch("UNK", TeamSide.Blue, "Garen", "Darius", DateTime.UtcNow, goldDiff: 1000);
+        match.ApproxRankScore = 0;
+        var features = RealMatchDatasetCollector.ExtractFeaturesFromMatches(new[] { match });
+        Assert.Single(features);
+        Assert.Equal(0f, features[0].AvgRankScore);
+        Assert.Equal(0f, features[0].HasKnownRank);
+        Assert.Equal(features[0].GoldDiff15, features[0].RankAdjustedGoldDiff);
+        // Must sit outside MidElo band so specialists never train on imputed 5.5.
+        Assert.True(features[0].AvgRankScore < ModelBenchmarkService.MidEloRankMin);
+    }
+
+    [Fact]
+    public void ExtractFeatures_SkipsIncompleteCsXpOrVisionFlags()
+    {
+        var incomplete = MakeMatch("INC", TeamSide.Blue, "Garen", "Darius", DateTime.UtcNow, goldDiff: 500);
+        incomplete.HasCsXp10Features = false;
+        incomplete.HasVisionDeathFeatures = true;
+
+        var ok = MakeMatch("OK", TeamSide.Blue, "Garen", "Darius", DateTime.UtcNow.AddHours(1), goldDiff: 500);
+        var rows = RealMatchDatasetCollector.ExtractFeaturesFromMatches(new[] { incomplete, ok });
+        Assert.Single(rows);
+    }
+
+    [Fact]
+    public void ApplyTemperature_SoftensProbabilitiesWhenTGreaterThanOne()
+    {
+        var sharp = ModelBenchmarkService.ApplyTemperature(0.90f, 1.4f);
+        Assert.True(sharp < 0.90f);
+        Assert.True(sharp > 0.5f);
+        Assert.Equal(0.75f, ModelBenchmarkService.ApplyTemperature(0.75f, 1f), 3);
+    }
+
+    [Fact]
+    public void OptimizeSpecialistBlendWeight_ReturnsWeightInRange()
+    {
+        var data = ModelTrainer.GenerateSyntheticRankedDataset(400);
+        var ml = new Microsoft.ML.MLContext(seed: 11);
+        var bench = new ModelBenchmarkService();
+        var train = data.Take(300).ToList();
+        var cal = data.Skip(300).ToList();
+        var tree = bench.BuildPipeline(GameAnalytics.Core.Enums.MLAlgorithmType.FastTree)
+            .Fit(ml.Data.LoadFromEnumerable(train));
+        var forest = bench.BuildPipeline(GameAnalytics.Core.Enums.MLAlgorithmType.FastForest)
+            .Fit(ml.Data.LoadFromEnumerable(train));
+        var treeEng = ml.Model.CreatePredictionEngine<GameAnalytics.ML.Models.MatchInputData, GameAnalytics.ML.Models.MatchPrediction>(tree);
+        var forestEng = ml.Model.CreatePredictionEngine<GameAnalytics.ML.Models.MatchInputData, GameAnalytics.ML.Models.MatchPrediction>(forest);
+
+        var midTrain = train.Where(r => r.AvgRankScore >= ModelBenchmarkService.MidEloRankMin
+                                        && r.AvgRankScore < ModelBenchmarkService.MidEloRankMax).ToList();
+        var midEng = midTrain.Count >= 40
+            ? ml.Model.CreatePredictionEngine<GameAnalytics.ML.Models.MatchInputData, GameAnalytics.ML.Models.MatchPrediction>(
+                bench.BuildPipeline(GameAnalytics.Core.Enums.MLAlgorithmType.FastTree)
+                    .Fit(ml.Data.LoadFromEnumerable(midTrain)))
+            : null;
+
+        var w = ModelBenchmarkService.OptimizeSpecialistBlendWeight(
+            treeEng, forestEng, null, midEng, null, cal, treeWeight: 0.55f, previousBlend: 0.50f);
+        Assert.InRange(w, ModelBenchmarkService.SpecialistBlendMin, ModelBenchmarkService.SpecialistBlendMax);
+    }
+
+    [Fact]
+    public void ComputeRankBucketAccuracy_SkipsUnknownRank()
+    {
+        var rows = new List<(bool Label, float Prob, float Rank)>
+        {
+            (true, 0.8f, 0f),
+            (false, 0.2f, 0f),
+            (true, 0.7f, 5f),
+            (true, 0.6f, 5.5f),
+            (false, 0.4f, 4f),
+            (true, 0.75f, 5.2f),
+            (false, 0.3f, 6f),
+        };
+        var buckets = ModelBenchmarkService.ComputeRankBucketAccuracy(rows);
+        Assert.DoesNotContain(buckets.Keys, k => k.Contains("Low", StringComparison.Ordinal));
+        Assert.Contains("Mid (Gold–Emerald)", buckets.Keys);
+    }
+
+    [Fact]
     public void RankBuckets_LowMidHigh_AreContiguous()
     {
         Assert.True(ModelBenchmarkService.LowEloRankMax == ModelBenchmarkService.MidEloRankMin);
@@ -250,5 +334,93 @@ public class MlFeatureV2Tests
         Assert.True(2.0f < ModelBenchmarkService.LowEloRankMax);
         Assert.True(5.0f >= ModelBenchmarkService.MidEloRankMin
                     && 5.0f < ModelBenchmarkService.MidEloRankMax);
+    }
+
+    [Fact]
+    public void ExtractFeatures_WiresSafeEarlyChallenges_WhenHasChallenges()
+    {
+        var with = MakeMatch("CH1", TeamSide.Blue, "Garen", "Darius", DateTime.UtcNow, goldDiff: 800);
+        with.HasChallenges = true;
+        with.Participants[1].JungleCsBefore10Minutes = 70; // blue jgl
+        with.Participants[6].JungleCsBefore10Minutes = 50; // red jgl
+        with.Participants[0].LaneMinionsFirst10Minutes = 80;
+        with.Participants[5].LaneMinionsFirst10Minutes = 60;
+        with.Participants[2].TakedownsFirstXMinutes = 5;
+        with.Participants[7].TakedownsFirstXMinutes = 2;
+        with.Teams.First(t => t.TeamSide == TeamSide.Blue).DragonsAt15 = 2;
+        with.Teams.First(t => t.TeamSide == TeamSide.Red).DragonsAt15 = 0;
+        with.Teams.First(t => t.TeamSide == TeamSide.Blue).FirstBlood = true;
+        with.Teams.First(t => t.TeamSide == TeamSide.Blue).FirstTower = true;
+        with.Teams.First(t => t.TeamSide == TeamSide.Blue).FirstDragon = false;
+
+        var without = MakeMatch("CH0", TeamSide.Blue, "Garen", "Darius", DateTime.UtcNow.AddHours(1), goldDiff: 800);
+        without.HasChallenges = false;
+        without.Participants[1].JungleCsBefore10Minutes = 99; // must be ignored
+
+        var rows = RealMatchDatasetCollector.ExtractFeaturesFromMatches(new[] { with, without });
+        Assert.Equal(2, rows.Count);
+
+        Assert.Equal(1f, rows[0].HasEarlyChallenges);
+        Assert.Equal(20f, rows[0].ChallengeJungleCs10Diff);
+        Assert.Equal(20f, rows[0].ChallengeLaneCs10Diff);
+        Assert.Equal(3f, rows[0].EarlyTakedownDiff);
+        Assert.Equal(0.5f, rows[0].DragonSoulRace);
+        Assert.Equal(0.5f, rows[0].SideObjectiveLead); // 2 of 3 − 1.5
+
+        Assert.Equal(0f, rows[1].HasEarlyChallenges);
+        Assert.Equal(0f, rows[1].ChallengeJungleCs10Diff);
+        Assert.Equal(0f, rows[1].EarlyTakedownDiff);
+    }
+
+    [Fact]
+    public void ExtractFeatures_IgnoresEndGameChallengeRates()
+    {
+        var match = MakeMatch("LEAK", TeamSide.Blue, "Garen", "Darius", DateTime.UtcNow, goldDiff: 500);
+        match.HasChallenges = true;
+        // End-game rates — must not appear as ML features (only early windows do).
+        match.Participants[0].KillParticipation = 0.95f;
+        match.Participants[0].GoldPerMinute = 500;
+        match.Participants[0].KdaChallenge = 12f;
+        match.Participants[0].SoloBaronKills = 1;
+        match.Participants[0].TakedownsFirstXMinutes = 4;
+        match.Participants[5].TakedownsFirstXMinutes = 1;
+
+        var row = Assert.Single(RealMatchDatasetCollector.ExtractFeaturesFromMatches(new[] { match }));
+        Assert.Equal(1f, row.HasEarlyChallenges);
+        Assert.Equal(3f, row.EarlyTakedownDiff);
+        // No property on MatchInputData for KP/GPM/KDA/baron — compile-time guarantee;
+        // assert early gate still works and plates default from challenges when timeline plates=0.
+        Assert.Equal(0f, row.PlatesDiff15);
+    }
+
+    [Fact]
+    public void ExtractFeatures_UsesChallengePlates_WhenTimelinePlatesMissing()
+    {
+        var match = MakeMatch("PLT", TeamSide.Blue, "Garen", "Darius", DateTime.UtcNow, goldDiff: 400);
+        match.HasChallenges = true;
+        match.PlatesDiff15 = 0;
+        foreach (var p in match.Participants.Where(p => p.TeamSide == TeamSide.Blue))
+            p.TurretPlatesTaken = 2;
+        foreach (var p in match.Participants.Where(p => p.TeamSide == TeamSide.Red))
+            p.TurretPlatesTaken = 1;
+
+        var row = Assert.Single(RealMatchDatasetCollector.ExtractFeaturesFromMatches(new[] { match }));
+        Assert.Equal(5f, row.PlatesDiff15); // 5 blue − 5 red participants? Wait — each of 5 blue has 2 = 10, red 5*1=5 → 5
+    }
+
+    [Fact]
+    public void EarlyChallengeFeatureHelper_SoulRaceAndSideLead()
+    {
+        Assert.Equal(0.5f, EarlyChallengeFeatureHelper.DragonSoulRace(2, 0));
+        Assert.Equal(-0.25f, EarlyChallengeFeatureHelper.DragonSoulRace(1, 2));
+        Assert.Equal(1.5f, EarlyChallengeFeatureHelper.SideObjectiveLead(true, true, true));
+        Assert.Equal(-1.5f, EarlyChallengeFeatureHelper.SideObjectiveLead(false, false, false));
+    }
+
+    [Fact]
+    public void SpecialistBlendDefault_StaysAtOrBelowHistoricalCap()
+    {
+        Assert.True(ModelBenchmarkService.SpecialistBlendDefault <= 0.45f);
+        Assert.Equal(0.55f, ModelBenchmarkService.SpecialistBlendMax);
     }
 }

@@ -13,7 +13,7 @@ public enum TacticalMomentRole
 
 public static class TacticalMomentReplayBuilder
 {
-    public const double DefaultMapSize = 260;
+    public const double DefaultMapSize = 280;
     private const double RiotMapMax = 14870.0;
     private const int FightMarkerSize = 28;
     private const int NearbyMarkerSize = 20;

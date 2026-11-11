@@ -1,4 +1,5 @@
 using GameAnalytics.Core.Entities;
+using GameAnalytics.Core.Enums;
 using GameAnalytics.Core.Interfaces;
 using GameAnalytics.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -79,7 +80,16 @@ public class MatchRepository : IMatchRepository
             "ALTER TABLE Participants ADD COLUMN TeamDamagePercentage REAL NOT NULL DEFAULT 0;",
             "ALTER TABLE Participants ADD COLUMN ControlWardsPlaced INTEGER NOT NULL DEFAULT 0;",
             "ALTER TABLE Participants ADD COLUMN EffectiveHealAndShielding INTEGER NOT NULL DEFAULT 0;",
-            "ALTER TABLE Participants ADD COLUMN DamageDealtToObjectivesChallenge INTEGER NOT NULL DEFAULT 0;"
+            "ALTER TABLE Participants ADD COLUMN DamageDealtToObjectivesChallenge INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN ChallengesJson TEXT NOT NULL DEFAULT '';",
+            "ALTER TABLE Participants ADD COLUMN JungleCsBefore10Minutes REAL NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN LaneMinionsFirst10Minutes REAL NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN SkillshotsDodged INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN SkillshotsHit INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN TakedownsFirstXMinutes INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN EpicMonsterSteals INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN SoloBaronKills INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE Participants ADD COLUMN KdaChallenge REAL NOT NULL DEFAULT 0;"
         };
 
         foreach (var sql in itemColumns)
@@ -165,13 +175,40 @@ public class MatchRepository : IMatchRepository
             "ALTER TABLE Matches ADD COLUMN HasVisionDeathFeatures INTEGER NOT NULL DEFAULT 0;",
             "ALTER TABLE Matches ADD COLUMN CsDiff10 REAL NOT NULL DEFAULT 0;",
             "ALTER TABLE Matches ADD COLUMN XpDiff10 REAL NOT NULL DEFAULT 0;",
-            "ALTER TABLE Matches ADD COLUMN HasCsXp10Features INTEGER NOT NULL DEFAULT 0;"
+            "ALTER TABLE Matches ADD COLUMN HasCsXp10Features INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE Matches ADD COLUMN HasChallenges INTEGER NOT NULL DEFAULT 0;"
         };
         foreach (var sql in matchMlColumns)
         {
             try { _context.Database.ExecuteSqlRaw(sql); }
             catch { /* Column already exists */ }
         }
+
+        // One-shot: mark matches that already have challenge signals from earlier crawls.
+        try
+        {
+            _context.Database.ExecuteSqlRaw(@"
+                UPDATE Matches
+                SET HasChallenges = 1
+                WHERE HasChallenges = 0
+                  AND Id IN (
+                    SELECT DISTINCT MatchEntityId FROM Participants
+                    WHERE KillParticipation > 0
+                       OR GoldPerMinute > 0
+                       OR VisionScorePerMinute > 0
+                       OR TeamDamagePercentage > 0
+                       OR DamagePerMinute > 0
+                       OR ControlWardsPlaced > 0
+                       OR EffectiveHealAndShielding > 0
+                       OR DamageDealtToObjectivesChallenge > 0
+                       OR SoloKills > 0
+                       OR TurretPlatesTaken > 0
+                       OR JungleCsBefore10Minutes > 0
+                       OR LaneMinionsFirst10Minutes > 0
+                       OR (ChallengesJson IS NOT NULL AND ChallengesJson != '')
+                  );");
+        }
+        catch { /* Best-effort migration */ }
 
         try
         {
@@ -229,6 +266,14 @@ public class MatchRepository : IMatchRepository
                 );");
         }
         catch { /* Table already exists */ }
+
+        // Newest-N training slice orders by GameCreation; without this SQLite sorts the whole table.
+        try
+        {
+            _context.Database.ExecuteSqlRaw(
+                "CREATE INDEX IF NOT EXISTS IX_Matches_GameCreation ON Matches (GameCreation);");
+        }
+        catch { /* Best-effort index */ }
     }
 
     public async Task<IReadOnlyList<Match>> GetAllMatchesAsync(CancellationToken ct = default)
@@ -239,6 +284,194 @@ public class MatchRepository : IMatchRepository
             .OrderByDescending(m => m.GameCreation)
             .AsNoTracking()
             .ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<Match>> GetRecentMatchesPageAsync(int skip, int take, CancellationToken ct = default)
+    {
+        if (take <= 0)
+            return Array.Empty<Match>();
+
+        return await _context.Matches
+            .Include(m => m.Participants)
+            .Include(m => m.Teams)
+            .AsNoTracking()
+            .OrderByDescending(m => m.GameCreation)
+            .ThenByDescending(m => m.Id)
+            .Skip(Math.Max(0, skip))
+            .Take(take)
+            .AsSplitQuery()
+            .ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<Match>> GetMatchesByPuuidAsync(string puuid, int limit = 20, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(puuid) || limit <= 0)
+            return Array.Empty<Match>();
+
+        return await _context.Matches
+            .Include(m => m.Participants)
+            .Include(m => m.Teams)
+            .AsNoTracking()
+            .Where(m => m.Participants.Any(p => p.Puuid == puuid))
+            .OrderByDescending(m => m.GameCreation)
+            .Take(limit)
+            .AsSplitQuery()
+            .ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<Match>> GetMatchesByRiotIdAsync(string gameName, string tagLine, int limit = 20, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(gameName) || limit <= 0)
+            return Array.Empty<Match>();
+
+        var cleanName = gameName.Trim();
+        var cleanTag = (tagLine ?? string.Empty).Trim();
+        var riotId = string.IsNullOrEmpty(cleanTag) ? cleanName : $"{cleanName}#{cleanTag}";
+        var namePrefix = cleanName + "#";
+
+        // Prefer exact Riot ID, then same game name with any tag, capped for UI.
+        var matches = await _context.Matches
+            .Include(m => m.Participants)
+            .Include(m => m.Teams)
+            .AsNoTracking()
+            .Where(m => m.Participants.Any(p =>
+                p.SummonerName == riotId ||
+                (string.IsNullOrEmpty(cleanTag) && p.SummonerName.StartsWith(namePrefix))))
+            .OrderByDescending(m => m.GameCreation)
+            .Take(limit)
+            .ToListAsync(ct);
+
+        if (matches.Count > 0 || string.IsNullOrEmpty(cleanTag))
+            return matches;
+
+        // Case-insensitive fallback (SQLite default LIKE is ASCII case-insensitive)
+        return await _context.Matches
+            .Include(m => m.Participants)
+            .Include(m => m.Teams)
+            .AsNoTracking()
+            .Where(m => m.Participants.Any(p =>
+                EF.Functions.Like(p.SummonerName, riotId) ||
+                EF.Functions.Like(p.SummonerName, namePrefix + "%")))
+            .OrderByDescending(m => m.GameCreation)
+            .Take(limit)
+            .ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<Match>> GetNewestMatchesAsync(
+        int take,
+        int minDurationSeconds = 900,
+        bool requireMinute15Timeline = true,
+        CancellationToken ct = default)
+    {
+        if (take <= 0) return Array.Empty<Match>();
+
+        // Same eligibility as RealMatchDatasetCollector.ExtractFeaturesFromMatches, pushed into SQL
+        // so a 2GB VPS never materializes the full match graph just to keep the newest N rows.
+        var minDuration = Math.Max(300, minDurationSeconds);
+        var query = _context.Matches
+            .AsNoTracking()
+            .Where(m => m.QueueId == 420 && !m.IsRemake && m.GameDurationSeconds >= minDuration);
+
+        if (requireMinute15Timeline)
+        {
+            query = query.Where(m => m.HasMinute15Objectives
+                                     && m.HasCsXp10Features
+                                     && m.HasVisionDeathFeatures
+                                     && m.Teams.Any(t => t.TeamSide == TeamSide.Blue)
+                                     && m.Teams.Any(t => t.TeamSide == TeamSide.Red)
+                                     && m.Teams.Any(t => t.GoldAt15 > 0));
+        }
+
+        var matches = await query
+            .OrderByDescending(m => m.GameCreation)
+            .ThenByDescending(m => m.Id)
+            .Take(take)
+            .Include(m => m.Teams)
+            .AsSplitQuery()
+            .ToListAsync(ct);
+
+        if (matches.Count == 0) return matches;
+
+        // Participants without ChallengesJson: the raw payload is ~KBs per row and unused by training.
+        var matchIds = matches.Select(m => m.Id).ToList();
+        var participants = await _context.Participants
+            .AsNoTracking()
+            .Where(p => matchIds.Contains(p.MatchEntityId))
+            .Select(p => new Participant
+            {
+                Id = p.Id,
+                MatchEntityId = p.MatchEntityId,
+                Puuid = p.Puuid,
+                SummonerName = p.SummonerName,
+                ChampionName = p.ChampionName,
+                ChampionId = p.ChampionId,
+                ParticipantId = p.ParticipantId,
+                ChampLevel = p.ChampLevel,
+                TeamSide = p.TeamSide,
+                Position = p.Position,
+                Kills = p.Kills,
+                Deaths = p.Deaths,
+                Assists = p.Assists,
+                TotalDamageDealtToChampions = p.TotalDamageDealtToChampions,
+                GoldEarned = p.GoldEarned,
+                TotalMinionsKilled = p.TotalMinionsKilled,
+                Win = p.Win,
+                Item0 = p.Item0,
+                Item1 = p.Item1,
+                Item2 = p.Item2,
+                Item3 = p.Item3,
+                Item4 = p.Item4,
+                Item5 = p.Item5,
+                Item6 = p.Item6,
+                Summoner1Id = p.Summoner1Id,
+                Summoner2Id = p.Summoner2Id,
+                PrimaryRuneId = p.PrimaryRuneId,
+                SecondaryRuneStyleId = p.SecondaryRuneStyleId,
+                VisionScore = p.VisionScore,
+                WardsPlaced = p.WardsPlaced,
+                WardsKilled = p.WardsKilled,
+                ControlWardsBought = p.ControlWardsBought,
+                PhysicalDamageDealtToChampions = p.PhysicalDamageDealtToChampions,
+                MagicDamageDealtToChampions = p.MagicDamageDealtToChampions,
+                TrueDamageDealtToChampions = p.TrueDamageDealtToChampions,
+                TotalDamageTaken = p.TotalDamageTaken,
+                DamageSelfMitigated = p.DamageSelfMitigated,
+                DamageDealtToObjectives = p.DamageDealtToObjectives,
+                DamageDealtToTurrets = p.DamageDealtToTurrets,
+                DoubleKills = p.DoubleKills,
+                TripleKills = p.TripleKills,
+                QuadraKills = p.QuadraKills,
+                PentaKills = p.PentaKills,
+                SoloKills = p.SoloKills,
+                TurretPlatesTaken = p.TurretPlatesTaken,
+                KillParticipation = p.KillParticipation,
+                VisionScorePerMinute = p.VisionScorePerMinute,
+                GoldPerMinute = p.GoldPerMinute,
+                DamagePerMinute = p.DamagePerMinute,
+                TeamDamagePercentage = p.TeamDamagePercentage,
+                ControlWardsPlaced = p.ControlWardsPlaced,
+                EffectiveHealAndShielding = p.EffectiveHealAndShielding,
+                DamageDealtToObjectivesChallenge = p.DamageDealtToObjectivesChallenge,
+                JungleCsBefore10Minutes = p.JungleCsBefore10Minutes,
+                LaneMinionsFirst10Minutes = p.LaneMinionsFirst10Minutes,
+                SkillshotsDodged = p.SkillshotsDodged,
+                SkillshotsHit = p.SkillshotsHit,
+                TakedownsFirstXMinutes = p.TakedownsFirstXMinutes,
+                EpicMonsterSteals = p.EpicMonsterSteals,
+                SoloBaronKills = p.SoloBaronKills,
+                KdaChallenge = p.KdaChallenge,
+            })
+            .ToListAsync(ct);
+
+        var byMatch = participants
+            .GroupBy(p => p.MatchEntityId)
+            .ToDictionary(g => g.Key, g => g.OrderBy(p => p.Id).ToList());
+        foreach (var match in matches)
+            match.Participants = byMatch.TryGetValue(match.Id, out var list) ? list : new List<Participant>();
+
+        // Oldest → newest for rolling win-rates and the temporal train/calibration/test split.
+        matches.Reverse();
+        return matches;
     }
 
     public async Task<Match?> GetMatchByMatchIdAsync(string matchId, CancellationToken ct = default)
@@ -290,6 +523,11 @@ public class MatchRepository : IMatchRepository
         await _context.SaveChangesAsync(ct);
     }
 
+    public void ResetTrackedState()
+    {
+        _context.ChangeTracker.Clear();
+    }
+
     public async Task<IReadOnlyList<string>> GetDistinctParticipantPuuidsAsync(int limit = 50, CancellationToken ct = default)
     {
         // Pull a larger pool then randomize so each training epoch explores different players
@@ -311,7 +549,17 @@ public class MatchRepository : IMatchRepository
 
     public async Task<IReadOnlyList<string>> GetMatchIdsNeedingTimelineBackfillAsync(int limit = 50, CancellationToken ct = default)
     {
-        // Prefer CS/XP@10 gaps first (lowest coverage), then vision/death, randomized within each tier.
+        // Highest priority: rows never got a real timeline (placeholder / failed fetch).
+        // Then CS/XP@10 gaps, then vision/death — randomized within each tier.
+        var missingTimeline = await _context.Matches
+            .AsNoTracking()
+            .Where(m => !m.HasMinute15Objectives
+                        && (m.QueueId == 420 || m.QueueId == 440 || m.QueueId == 400)
+                        && m.GameDurationSeconds >= 300
+                        && !m.IsRemake)
+            .Select(m => m.MatchId)
+            .ToListAsync(ct);
+
         var missingCsXp = await _context.Matches
             .AsNoTracking()
             .Where(m => m.HasMinute15Objectives && !m.HasCsXp10Features)
@@ -324,8 +572,9 @@ public class MatchRepository : IMatchRepository
             .Select(m => m.MatchId)
             .ToListAsync(ct);
 
-        var ordered = missingCsXp
+        var ordered = missingTimeline
             .OrderBy(_ => Random.Shared.Next())
+            .Concat(missingCsXp.OrderBy(_ => Random.Shared.Next()))
             .Concat(missingVision.OrderBy(_ => Random.Shared.Next()))
             .Take(limit)
             .ToList();
@@ -343,6 +592,51 @@ public class MatchRepository : IMatchRepository
 
         return ids
             .OrderBy(_ => Random.Shared.Next())
+            .Take(limit)
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<string>> GetMatchIdsNeedingChallengesBackfillAsync(int limit = 40, CancellationToken ct = default)
+    {
+        var ids = await _context.Matches
+            .AsNoTracking()
+            .Where(m => !m.HasChallenges
+                        && (m.QueueId == 420 || m.QueueId == 440)
+                        && m.GameDurationSeconds >= 300
+                        && !m.IsRemake)
+            .OrderByDescending(m => m.GameCreation)
+            .Select(m => m.MatchId)
+            .Take(Math.Max(limit * 3, limit))
+            .ToListAsync(ct);
+
+        return ids
+            .OrderBy(_ => Random.Shared.Next())
+            .Take(limit)
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<string>> GetMatchIdsMissingTimelineCacheAsync(int limit = 12, CancellationToken ct = default)
+    {
+        var cached = await _context.MatchTimelineCaches
+            .AsNoTracking()
+            .Select(c => c.MatchId)
+            .ToListAsync(ct);
+        var cachedSet = new HashSet<string>(cached, StringComparer.OrdinalIgnoreCase);
+
+        // Prefer recent complete matches so gold curves / moment replay light up first.
+        var candidates = await _context.Matches
+            .AsNoTracking()
+            .Where(m => m.HasMinute15Objectives
+                        && (m.QueueId == 420 || m.QueueId == 440)
+                        && m.GameDurationSeconds >= 300
+                        && !m.IsRemake)
+            .OrderByDescending(m => m.GameCreation)
+            .Select(m => m.MatchId)
+            .Take(Math.Max(limit * 20, 200))
+            .ToListAsync(ct);
+
+        return candidates
+            .Where(id => !cachedSet.Contains(id))
             .Take(limit)
             .ToList();
     }

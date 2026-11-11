@@ -51,9 +51,12 @@ public class MatchInputData
     [LoadColumn(14)]
     public float LatePowerDiff { get; set; }
 
-    /// <summary>Lobby skill 1–10 (Iron…Challenger).</summary>
+    /// <summary>Lobby skill 1–10 (Iron…Challenger). 0 = unknown (do not impute into mid-elo).</summary>
     [LoadColumn(15)]
     public float AvgRankScore { get; set; }
+
+    /// <summary>1 when ApproxRankScore was known; 0 when missing (model can distrust rank-scaled features).</summary>
+    public float HasKnownRank { get; set; }
 
     /// <summary>Total team gold at 15' / 1000 — game pace proxy.</summary>
     [LoadColumn(16)]
@@ -160,7 +163,37 @@ public class MatchInputData
     [LoadColumn(45)]
     public float XpDiff10 { get; set; }
 
-    [LoadColumn(46), ColumnName("Label")]
+    /// <summary>1 when early-window challenges were present on the match (HasChallenges + signal).</summary>
+    [LoadColumn(46)]
+    public float HasEarlyChallenges { get; set; }
+
+    /// <summary>Blue − Red jungle CS before 10' (challenge; 0 if !HasChallenges).</summary>
+    [LoadColumn(47)]
+    public float ChallengeJungleCs10Diff { get; set; }
+
+    /// <summary>Blue − Red lane minions before 10' (challenge).</summary>
+    [LoadColumn(48)]
+    public float ChallengeLaneCs10Diff { get; set; }
+
+    /// <summary>Blue − Red takedowns in Riot's first-X-minutes window (challenge).</summary>
+    [LoadColumn(49)]
+    public float EarlyTakedownDiff { get; set; }
+
+    /// <summary>
+    /// (Blue − Red) dragons@15 / 4 — progress toward soul without using end-game soul ownership.
+    /// </summary>
+    [LoadColumn(50)]
+    public float DragonSoulRace { get; set; }
+
+    /// <summary>Centered first-objective side lead: FB+FT+FD claimed by blue (−1.5…+1.5).</summary>
+    [LoadColumn(51)]
+    public float SideObjectiveLead { get; set; }
+
+    /// <summary>Past-only bot-lane (ADC+Support) champ-pair WR edge.</summary>
+    [LoadColumn(52)]
+    public float BotDuoMatchupDiff { get; set; }
+
+    [LoadColumn(53), ColumnName("Label")]
     public bool Label { get; set; }
 }
 

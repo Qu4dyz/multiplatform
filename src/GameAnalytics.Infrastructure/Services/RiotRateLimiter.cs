@@ -1,14 +1,15 @@
 using System.Collections.Concurrent;
+using GameAnalytics.Core.Exceptions;
 
 namespace GameAnalytics.Infrastructure.Services;
 
-    /// <summary>
-    /// Personal Riot keys expose <c>X-App-Rate-Limit: 100:120,20:1</c> (confirmed live).
-    /// Production keys may be higher — headers always win if we ever parse them.
-    /// Buckets are per routing/platform region so europe (match-v5) and euw1 (league-v4)
-    /// do not steal each other's quota.
-    /// </summary>
-    public class RiotRateLimiter
+/// <summary>
+/// Personal Riot keys expose <c>X-App-Rate-Limit: 100:120,20:1</c> (confirmed live).
+/// Production keys may be higher — headers always win if we ever parse them.
+/// Buckets are per routing/platform region so europe (match-v5) and euw1 (league-v4)
+/// do not steal each other's quota.
+/// </summary>
+public class RiotRateLimiter
 {
     private readonly ConcurrentDictionary<string, RegionBucket> _buckets = new(StringComparer.OrdinalIgnoreCase);
 
@@ -18,13 +19,19 @@ namespace GameAnalytics.Infrastructure.Services;
     public const int DefaultLongMax = 100;
     public static readonly TimeSpan DefaultLongDuration = TimeSpan.FromSeconds(120);
 
-    public Task WaitForSlotAsync(CancellationToken ct = default) => WaitForSlotAsync("global", ct);
+    public Task WaitForSlotAsync(CancellationToken ct = default) => WaitForSlotAsync("global", null, ct);
 
-    public async Task WaitForSlotAsync(string region, CancellationToken ct = default)
+    public Task WaitForSlotAsync(string region, CancellationToken ct = default)
+        => WaitForSlotAsync(region, maxBlockWait: null, ct);
+
+    /// <param name="maxBlockWait">
+    /// When set, fail fast with <see cref="RiotApiException"/> instead of sleeping out a long Riot Retry-After (desktop UI).
+    /// </param>
+    public async Task WaitForSlotAsync(string region, TimeSpan? maxBlockWait, CancellationToken ct = default)
     {
         var key = NormalizeRegion(region);
         var bucket = _buckets.GetOrAdd(key, _ => new RegionBucket(DefaultShortMax, DefaultShortDuration, DefaultLongMax, DefaultLongDuration));
-        await bucket.WaitForSlotAsync(ct);
+        await bucket.WaitForSlotAsync(maxBlockWait, key, ct);
     }
 
     public void NotifyRateLimitHit(string region, TimeSpan retryAfter)
@@ -73,7 +80,7 @@ namespace GameAnalytics.Infrastructure.Services;
             }
         }
 
-        public async Task WaitForSlotAsync(CancellationToken ct)
+        public async Task WaitForSlotAsync(TimeSpan? maxBlockWait, string region, CancellationToken ct)
         {
             await _semaphore.WaitAsync(ct);
             try
@@ -88,6 +95,16 @@ namespace GameAnalytics.Infrastructure.Services;
                     if (now < _blockedUntil)
                     {
                         var blockDelay = _blockedUntil - now + TimeSpan.FromMilliseconds(50);
+                        if (maxBlockWait.HasValue && blockDelay > maxBlockWait.Value)
+                        {
+                            var seconds = Math.Max(1, (int)Math.Ceiling((_blockedUntil - now).TotalSeconds));
+                            throw new RiotApiException(
+                                $"Riot API rate limit active for '{region}'. Retry in ~{seconds}s.",
+                                statusCode: 429,
+                                retryAfter: _blockedUntil - now,
+                                region: region);
+                        }
+
                         await Task.Delay(blockDelay, ct);
                         continue;
                     }
@@ -125,6 +142,17 @@ namespace GameAnalytics.Infrastructure.Services;
                     {
                         var waitLong = _longDuration - (now - _longWindowRequests.Peek());
                         if (waitLong > waitTime) waitTime = waitLong;
+                    }
+
+                    // Local window waits (1s / up to 120s). Cap interactive callers so UI cannot freeze
+                    // when the long bucket is full from rapid desktop refreshes.
+                    if (maxBlockWait.HasValue && waitTime > maxBlockWait.Value)
+                    {
+                        throw new RiotApiException(
+                            $"Riot API local rate limit for '{region}'. Retry in ~{(int)Math.Ceiling(waitTime.TotalSeconds)}s.",
+                            statusCode: 429,
+                            retryAfter: waitTime,
+                            region: region);
                     }
 
                     // Add a safety buffer to guarantee crossing Riot's edge window

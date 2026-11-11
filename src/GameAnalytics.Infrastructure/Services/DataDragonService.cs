@@ -198,42 +198,114 @@ public class DataDragonService : IDataDragonService
         public List<string>? Tags { get; set; }
     }
 
+    private static readonly SemaphoreSlim ItemLock = new(1, 1);
+    private static string? _loadedItemVersion;
+
+    /// <summary>
+    /// Loads item.json once per patch into <see cref="GameConstants.Items"/>, reusing a copy on disk
+    /// so tooltips show names offline and on a cold start. A failed load is retried on the next call.
+    /// </summary>
     public async Task PreloadItemDataAsync(CancellationToken ct = default)
     {
+        var version = await GetLatestGameVersionAsync(ct);
+        if (_loadedItemVersion == version && !GameConstants.Items.IsEmpty)
+            return;
+
+        await ItemLock.WaitAsync(ct);
         try
         {
-            var version = await GetLatestGameVersionAsync(ct);
-            var url = $"https://ddragon.leagueoflegends.com/cdn/{version}/data/en_US/item.json";
-            var response = await _httpClient.GetFromJsonAsync<DDragonItemResponse>(url, ct);
+            if (_loadedItemVersion == version && !GameConstants.Items.IsEmpty)
+                return;
 
-            if (response?.Data != null)
-            {
-                foreach (var kvp in response.Data)
-                {
-                    if (!int.TryParse(kvp.Key, out var itemId)) continue;
-                    var dto = kvp.Value;
+            var json = await ReadCachedOrDownloadAsync(version, "item.json", ct);
+            if (json == null)
+                return;
 
-                    var rawDesc = dto.Description ?? string.Empty;
-                    var cleanDesc = System.Text.RegularExpressions.Regex.Replace(rawDesc, @"<br\s*/?>", "\n", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-                    cleanDesc = System.Text.RegularExpressions.Regex.Replace(cleanDesc, @"<[^>]+>", string.Empty);
-                    cleanDesc = System.Text.RegularExpressions.Regex.Replace(cleanDesc, @"\n{3,}", "\n\n").Trim();
-
-                    var itemDef = new ItemDefinition
-                    {
-                        Id = itemId,
-                        Name = dto.Name ?? string.Empty,
-                        Plaintext = dto.Plaintext ?? string.Empty,
-                        FormattedDescription = cleanDesc,
-                        Gold = dto.Gold?.Total ?? 0
-                    };
-
-                    GameConstants.Items[itemId] = itemDef;
-                }
-            }
+            var count = LoadItemJson(json);
+            if (count > 0)
+                _loadedItemVersion = version;
         }
         catch
         {
             // Fallback items are already available in GameConstants
+        }
+        finally
+        {
+            ItemLock.Release();
+        }
+    }
+
+    /// <summary>Parses a Data Dragon item.json payload into <see cref="GameConstants.Items"/>.</summary>
+    public static int LoadItemJson(string json)
+    {
+        var response = JsonSerializer.Deserialize<DDragonItemResponse>(json);
+        if (response?.Data == null)
+            return 0;
+
+        var count = 0;
+        foreach (var kvp in response.Data)
+        {
+            if (!int.TryParse(kvp.Key, out var itemId)) continue;
+            var dto = kvp.Value;
+
+            GameConstants.Items[itemId] = new ItemDefinition
+            {
+                Id = itemId,
+                Name = dto.Name ?? string.Empty,
+                Plaintext = dto.Plaintext ?? string.Empty,
+                FormattedDescription = FormatItemDescription(dto.Description),
+                Gold = dto.Gold?.Total ?? 0
+            };
+            count++;
+        }
+
+        return count;
+    }
+
+    /// <summary>Turns Data Dragon's HTML-ish description into plain lines (stats first, one per line).</summary>
+    public static string FormatItemDescription(string? rawDescription)
+    {
+        if (string.IsNullOrWhiteSpace(rawDescription))
+            return string.Empty;
+
+        const System.Text.RegularExpressions.RegexOptions ic = System.Text.RegularExpressions.RegexOptions.IgnoreCase;
+        var text = rawDescription;
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"<br\s*/?>", "\n", ic);
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"</?(stats|mainText)>", "\n", ic);
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"<li>", "\n• ", ic);
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"<[^>]+>", string.Empty);
+        text = System.Net.WebUtility.HtmlDecode(text);
+        var lines = text.Split('\n')
+            .Select(l => System.Text.RegularExpressions.Regex.Replace(l, @" {2,}", " ").Trim())
+            .Where(l => l.Length > 0);
+        return string.Join("\n", lines);
+    }
+
+    private async Task<string?> ReadCachedOrDownloadAsync(string version, string fileName, CancellationToken ct)
+    {
+        var cachePath = Path.Combine(AppContext.BaseDirectory, "cache", "ddragon", version, fileName);
+        try
+        {
+            if (File.Exists(cachePath))
+                return await File.ReadAllTextAsync(cachePath, ct);
+        }
+        catch { /* fall through to download */ }
+
+        try
+        {
+            var url = $"https://ddragon.leagueoflegends.com/cdn/{version}/data/en_US/{fileName}";
+            var json = await _httpClient.GetStringAsync(url, ct);
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(cachePath)!);
+                await File.WriteAllTextAsync(cachePath, json, ct);
+            }
+            catch { /* cache is best effort */ }
+            return json;
+        }
+        catch
+        {
+            return null;
         }
     }
 
@@ -244,7 +316,7 @@ public class DataDragonService : IDataDragonService
             return item;
         }
 
-        if (GameConstants.Items.Count == 0)
+        if (GameConstants.Items.IsEmpty)
         {
             await PreloadItemDataAsync(ct);
             if (GameConstants.Items.TryGetValue(itemId, out var loaded))

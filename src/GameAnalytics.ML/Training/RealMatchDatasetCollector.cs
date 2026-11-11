@@ -30,6 +30,8 @@ public class RealMatchDatasetCollector
         CancellationToken ct = default)
     {
         var visitedPuuids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        // Prefer PUUIDs with known ladder rank — their lobbies raise ApproxRankScore coverage.
+        var rankedCandidates = new Queue<string>();
         var candidatePuuids = new Queue<string>();
         // PUUID → known ladder skill (1–10). Used to tag matches with ApproxRankScore.
         var puuidRankHints = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
@@ -41,6 +43,26 @@ public class RealMatchDatasetCollector
         const int csXpReserve = 40;
         var ladderSeeded = false;
         var learnedRankHints = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
+
+        int CandidateCount() => rankedCandidates.Count + candidatePuuids.Count;
+
+        bool TryDequeueCandidate(out string puuid)
+        {
+            if (rankedCandidates.Count > 0)
+            {
+                puuid = rankedCandidates.Dequeue();
+                return true;
+            }
+
+            if (candidatePuuids.Count > 0)
+            {
+                puuid = candidatePuuids.Dequeue();
+                return true;
+            }
+
+            puuid = "";
+            return false;
+        }
 
         void MergeRankHint(string? puuid, float rankScore, bool markForPersist)
         {
@@ -61,7 +83,13 @@ public class RealMatchDatasetCollector
             if (puuid.StartsWith("puuid-", StringComparison.OrdinalIgnoreCase)) return;
             if (rankHint.HasValue) RememberRankHint(puuid, rankHint.Value);
             if (!visitedPuuids.Add(puuid)) return;
-            candidatePuuids.Enqueue(puuid);
+
+            var knownRank = rankHint
+                ?? (puuidRankHints.TryGetValue(puuid, out var hint) ? hint : 0f);
+            if (knownRank > 0)
+                rankedCandidates.Enqueue(puuid);
+            else
+                candidatePuuids.Enqueue(puuid);
         }
 
         void EnqueueParticipants(IEnumerable<Participant> participants)
@@ -78,7 +106,7 @@ public class RealMatchDatasetCollector
             ladderSeeded = true;
             try
             {
-                var before = candidatePuuids.Count;
+                var before = CandidateCount();
                 var high = await _apiClient.GetHighEloLadderPlayersAsync("RANKED_SOLO_5x5", maxCount: 55, ct: ct);
                 foreach (var entry in high)
                     EnqueueCandidate(entry.Puuid, RankScoreHelper.FromTier(entry.Tier));
@@ -88,7 +116,7 @@ public class RealMatchDatasetCollector
                     EnqueueCandidate(entry.Puuid, RankScoreHelper.FromTier(entry.Tier));
 
                 logger?.Invoke(
-                    $"[Collector] Ladder seed: +{candidatePuuids.Count - before} гравців (high+division, rank hints для лобі).");
+                    $"[Collector] Ladder seed: +{CandidateCount() - before} гравців (high+division, rank hints для лобі).");
             }
             catch (Exception ex)
             {
@@ -118,6 +146,12 @@ public class RealMatchDatasetCollector
         // Dedicated pass: close CS/XP@10 + vision gaps on older rows (not only those hit by crawl).
         await BackfillStaleTimelineFeaturesAsync(logger, ct);
 
+        // Match-v5 challenges for coach/UI (no ML wire — end-game leakage risk).
+        await BackfillMissingChallengesAsync(logger, ct);
+
+        // Cheap timeline-cache fill for gold curves / moment replay (small cap under rate limits).
+        await BackfillMissingTimelineCachesAsync(logger, ct);
+
         int newlySavedMatches = 0;
 
         logger?.Invoke($"[Collector] Початок збору реальних Ranked Solo матчів для навчання ML (Ціль: {targetNewMatches})...");
@@ -125,7 +159,7 @@ public class RealMatchDatasetCollector
         while (newlySavedMatches < targetNewMatches && !ct.IsCancellationRequested)
         {
             // Self-healing: refill crawl queue from DB / high-elo ladders when empty
-            if (candidatePuuids.Count == 0)
+            if (CandidateCount() == 0)
             {
                 refillAttempts++;
                 if (refillAttempts > maxRefillAttempts)
@@ -148,13 +182,13 @@ public class RealMatchDatasetCollector
                     EnqueueCandidate(p);
                 }
 
-                logger?.Invoke($"[Collector] Refill #{refillAttempts}: додано {candidatePuuids.Count} кандидатів з локальної БД.");
+                logger?.Invoke($"[Collector] Refill #{refillAttempts}: додано {CandidateCount()} кандидатів з локальної БД.");
 
-                if (candidatePuuids.Count < 15)
+                if (CandidateCount() < 15)
                 {
                     try
                     {
-                        var before = candidatePuuids.Count;
+                        var before = CandidateCount();
                         var ladder = await _apiClient.GetHighEloLadderPlayersAsync("RANKED_SOLO_5x5", maxCount: 30, ct: ct);
                         foreach (var entry in ladder)
                             EnqueueCandidate(entry.Puuid, RankScoreHelper.FromTier(entry.Tier));
@@ -163,7 +197,7 @@ public class RealMatchDatasetCollector
                         foreach (var entry in divisions)
                             EnqueueCandidate(entry.Puuid, RankScoreHelper.FromTier(entry.Tier));
 
-                        logger?.Invoke($"[Collector] Ladder refill: +{candidatePuuids.Count - before} гравців (high+division, з міткою рангу).");
+                        logger?.Invoke($"[Collector] Ladder refill: +{CandidateCount() - before} гравців (high+division, з міткою рангу).");
                     }
                     catch (Exception ex)
                     {
@@ -171,56 +205,70 @@ public class RealMatchDatasetCollector
                     }
                 }
 
-                if (candidatePuuids.Count == 0)
+                if (CandidateCount() == 0)
                 {
                     logger?.Invoke("[Collector] Черга кандидатів порожня після refill. Завершення поточної ітерації.");
                     break;
                 }
             }
 
-            var puuid = candidatePuuids.Dequeue();
+            if (!TryDequeueCandidate(out var puuid))
+                break;
 
-            // Deeper lookback: previously collected players still have older ranked games worth mining
+            // Solo/Duo only — Flex/Normal burn europe quota without helping ranked prediction quality.
             var matchIds = await _apiClient.GetRecentMatchIdsByPuuidAsync(puuid, count: 40, queue: 420, ct: ct);
-            if (matchIds.Count == 0)
-            {
-                matchIds = await _apiClient.GetRecentMatchIdsByPuuidAsync(puuid, count: 25, queue: null, ct: ct);
-            }
 
             foreach (var matchId in matchIds)
             {
                 if (newlySavedMatches >= targetNewMatches || ct.IsCancellationRequested) break;
 
                 var existing = await _matchRepo.GetMatchByMatchIdAsync(matchId, ct);
-                if (existing != null && existing.Teams.Count >= 2 && existing.Teams.Any(t => t.GoldAt15 > 0))
+                if (existing != null && existing.Teams.Count >= 2)
                 {
-                    // Retag lobby rank when we now know participant tiers.
-                    if (existing.ApproxRankScore <= 0 && TryTagMatchRankScore(existing, puuidRankHints))
+                    // Incomplete rows (no real timeline) must be repaired — GoldAt15 alone can be a stale placeholder.
+                    if (!existing.HasMinute15Objectives && objectiveBackfills < backfillCap)
                     {
-                        await _matchRepo.UpsertMatchAsync(existing, ct);
-                    }
-
-                    // Backfill towers/dragons/vision/deaths/CS·XP@10 for older rows missing snapshots.
-                    // Reserve part of the budget for CS/XP@10 (lowest coverage).
-                    var needsCsXp = NeedsCsXp10Backfill(existing);
-                    var needsOther = NeedsAt15ObjectiveBackfill(existing) || NeedsVisionDeathBackfill(existing);
-                    if ((needsCsXp || needsOther) && objectiveBackfills < backfillCap)
-                    {
-                        var otherUsed = objectiveBackfills - csXpBackfills;
-                        var otherCap = backfillCap - csXpReserve;
-                        var allow = needsCsXp
-                            ? (csXpBackfills < csXpReserve || objectiveBackfills < backfillCap)
-                            : otherUsed < otherCap || (csXpBackfills >= csXpReserve && objectiveBackfills < backfillCap);
-
-                        if (allow)
+                        var timelineRepair = await _apiClient.GetMatchTimelineAsync(matchId, ct);
+                        if (timelineRepair != null && ApplyTimelineSnapshot(existing, timelineRepair))
                         {
-                            var timelineBackfill = await _apiClient.GetMatchTimelineAsync(matchId, ct);
-                            if (timelineBackfill != null && ApplyTimelineSnapshot(existing, timelineBackfill))
+                            await TryPersistTimelineCacheAsync(matchId, timelineRepair, ct);
+                            TagMatchRankScore(existing, puuidRankHints);
+                            await _matchRepo.UpsertMatchAsync(existing, ct);
+                            objectiveBackfills++;
+                            logger?.Invoke($"[Collector] Repaired missing 15' timeline: {matchId} ({objectiveBackfills}/{backfillCap})");
+                        }
+                    }
+                    else if (existing.HasMinute15Objectives)
+                    {
+                        // Retag lobby rank when we now know participant tiers.
+                        if (existing.ApproxRankScore <= 0 && TryTagMatchRankScore(existing, puuidRankHints))
+                        {
+                            await _matchRepo.UpsertMatchAsync(existing, ct);
+                        }
+
+                        // Backfill towers/dragons/vision/deaths/CS·XP@10 for older rows missing snapshots.
+                        // Reserve part of the budget for CS/XP@10 (lowest coverage).
+                        var needsCsXp = NeedsCsXp10Backfill(existing);
+                        var needsOther = NeedsAt15ObjectiveBackfill(existing) || NeedsVisionDeathBackfill(existing);
+                        if ((needsCsXp || needsOther) && objectiveBackfills < backfillCap)
+                        {
+                            var otherUsed = objectiveBackfills - csXpBackfills;
+                            var otherCap = backfillCap - csXpReserve;
+                            var allow = needsCsXp
+                                ? (csXpBackfills < csXpReserve || objectiveBackfills < backfillCap)
+                                : otherUsed < otherCap || (csXpBackfills >= csXpReserve && objectiveBackfills < backfillCap);
+
+                            if (allow)
                             {
-                                await _matchRepo.UpsertMatchAsync(existing, ct);
-                                objectiveBackfills++;
-                                if (needsCsXp) csXpBackfills++;
-                                logger?.Invoke($"[Collector] Backfill 15' timeline features: {matchId} ({objectiveBackfills}/{backfillCap}, cs10={csXpBackfills})");
+                                var timelineBackfill = await _apiClient.GetMatchTimelineAsync(matchId, ct);
+                                if (timelineBackfill != null && ApplyTimelineSnapshot(existing, timelineBackfill))
+                                {
+                                    await TryPersistTimelineCacheAsync(matchId, timelineBackfill, ct);
+                                    await _matchRepo.UpsertMatchAsync(existing, ct);
+                                    objectiveBackfills++;
+                                    if (needsCsXp) csXpBackfills++;
+                                    logger?.Invoke($"[Collector] Backfill 15' timeline features: {matchId} ({objectiveBackfills}/{backfillCap}, cs10={csXpBackfills})");
+                                }
                             }
                         }
                     }
@@ -228,7 +276,7 @@ public class RealMatchDatasetCollector
                     // Critical: expand crawl graph from already-stored matches, otherwise the frontier dies
                     // once the seed player's recent games are fully collected.
                     // Cap queue growth to avoid burning the Riot rate limit on endless teammate BFS.
-                    if (candidatePuuids.Count < 150)
+                    if (CandidateCount() < 150)
                     {
                         EnqueueParticipants(existing.Participants);
                     }
@@ -236,23 +284,26 @@ public class RealMatchDatasetCollector
                 }
 
                 var match = await _apiClient.GetMatchDetailsAsync(matchId, ct);
-                // Strict filter: must not be remake, duration >= 5 mins, and must be Summoner's Rift
+                // Strict filter: must not be remake, duration >= 5 mins, Ranked Solo/Duo only
                 if (match == null || match.IsRemake || match.GameDurationSeconds < 300)
                 {
                     continue;
                 }
-                if (match.QueueId != 420 && match.QueueId != 440 && match.QueueId != 400)
+                if (match.QueueId != 420)
                 {
-                    continue; // Skip ARAM, Arena, Fun modes
+                    continue; // Skip Flex, Normal, ARAM, Arena — keep training on Solo/Duo
                 }
 
-                // Fetch real timeline to get exact 15-minute game state (Gold, CS, XP, Grubs, Herald, towers/dragons)
+                // Require a real timeline; never persist placeholder GoldAt15 / end-game first objectives.
                 var timeline = await _apiClient.GetMatchTimelineAsync(matchId, ct);
-                if (timeline != null)
+                if (timeline == null || !ApplyTimelineSnapshot(match, timeline))
                 {
-                    ApplyTimelineSnapshot(match, timeline);
+                    logger?.Invoke($"[Collector] Skip {matchId}: timeline unavailable (no placeholder save).");
+                    continue;
                 }
 
+                await TryPersistTimelineCacheAsync(matchId, timeline, ct);
+                ParticipantChallengeHelper.RefreshHasChallengesFlag(match);
                 TagMatchRankScore(match, puuidRankHints);
 
                 await _matchRepo.UpsertMatchAsync(match, ct);
@@ -439,7 +490,7 @@ public class RealMatchDatasetCollector
     /// </summary>
     private async Task BackfillStaleTimelineFeaturesAsync(Action<string>? logger, CancellationToken ct)
     {
-        const int dedicatedCap = 25;
+        const int dedicatedCap = 40;
         IReadOnlyList<string> ids;
         try
         {
@@ -469,6 +520,7 @@ public class RealMatchDatasetCollector
                 if (timeline == null) continue;
                 if (!ApplyTimelineSnapshot(existing, timeline)) continue;
 
+                await TryPersistTimelineCacheAsync(matchId, timeline, ct);
                 await _matchRepo.UpsertMatchAsync(existing, ct);
                 done++;
                 if (done == 1 || done % 10 == 0 || done == ids.Count)
@@ -485,14 +537,135 @@ public class RealMatchDatasetCollector
     }
 
     /// <summary>
-    /// Converts stored historical matches into honest minute-15 ML features.
-    /// Skips matches without a real 15' gold snapshot and never falls back to end-of-game towers/kills/CS.
-    /// Champion win rates are chronological past-only (no future label leakage).
-    /// Adds draft scaling, composition tags, gold@10 momentum, lane gold, and rank-aware gold conversion.
-    /// Preserves chronological order when the input is ordered by GameCreation.
+    /// Re-fetch match-v5 details for rows missing challenges (coach/UI only — not ML features).
     /// </summary>
-    public static List<MatchInputData> ExtractFeaturesFromMatches(IEnumerable<Match> matches)
+    private async Task BackfillMissingChallengesAsync(Action<string>? logger, CancellationToken ct)
     {
+        const int challengeCap = 48;
+        IReadOnlyList<string> ids;
+        try
+        {
+            ids = await _matchRepo.GetMatchIdsNeedingChallengesBackfillAsync(challengeCap, ct);
+        }
+        catch (Exception ex)
+        {
+            logger?.Invoke($"[Collector] Challenges backfill skip: {ex.Message}");
+            return;
+        }
+
+        if (ids.Count == 0) return;
+
+        var done = 0;
+        foreach (var matchId in ids)
+        {
+            if (ct.IsCancellationRequested || done >= challengeCap) break;
+            try
+            {
+                var existing = await _matchRepo.GetMatchByMatchIdAsync(matchId, ct);
+                if (existing == null || existing.HasChallenges) continue;
+
+                var details = await _apiClient.GetMatchDetailsAsync(matchId, ct);
+                if (details == null) continue;
+                if (!ParticipantChallengeHelper.MergeChallengesFromDetails(existing, details))
+                    continue;
+
+                await _matchRepo.UpsertMatchAsync(existing, ct);
+                done++;
+                if (done == 1 || done % 12 == 0 || done == ids.Count)
+                    logger?.Invoke($"[Collector] Challenges backfill: {done}/{ids.Count}");
+            }
+            catch
+            {
+                // Rate limits / transient — resume next epoch.
+            }
+        }
+
+        if (done > 0)
+            logger?.Invoke($"[Collector] Challenges backfill завершено: {done} матчів.");
+    }
+
+    /// <summary>
+    /// Fill MatchTimelineCaches for recent complete matches (gold curve / moment replay).
+    /// Small per-epoch cap — timeline calls share the europe rate bucket with crawl.
+    /// </summary>
+    private async Task BackfillMissingTimelineCachesAsync(Action<string>? logger, CancellationToken ct)
+    {
+        const int cacheCap = 16;
+        IReadOnlyList<string> ids;
+        try
+        {
+            ids = await _matchRepo.GetMatchIdsMissingTimelineCacheAsync(cacheCap, ct);
+        }
+        catch (Exception ex)
+        {
+            logger?.Invoke($"[Collector] Timeline-cache backfill skip: {ex.Message}");
+            return;
+        }
+
+        if (ids.Count == 0) return;
+
+        var done = 0;
+        foreach (var matchId in ids)
+        {
+            if (ct.IsCancellationRequested || done >= cacheCap) break;
+            try
+            {
+                var cached = await _matchRepo.GetCachedTimelineAsync(matchId, ct);
+                if (cached != null) continue;
+
+                var timeline = await _apiClient.GetMatchTimelineAsync(matchId, ct);
+                if (timeline == null) continue;
+
+                // Refresh @15 features if the parse still improves the row.
+                var existing = await _matchRepo.GetMatchByMatchIdAsync(matchId, ct);
+                if (existing != null && ApplyTimelineSnapshot(existing, timeline))
+                    await _matchRepo.UpsertMatchAsync(existing, ct);
+
+                await TryPersistTimelineCacheAsync(matchId, timeline, ct);
+                done++;
+                if (done == 1 || done == ids.Count)
+                    logger?.Invoke($"[Collector] Timeline-cache backfill: {done}/{ids.Count}");
+            }
+            catch
+            {
+                // Rate limits / transient — resume next epoch.
+            }
+        }
+
+        if (done > 0)
+            logger?.Invoke($"[Collector] Timeline-cache backfill завершено: {done} матчів.");
+    }
+
+    private async Task TryPersistTimelineCacheAsync(string matchId, MatchTimelineData timeline, CancellationToken ct)
+    {
+        try
+        {
+            await _matchRepo.SaveTimelineCacheAsync(matchId, timeline, ct);
+        }
+        catch
+        {
+            // Cache write must never fail the crawl / training epoch.
+        }
+    }
+
+    /// <summary>
+    /// Converts stored historical matches into honest ML features at a prediction horizon.
+    /// Default <paramref name="predictionMinute"/> = 15 keeps the production early model unchanged.
+    /// Mid/late (25/35) require <paramref name="timelineLookup"/> with frames ≤ horizon; never uses end-game towers/kills.
+    /// Column names stay <c>*15</c> on <see cref="MatchInputData"/> but mean "at this horizon".
+    /// </summary>
+    public static List<MatchInputData> ExtractFeaturesFromMatches(
+        IEnumerable<Match> matches,
+        int predictionMinute = PredictionHorizons.Early,
+        Func<string, MatchTimelineData?>? timelineLookup = null,
+        int? maxRows = null)
+    {
+        if (!PredictionHorizons.IsSupported(predictionMinute) && predictionMinute != PredictionHorizons.Early)
+        {
+            // Allow only the lab anchors; anything else falls back to early path defensively.
+            predictionMinute = PredictionHorizons.Early;
+        }
+
         var matchList = matches as IList<Match> ?? matches.ToList();
         // Ensure chronological processing so rolling WR never sees the future.
         var ordered = matchList
@@ -500,38 +673,145 @@ public class RealMatchDatasetCollector
             .ThenBy(m => m.MatchId, StringComparer.Ordinal)
             .ToList();
 
+        var minDuration = predictionMinute * 60;
+        var isLabHorizon = predictionMinute is PredictionHorizons.Mid or PredictionHorizons.Late;
+
+        // 2GB VPS caps (newest N *eligible* rows, so ineligible games never eat the budget):
+        // - early: queue/duration + real 15' timeline flags (same predicate as the loop below)
+        // - lab mid/late: queue/duration only (timeline availability is checked per row)
+        if (maxRows is > 0)
+        {
+            var eligible = ordered
+                .Where(m => !m.IsRemake
+                            && m.GameDurationSeconds >= Math.Max(300, minDuration)
+                            && (m.QueueId == 420 || m.QueueId == 0)
+                            && (isLabHorizon || IsEarlyTimelineEligible(m)))
+                .ToList();
+            ordered = eligible.Count > maxRows.Value
+                ? eligible.Skip(eligible.Count - maxRows.Value).ToList()
+                : eligible;
+        }
+
         var champWins = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var champGames = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var matchupWins = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var matchupGames = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var botDuoWins = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var botDuoGames = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var result = new List<MatchInputData>();
 
         foreach (var match in ordered)
         {
-            if (match.IsRemake || match.GameDurationSeconds < 300) continue;
-            if (match.QueueId != 420 && match.QueueId != 440 && match.QueueId != 400 && match.QueueId != 0) continue;
+            // Remakes / games shorter than the horizon never belong in that horizon's win model.
+            if (match.IsRemake || match.GameDurationSeconds < Math.Max(300, minDuration)) continue;
+            // Solo/Duo only (QueueId 0 kept for unit fixtures that omit queue).
+            if (match.QueueId != 420 && match.QueueId != 0) continue;
 
             var blue = match.Teams.FirstOrDefault(t => t.TeamSide == TeamSide.Blue);
             var red = match.Teams.FirstOrDefault(t => t.TeamSide == TeamSide.Red);
             if (blue == null || red == null) continue;
 
-            // Require a real timeline gold snapshot — never invent diffs from final scoreboard.
-            if (blue.GoldAt15 <= 0 && red.GoldAt15 <= 0) continue;
+            float goldDiff15, killDiff15, csDiff15, xpDiff15, towerDiff, dragonDiff, voidgrubDiff, heraldDiff;
+            float goldPace, levelDiff, goldDiff10, killDiff10, csDiff10, xpDiff10;
+            float topGold, jgGold, midGold, botGold, carryGold, platesDiff;
+            float deathDiff, visionDiff, controlDiff;
+            float firstBloodTempo, firstTowerTempo, firstDragonTempo, firstDragonValue;
+            bool firstBlood, firstTower, firstDragon;
+            int dragonsBlue, dragonsRed;
 
-            var goldDiff15 = (float)(blue.GoldAt15 - red.GoldAt15);
-            var killDiff15 = (float)(blue.KillsAt15 - red.KillsAt15);
-            var csDiff15 = (float)(blue.CsAt15 - red.CsAt15);
-            var xpDiff15 = (blue.XpAt15 > 0 || red.XpAt15 > 0)
-                ? (float)(blue.XpAt15 - red.XpAt15)
-                : goldDiff15 * 0.65f;
+            if (predictionMinute == PredictionHorizons.Early)
+            {
+                if (!IsEarlyTimelineEligible(match)) continue;
 
-            // Towers/dragons MUST be at-15 counts. End-of-game TowerKills/DragonKills are label leakage.
-            var towerDiff = (float)(blue.TowersAt15 - red.TowersAt15);
-            var dragonDiff = (float)(blue.DragonsAt15 - red.DragonsAt15);
+                goldDiff15 = (float)(blue.GoldAt15 - red.GoldAt15);
+                killDiff15 = (float)(blue.KillsAt15 - red.KillsAt15);
+                csDiff15 = (float)(blue.CsAt15 - red.CsAt15);
+                xpDiff15 = (blue.XpAt15 > 0 || red.XpAt15 > 0)
+                    ? (float)(blue.XpAt15 - red.XpAt15)
+                    : goldDiff15 * 0.65f;
 
-            // After timeline apply, Voidgrub/Herald rows are also at-15 snapshots.
-            var voidgrubDiff = (float)(blue.VoidgrubKills - red.VoidgrubKills);
-            var heraldDiff = (float)(blue.RiftHeraldKills - red.RiftHeraldKills);
+                // Towers/dragons MUST be at-15 counts. End-of-game TowerKills/DragonKills are label leakage.
+                towerDiff = (float)(blue.TowersAt15 - red.TowersAt15);
+                dragonDiff = (float)(blue.DragonsAt15 - red.DragonsAt15);
+                voidgrubDiff = (float)(blue.VoidgrubKills - red.VoidgrubKills);
+                heraldDiff = (float)(blue.RiftHeraldKills - red.RiftHeraldKills);
+                dragonsBlue = blue.DragonsAt15;
+                dragonsRed = red.DragonsAt15;
+
+                firstBlood = blue.FirstBlood;
+                firstTower = blue.FirstTower;
+                firstDragon = blue.FirstDragon;
+                goldPace = (blue.GoldAt15 + red.GoldAt15) / 1000f;
+                levelDiff = match.LevelDiff15 != 0 ? match.LevelDiff15 : xpDiff15 / 180f;
+                goldDiff10 = match.GoldDiff10;
+                killDiff10 = match.KillDiff10;
+                if (goldDiff10 == 0 && goldDiff15 != 0)
+                    goldDiff10 = goldDiff15 * 0.65f;
+                csDiff10 = match.CsDiff10 != 0
+                    ? match.CsDiff10
+                    : (match.HasCsXp10Features ? 0f : csDiff15 * 0.65f);
+                xpDiff10 = match.XpDiff10 != 0
+                    ? match.XpDiff10
+                    : (match.HasCsXp10Features ? 0f : xpDiff15 * 0.65f);
+                topGold = match.TopGoldDiff15;
+                jgGold = match.JungleGoldDiff15;
+                midGold = match.MidGoldDiff15;
+                botGold = match.BotDuoGoldDiff15;
+                carryGold = match.CarryGoldDiff15 != 0 ? match.CarryGoldDiff15 : goldDiff15 * 0.35f;
+                deathDiff = match.DeathDiff15;
+                visionDiff = match.VisionWardDiff15;
+                controlDiff = match.ControlWardDiff15;
+                firstBloodTempo = match.FirstBloodTempo;
+                firstTowerTempo = match.FirstTowerTempo;
+                firstDragonTempo = match.FirstDragonTempo;
+                firstDragonValue = match.FirstDragonValue;
+                platesDiff = match.PlatesDiff15;
+            }
+            else
+            {
+                if (timelineLookup == null) continue;
+                var timeline = timelineLookup(match.MatchId);
+                if (timeline == null) continue;
+                var snap = MatchTimelineSnapshotBuilder.Build(timeline, predictionMinute, match);
+                if (snap == null) continue;
+                // No frame ≤ horizon ⇒ skip (already null). Never invent from end-game.
+                if (snap.GoldBlue <= 0 && snap.GoldRed <= 0) continue;
+
+                goldDiff15 = snap.GoldDiff;
+                killDiff15 = snap.KillDiff;
+                csDiff15 = (snap.CsBlue > 0 || snap.CsRed > 0) ? snap.CsDiff : goldDiff15 * 0.02f;
+                xpDiff15 = (snap.XpBlue > 0 || snap.XpRed > 0) ? snap.XpDiff : goldDiff15 * 0.65f;
+                towerDiff = snap.TowersBlue - snap.TowersRed;
+                dragonDiff = snap.DragonsBlue - snap.DragonsRed;
+                voidgrubDiff = snap.VoidgrubsBlue - snap.VoidgrubsRed;
+                heraldDiff = snap.HeraldsBlue - snap.HeraldsRed;
+                dragonsBlue = snap.DragonsBlue;
+                dragonsRed = snap.DragonsRed;
+                firstBlood = snap.BlueFirstBlood;
+                firstTower = snap.BlueFirstTower;
+                firstDragon = snap.BlueFirstDragon;
+                goldPace = (snap.GoldBlue + snap.GoldRed) / 1000f;
+                levelDiff = snap.LevelDiff != 0 ? snap.LevelDiff : xpDiff15 / 180f;
+                goldDiff10 = snap.GoldDiffPrior != 0 ? snap.GoldDiffPrior : goldDiff15 * 0.65f;
+                killDiff10 = snap.KillDiffPrior;
+                csDiff10 = snap.CsDiffPrior != 0 ? snap.CsDiffPrior : csDiff15 * 0.65f;
+                xpDiff10 = snap.XpDiffPrior != 0 ? snap.XpDiffPrior : xpDiff15 * 0.65f;
+                topGold = snap.TopGoldDiff;
+                jgGold = snap.JungleGoldDiff;
+                midGold = snap.MidGoldDiff;
+                botGold = snap.BotDuoGoldDiff;
+                carryGold = snap.CarryGoldDiff != 0 ? snap.CarryGoldDiff : goldDiff15 * 0.35f;
+                deathDiff = snap.DeathDiff;
+                visionDiff = snap.VisionWardDiff;
+                controlDiff = snap.ControlWardDiff;
+                var deadlineMs = predictionMinute * 60_000;
+                firstBloodTempo = DragonValueHelper.SignedTempo(snap.BlueFirstBlood, snap.FirstBloodTimeMs, deadlineMs);
+                firstTowerTempo = DragonValueHelper.SignedTempo(snap.BlueFirstTower, snap.FirstTowerTimeMs, deadlineMs);
+                firstDragonTempo = DragonValueHelper.SignedTempo(snap.BlueFirstDragon, snap.FirstDragonTimeMs, deadlineMs);
+                firstDragonValue = DragonValueHelper.SignedDragonValue(
+                    snap.BlueFirstDragon, snap.FirstDragonSubType, snap.FirstDragonTimeMs, deadlineMs);
+                platesDiff = snap.PlatesDiff;
+            }
 
             var blueChamps = match.Participants.Where(p => p.TeamSide == TeamSide.Blue).Select(p => p.ChampionName).ToList();
             var redChamps = match.Participants.Where(p => p.TeamSide == TeamSide.Red).Select(p => p.ChampionName).ToList();
@@ -541,43 +821,38 @@ public class RealMatchDatasetCollector
             var (blueWr, redWr) = ComputeTeamChampionWinRates(blueChamps, redChamps, pastRates);
             var (engageDiff, tankDiff, adApDiff) = ChampionCompositionHelper.ComputeDiffs(blueChamps, redChamps);
             var laneMatchupDiff = ComputeLaneMatchupDiff(match, matchupWins, matchupGames);
+            var botDuoMatchupDiff = ComputeBotDuoMatchupDiff(match, botDuoWins, botDuoGames);
+            var earlyChallenges = EarlyChallengeFeatureHelper.Extract(match);
 
-            var rankScore = match.ApproxRankScore > 0 ? match.ApproxRankScore : RankScoreHelper.DefaultMixedLobby;
-            var goldPace = (blue.GoldAt15 + red.GoldAt15) / 1000f;
+            // Keep unknown rank as 0 — never impute DefaultMixedLobby (5.5) into MidElo specialist band.
+            var knownRank = match.ApproxRankScore > 0;
+            var rankScore = knownRank ? match.ApproxRankScore : 0f;
             var objectiveScore =
                 towerDiff * 1.5f +
                 dragonDiff * 1.2f +
                 voidgrubDiff * 0.35f +
                 heraldDiff * 1.0f;
 
-            // High-elo lobbies convert leads more cleanly; low-elo is noisier.
-            var rankAdjustedGold = goldDiff15 * (rankScore / RankScoreHelper.DefaultMixedLobby);
+            // High-elo lobbies convert leads more cleanly; unknown rank → neutral multiplier (1.0).
+            var rankAdjustedGold = knownRank
+                ? goldDiff15 * (rankScore / RankScoreHelper.DefaultMixedLobby)
+                : goldDiff15;
 
-            var levelDiff = match.LevelDiff15 != 0
-                ? match.LevelDiff15
-                : xpDiff15 / 180f; // rough fallback: ~180 XP ≈ 1 level across a team
-
-            var goldDiff10 = match.GoldDiff10;
-            var killDiff10 = match.KillDiff10;
-            // If 10' snapshot missing, approximate from 15' (slightly weaker signal, still honest).
-            if (goldDiff10 == 0 && goldDiff15 != 0)
-                goldDiff10 = goldDiff15 * 0.65f;
             var goldMomentum = goldDiff15 - goldDiff10;
             var winRateDiff = blueWr - redWr;
             var snowball = (killDiff15 * 400f + goldDiff15) / 1000f;
             var killMomentum = killDiff15 - killDiff10;
             var leadVsScaling = (goldDiff15 / 2000f) * (lateDiff / 10f);
 
-            // Carry lead: prefer stored timeline value; fall back to fraction of team gold lead.
-            var carryGold = match.CarryGoldDiff15 != 0
-                ? match.CarryGoldDiff15
-                : goldDiff15 * 0.35f;
+            // Timeline plates preferred; challenge plates only fill when timeline plates are missing.
+            if (platesDiff == 0)
+                platesDiff = earlyChallenges.ChallengePlatesDiff;
 
             result.Add(new MatchInputData
             {
-                FirstBlood = blue.FirstBlood ? 1f : 0f,
-                FirstTower = blue.FirstTower ? 1f : 0f,
-                FirstDragon = blue.FirstDragon ? 1f : 0f,
+                FirstBlood = firstBlood ? 1f : 0f,
+                FirstTower = firstTower ? 1f : 0f,
+                FirstDragon = firstDragon ? 1f : 0f,
                 GoldDiff15 = goldDiff15,
                 KillDiff15 = killDiff15,
                 CsDiff15 = csDiff15,
@@ -591,22 +866,19 @@ public class RealMatchDatasetCollector
                 EarlyPowerDiff = earlyDiff,
                 LatePowerDiff = lateDiff,
                 AvgRankScore = rankScore,
+                HasKnownRank = knownRank ? 1f : 0f,
                 GoldPace15 = goldPace,
-                TopGoldDiff15 = match.TopGoldDiff15,
-                JungleGoldDiff15 = match.JungleGoldDiff15,
-                MidGoldDiff15 = match.MidGoldDiff15,
-                BotDuoGoldDiff15 = match.BotDuoGoldDiff15,
+                TopGoldDiff15 = topGold,
+                JungleGoldDiff15 = jgGold,
+                MidGoldDiff15 = midGold,
+                BotDuoGoldDiff15 = botGold,
                 LevelDiff15 = levelDiff,
                 ObjectiveScoreDiff = objectiveScore,
                 RankAdjustedGoldDiff = rankAdjustedGold,
                 GoldDiff10 = goldDiff10,
                 KillDiff10 = killDiff10,
-                CsDiff10 = match.CsDiff10 != 0
-                    ? match.CsDiff10
-                    : (match.HasCsXp10Features ? 0f : csDiff15 * 0.65f),
-                XpDiff10 = match.XpDiff10 != 0
-                    ? match.XpDiff10
-                    : (match.HasCsXp10Features ? 0f : xpDiff15 * 0.65f),
+                CsDiff10 = csDiff10,
+                XpDiff10 = xpDiff10,
                 GoldMomentum15 = goldMomentum,
                 WinRateDiff = winRateDiff,
                 EngageDiff = engageDiff,
@@ -614,17 +886,25 @@ public class RealMatchDatasetCollector
                 AdApBalanceDiff = adApDiff,
                 SnowballScore = snowball,
                 CarryGoldDiff15 = carryGold,
-                FirstBloodTempo = match.FirstBloodTempo,
-                FirstTowerTempo = match.FirstTowerTempo,
-                FirstDragonTempo = match.FirstDragonTempo,
-                FirstDragonValue = match.FirstDragonValue,
+                FirstBloodTempo = firstBloodTempo,
+                FirstTowerTempo = firstTowerTempo,
+                FirstDragonTempo = firstDragonTempo,
+                FirstDragonValue = firstDragonValue,
                 LaneMatchupDiff = laneMatchupDiff,
-                PlatesDiff15 = match.PlatesDiff15,
+                PlatesDiff15 = platesDiff,
                 KillMomentum15 = killMomentum,
                 LeadVsScaling = leadVsScaling,
-                DeathDiff15 = match.DeathDiff15,
-                VisionWardDiff15 = match.VisionWardDiff15,
-                ControlWardDiff15 = match.ControlWardDiff15,
+                DeathDiff15 = deathDiff,
+                VisionWardDiff15 = visionDiff,
+                ControlWardDiff15 = controlDiff,
+                HasEarlyChallenges = earlyChallenges.HasEarlyChallenges,
+                ChallengeJungleCs10Diff = earlyChallenges.ChallengeJungleCs10Diff,
+                ChallengeLaneCs10Diff = earlyChallenges.ChallengeLaneCs10Diff,
+                EarlyTakedownDiff = earlyChallenges.EarlyTakedownDiff,
+                DragonSoulRace = EarlyChallengeFeatureHelper.DragonSoulRace(dragonsBlue, dragonsRed),
+                SideObjectiveLead = EarlyChallengeFeatureHelper.SideObjectiveLead(
+                    firstBlood, firstTower, firstDragon),
+                BotDuoMatchupDiff = botDuoMatchupDiff,
                 Label = match.WinningTeam == TeamSide.Blue
             });
 
@@ -642,9 +922,90 @@ public class RealMatchDatasetCollector
             }
 
             UpdateLaneMatchups(match, matchupWins, matchupGames);
+            UpdateBotDuoMatchups(match, botDuoWins, botDuoGames);
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Early (15') row gate. Mirrored in SQL by MatchRepository.GetNewestMatchesAsync(requireMinute15Timeline: true).
+    /// </summary>
+    private static bool IsEarlyTimelineEligible(Match match)
+    {
+        // Require a real MATCH-V5 timeline apply — placeholder GoldAt15 must never train the model.
+        if (!match.HasMinute15Objectives) return false;
+        // Prefer complete 10' CS/XP + vision/death rows (heuristic fallbacks add noise).
+        if (!match.HasCsXp10Features || !match.HasVisionDeathFeatures) return false;
+        var blue = match.Teams.FirstOrDefault(t => t.TeamSide == TeamSide.Blue);
+        var red = match.Teams.FirstOrDefault(t => t.TeamSide == TeamSide.Red);
+        if (blue == null || red == null) return false;
+        return blue.GoldAt15 > 0 || red.GoldAt15 > 0;
+    }
+
+    /// <summary>
+    /// Maps a horizon snapshot into the shared MatchInputFeatures DTO (column names stay *15 = at-horizon).
+    /// </summary>
+    public static MatchInputFeatures SnapshotToInputFeatures(
+        TimelineHorizonSnapshot snap,
+        float blueAvgWinRate = 50f,
+        float redAvgWinRate = 50f,
+        float avgRankScore = 0f,
+        float earlyPowerDiff = 0f,
+        float latePowerDiff = 0f)
+    {
+        var goldDiff = snap.GoldDiff;
+        var killDiff = snap.KillDiff;
+        var csDiff = (snap.CsBlue > 0 || snap.CsRed > 0) ? snap.CsDiff : (int)(goldDiff * 0.02f);
+        var xpDiff = (snap.XpBlue > 0 || snap.XpRed > 0) ? snap.XpDiff : (int)(goldDiff * 0.65f);
+        var deadlineMs = snap.AnchorMinute * 60_000;
+        return new MatchInputFeatures
+        {
+            BlueFirstBlood = snap.BlueFirstBlood,
+            BlueFirstTower = snap.BlueFirstTower,
+            BlueFirstDragon = snap.BlueFirstDragon,
+            GoldDiffAt15 = goldDiff,
+            KillDiffAt15 = killDiff,
+            CsDiffAt15 = csDiff,
+            XpDiffAt15 = xpDiff,
+            BlueTowerCount = snap.TowersBlue,
+            RedTowerCount = snap.TowersRed,
+            BlueDragonCount = snap.DragonsBlue,
+            RedDragonCount = snap.DragonsRed,
+            BlueVoidgrubs = snap.VoidgrubsBlue,
+            RedVoidgrubs = snap.VoidgrubsRed,
+            BlueHeralds = snap.HeraldsBlue,
+            RedHeralds = snap.HeraldsRed,
+            BlueTeamAvgWinRate = blueAvgWinRate,
+            RedTeamAvgWinRate = redAvgWinRate,
+            AvgRankScore = avgRankScore,
+            EarlyPowerDiff = earlyPowerDiff,
+            LatePowerDiff = latePowerDiff,
+            TopGoldDiff15 = snap.TopGoldDiff,
+            JungleGoldDiff15 = snap.JungleGoldDiff,
+            MidGoldDiff15 = snap.MidGoldDiff,
+            BotDuoGoldDiff15 = snap.BotDuoGoldDiff,
+            LevelDiff15 = snap.LevelDiff != 0 ? snap.LevelDiff : xpDiff / 180f,
+            GoldDiff10 = snap.GoldDiffPrior != 0 ? snap.GoldDiffPrior : goldDiff * 0.65f,
+            KillDiff10 = snap.KillDiffPrior,
+            CsDiff10 = snap.CsDiffPrior != 0 ? snap.CsDiffPrior : csDiff * 0.65f,
+            XpDiff10 = snap.XpDiffPrior != 0 ? snap.XpDiffPrior : xpDiff * 0.65f,
+            GoldMomentum15 = goldDiff - (snap.GoldDiffPrior != 0 ? snap.GoldDiffPrior : goldDiff * 0.65f),
+            KillMomentum15 = killDiff - snap.KillDiffPrior,
+            CarryGoldDiff15 = snap.CarryGoldDiff != 0 ? snap.CarryGoldDiff : goldDiff * 0.35f,
+            FirstBloodTempo = DragonValueHelper.SignedTempo(snap.BlueFirstBlood, snap.FirstBloodTimeMs, deadlineMs),
+            FirstTowerTempo = DragonValueHelper.SignedTempo(snap.BlueFirstTower, snap.FirstTowerTimeMs, deadlineMs),
+            FirstDragonTempo = DragonValueHelper.SignedTempo(snap.BlueFirstDragon, snap.FirstDragonTimeMs, deadlineMs),
+            FirstDragonValue = DragonValueHelper.SignedDragonValue(
+                snap.BlueFirstDragon, snap.FirstDragonSubType, snap.FirstDragonTimeMs, deadlineMs),
+            PlatesDiff15 = snap.PlatesDiff,
+            DeathDiff15 = snap.DeathDiff,
+            VisionWardDiff15 = snap.VisionWardDiff,
+            ControlWardDiff15 = snap.ControlWardDiff,
+            DragonSoulRace = EarlyChallengeFeatureHelper.DragonSoulRace(snap.DragonsBlue, snap.DragonsRed),
+            SideObjectiveLead = EarlyChallengeFeatureHelper.SideObjectiveLead(
+                snap.BlueFirstBlood, snap.BlueFirstTower, snap.BlueFirstDragon)
+        };
     }
 
     private static float ComputeLaneMatchupDiff(
@@ -679,6 +1040,29 @@ public class RealMatchDatasetCollector
         return n == 0 ? 0f : sum / n;
     }
 
+    private static float ComputeBotDuoMatchupDiff(
+        Match match,
+        IReadOnlyDictionary<string, int> botDuoWins,
+        IReadOnlyDictionary<string, int> botDuoGames)
+    {
+        var blueAdc = match.Participants.FirstOrDefault(p => p.TeamSide == TeamSide.Blue && p.Position == Position.Bottom);
+        var blueSup = match.Participants.FirstOrDefault(p => p.TeamSide == TeamSide.Blue && p.Position == Position.Utility);
+        var redAdc = match.Participants.FirstOrDefault(p => p.TeamSide == TeamSide.Red && p.Position == Position.Bottom);
+        var redSup = match.Participants.FirstOrDefault(p => p.TeamSide == TeamSide.Red && p.Position == Position.Utility);
+        if (blueAdc == null || blueSup == null || redAdc == null || redSup == null) return 0f;
+        if (string.IsNullOrWhiteSpace(blueAdc.ChampionName) || string.IsNullOrWhiteSpace(blueSup.ChampionName)
+            || string.IsNullOrWhiteSpace(redAdc.ChampionName) || string.IsNullOrWhiteSpace(redSup.ChampionName))
+            return 0f;
+
+        var key = BotDuoKey(blueAdc.ChampionName, blueSup.ChampionName, redAdc.ChampionName, redSup.ChampionName);
+        if (!botDuoGames.TryGetValue(key, out var games) || games < 5) return 0f;
+
+        var wins = botDuoWins.TryGetValue(key, out var w) ? w : 0;
+        var raw = 100f * wins / games;
+        var weight = Math.Min(1f, games / 18f);
+        return (50f + (raw - 50f) * weight) - 50f;
+    }
+
     private static void UpdateLaneMatchups(
         Match match,
         Dictionary<string, int> matchupWins,
@@ -703,8 +1087,35 @@ public class RealMatchDatasetCollector
         }
     }
 
+    private static void UpdateBotDuoMatchups(
+        Match match,
+        Dictionary<string, int> botDuoWins,
+        Dictionary<string, int> botDuoGames)
+    {
+        var blueAdc = match.Participants.FirstOrDefault(p => p.TeamSide == TeamSide.Blue && p.Position == Position.Bottom);
+        var blueSup = match.Participants.FirstOrDefault(p => p.TeamSide == TeamSide.Blue && p.Position == Position.Utility);
+        var redAdc = match.Participants.FirstOrDefault(p => p.TeamSide == TeamSide.Red && p.Position == Position.Bottom);
+        var redSup = match.Participants.FirstOrDefault(p => p.TeamSide == TeamSide.Red && p.Position == Position.Utility);
+        if (blueAdc == null || blueSup == null || redAdc == null || redSup == null) return;
+        if (string.IsNullOrWhiteSpace(blueAdc.ChampionName) || string.IsNullOrWhiteSpace(blueSup.ChampionName)
+            || string.IsNullOrWhiteSpace(redAdc.ChampionName) || string.IsNullOrWhiteSpace(redSup.ChampionName))
+            return;
+
+        var key = BotDuoKey(blueAdc.ChampionName, blueSup.ChampionName, redAdc.ChampionName, redSup.ChampionName);
+        botDuoGames.TryGetValue(key, out var g);
+        botDuoGames[key] = g + 1;
+        if (match.WinningTeam == TeamSide.Blue)
+        {
+            botDuoWins.TryGetValue(key, out var w);
+            botDuoWins[key] = w + 1;
+        }
+    }
+
     private static string MatchupKey(Position role, string blueChamp, string redChamp) =>
         $"{role}|{blueChamp.Trim()}|{redChamp.Trim()}";
+
+    private static string BotDuoKey(string blueAdc, string blueSup, string redAdc, string redSup) =>
+        $"BOT|{blueAdc.Trim()}+{blueSup.Trim()}|{redAdc.Trim()}+{redSup.Trim()}";
 
     private static Dictionary<string, float> SnapshotWinRates(
         IReadOnlyDictionary<string, int> wins,
