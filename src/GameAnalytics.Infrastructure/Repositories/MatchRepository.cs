@@ -274,6 +274,14 @@ public class MatchRepository : IMatchRepository
                 "CREATE INDEX IF NOT EXISTS IX_Matches_GameCreation ON Matches (GameCreation);");
         }
         catch { /* Best-effort index */ }
+
+        // Player history filters Participants by Puuid; same name EF uses for HasIndex on new databases.
+        try
+        {
+            _context.Database.ExecuteSqlRaw(
+                "CREATE INDEX IF NOT EXISTS IX_Participants_Puuid ON Participants (Puuid);");
+        }
+        catch { /* Best-effort index */ }
     }
 
     public async Task<IReadOnlyList<Match>> GetAllMatchesAsync(CancellationToken ct = default)
@@ -506,6 +514,10 @@ public class MatchRepository : IMatchRepository
             .Include(m => m.Teams)
             .FirstOrDefaultAsync(m => m.MatchId == match.MatchId, ct);
 
+        // Delete + insert must succeed together, otherwise a failed insert loses the stored match.
+        var ownsTransaction = _context.Database.CurrentTransaction == null;
+        await using var tx = ownsTransaction ? await _context.Database.BeginTransactionAsync(ct) : null;
+
         if (existing != null)
         {
             _context.Matches.Remove(existing);
@@ -514,6 +526,9 @@ public class MatchRepository : IMatchRepository
 
         await _context.Matches.AddAsync(match, ct);
         await _context.SaveChangesAsync(ct);
+
+        if (tx != null)
+            await tx.CommitAsync(ct);
     }
 
     public async Task<int> GetTotalMatchesCountAsync(CancellationToken ct = default)
@@ -781,6 +796,22 @@ public class MatchRepository : IMatchRepository
         }
 
         await _context.SaveChangesAsync(ct);
+    }
+
+    public async Task<int> PruneTimelineCacheAsync(int keepNewest, int maxDelete = 2_000, CancellationToken ct = default)
+    {
+        if (keepNewest < 0 || maxDelete <= 0)
+            return 0;
+
+        // A full timeline is ~120 KB; deleting in small batches keeps the WAL small on a nearly full disk,
+        // and SQLite reuses the freed pages for new rows, so the file stops growing.
+        return await _context.Database.ExecuteSqlInterpolatedAsync($@"
+            DELETE FROM MatchTimelineCaches
+            WHERE Id IN (
+                SELECT Id FROM MatchTimelineCaches
+                WHERE Id <= (SELECT Id FROM MatchTimelineCaches ORDER BY Id DESC LIMIT 1 OFFSET {keepNewest})
+                ORDER BY Id
+                LIMIT {maxDelete})", ct);
     }
 }
 

@@ -142,7 +142,7 @@ On Linux, install required Avalonia rendering dependencies:
 ```bash
 sudo apt update
 sudo apt install -y libx11-6 libx11-xcb1 libxcursor1 libxi6 libxrandr2 \
-                    libfontconfig1 libice6 libsm6 libgl1-mesa-glx libc6
+                    libfontconfig1 libice6 libsm6 libgl1 libc6
 ```
 
 ### Build & Run
@@ -178,7 +178,10 @@ sudo apt install -y libx11-6 libx11-xcb1 libxcursor1 libxi6 libxrandr2 \
 
 ## Configuration
 
-To use live data, configure your Riot API key in `appsettings.json` or directly in the application's **Settings** tab:
+The Riot API key is never committed. Provide it in one of these ways (later ones win):
+
+1. The application's **Settings** tab (saved next to the built executable).
+2. `src/GameAnalytics.Desktop/appsettings.local.json` (git-ignored):
 
 ```json
 {
@@ -186,12 +189,11 @@ To use live data, configure your Riot API key in `appsettings.json` or directly 
     "ApiKey": "RGAPI-YOUR-KEY-HERE",
     "PlatformRegion": "euw1",
     "RoutingRegion": "europe"
-  },
-  "Database": {
-    "ConnectionString": "Data Source=game_analytics.db"
   }
 }
 ```
+
+3. The `RIOT_API_KEY` environment variable (used by the headless VPS trainer).
 
 If no API key is provided, GameAnalytics runs in offline demonstration mode using local sample datasets.
 

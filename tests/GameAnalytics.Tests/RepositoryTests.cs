@@ -79,6 +79,109 @@ public class RepositoryTests
     }
 
     [Fact]
+    public async Task UpsertMatchAsync_FailedInsert_KeepsStoredMatch()
+    {
+        using var context = CreateTestContext();
+        var connectionString = context.Database.GetConnectionString();
+        var repo = new MatchRepository(context);
+        await repo.SaveMatchAsync(new Match
+        {
+            MatchId = "EUW1_UPSERT",
+            GameDurationSeconds = 1500,
+            Participants = new List<Participant> { new() { Puuid = "p-old", SummonerName = "Old#EUW" } }
+        });
+
+        // Puuid is NOT NULL, so the insert half of the upsert fails after the delete half ran.
+        var broken = new Match
+        {
+            MatchId = "EUW1_UPSERT",
+            GameDurationSeconds = 1600,
+            Participants = new List<Participant> { new() { Puuid = null!, SummonerName = "New#EUW" } }
+        };
+        await Assert.ThrowsAsync<DbUpdateException>(() => repo.UpsertMatchAsync(broken));
+
+        var options = new DbContextOptionsBuilder<GameAnalyticsDbContext>().UseSqlite(connectionString).Options;
+        using (var fresh = new GameAnalyticsDbContext(options))
+        {
+            var stored = await new MatchRepository(fresh).GetMatchByMatchIdAsync("EUW1_UPSERT");
+            Assert.NotNull(stored);
+            Assert.Equal(1500, stored.GameDurationSeconds);
+            Assert.Equal("p-old", Assert.Single(stored.Participants).Puuid);
+        }
+
+        context.Database.EnsureDeleted();
+    }
+
+    [Fact]
+    public async Task UpsertMatchAsync_ReplacesExistingMatch()
+    {
+        using var context = CreateTestContext();
+        var repo = new MatchRepository(context);
+        await repo.SaveMatchAsync(new Match { MatchId = "EUW1_REPLACE", GameDurationSeconds = 1200 });
+
+        await repo.UpsertMatchAsync(new Match { MatchId = "EUW1_REPLACE", GameDurationSeconds = 1300 });
+        repo.ResetTrackedState();
+
+        Assert.Equal(1, await repo.GetTotalMatchesCountAsync());
+        Assert.Equal(1300, (await repo.GetMatchByMatchIdAsync("EUW1_REPLACE"))!.GameDurationSeconds);
+        context.Database.EnsureDeleted();
+    }
+
+    [Fact]
+    public void Repository_CreatesParticipantPuuidIndex()
+    {
+        using var context = CreateTestContext();
+        _ = new MatchRepository(context);
+
+        Assert.True(IndexExists(context, "IX_Participants_Puuid"));
+        context.Database.EnsureDeleted();
+    }
+
+    private static bool IndexExists(GameAnalyticsDbContext context, string name)
+    {
+        context.Database.OpenConnection();
+        try
+        {
+            using var cmd = context.Database.GetDbConnection().CreateCommand();
+            cmd.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name = $name";
+            var p = cmd.CreateParameter();
+            p.ParameterName = "$name";
+            p.Value = name;
+            cmd.Parameters.Add(p);
+            return Convert.ToInt32(cmd.ExecuteScalar()) == 1;
+        }
+        finally
+        {
+            // Windows cannot delete the test database while this connection stays open.
+            context.Database.CloseConnection();
+        }
+    }
+
+    [Fact]
+    public async Task PruneTimelineCache_KeepsNewestAndDeletesInBatches()
+    {
+        var dbFile = Path.Combine(Path.GetTempPath(), $"ga_prune_{Guid.NewGuid():N}.db");
+        var options = new DbContextOptionsBuilder<GameAnalyticsDbContext>()
+            .UseSqlite($"Data Source={dbFile};Pooling=False")
+            .Options;
+        using var context = new GameAnalyticsDbContext(options);
+        var repo = new MatchRepository(context);
+        for (var i = 1; i <= 5; i++)
+            await repo.SaveTimelineCacheAsync($"EUW1_T{i}", new MatchTimelineData());
+
+        Assert.Equal(1, await repo.PruneTimelineCacheAsync(keepNewest: 2, maxDelete: 1));
+        Assert.Equal(2, await repo.PruneTimelineCacheAsync(keepNewest: 2));
+        Assert.Equal(0, await repo.PruneTimelineCacheAsync(keepNewest: 2));
+        Assert.Equal(0, await repo.PruneTimelineCacheAsync(keepNewest: 100));
+
+        Assert.Null(await repo.GetCachedTimelineAsync("EUW1_T3"));
+        Assert.NotNull(await repo.GetCachedTimelineAsync("EUW1_T4"));
+        Assert.NotNull(await repo.GetCachedTimelineAsync("EUW1_T5"));
+
+        context.Database.EnsureDeleted();
+    }
+
+    [Fact]
     public async Task SaveMatchAsync_DuplicateMatchId_DoesNotThrowOrDuplicate()
     {
         // Arrange
@@ -242,6 +345,7 @@ public class RepositoryTests
 
             // Assert
             Assert.Empty(matches);
+            Assert.True(IndexExists(repoContext, "IX_Participants_Puuid"));
             repoContext.Database.EnsureDeleted();
         }
     }
