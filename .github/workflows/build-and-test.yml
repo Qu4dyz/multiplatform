@@ -54,6 +54,15 @@ jobs:
             grep -oE 'warning [A-Z]+[0-9]+' warnings.txt | awk '{print $2}' | sort | uniq -c | sort -rn | awk '{print "| "$2" | "$1" |"}'
           } | tee -a "$GITHUB_STEP_SUMMARY"
 
+      - name: Upload trainer assemblies for the VPS
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: vps-trainer-dlls
+          # The VPS runs the framework-dependent Release build; packages are unchanged, so these four files are the deploy.
+          path: src/GameAnalytics.Desktop/bin/Release/net9.0/GameAnalytics.*.dll
+          if-no-files-found: error
+
       - name: Upload static analysis
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@v4
