@@ -1,0 +1,7 @@
+<Project>
+  <!-- .NET code analysis for every project; the CI job counts the warnings it reports. -->
+  <PropertyGroup>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+  </PropertyGroup>
+</Project>
