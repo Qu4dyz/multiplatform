@@ -140,13 +140,21 @@ public class RepositoryTests
     private static bool IndexExists(GameAnalyticsDbContext context, string name)
     {
         context.Database.OpenConnection();
-        using var cmd = context.Database.GetDbConnection().CreateCommand();
-        cmd.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name = $name";
-        var p = cmd.CreateParameter();
-        p.ParameterName = "$name";
-        p.Value = name;
-        cmd.Parameters.Add(p);
-        return Convert.ToInt32(cmd.ExecuteScalar()) == 1;
+        try
+        {
+            using var cmd = context.Database.GetDbConnection().CreateCommand();
+            cmd.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name = $name";
+            var p = cmd.CreateParameter();
+            p.ParameterName = "$name";
+            p.Value = name;
+            cmd.Parameters.Add(p);
+            return Convert.ToInt32(cmd.ExecuteScalar()) == 1;
+        }
+        finally
+        {
+            // Windows cannot delete the test database while this connection stays open.
+            context.Database.CloseConnection();
+        }
     }
 
     [Fact]
