@@ -21,9 +21,10 @@ public class VpsTrainingWorker
     public const int LabHorizonMaxRows = 5_000;
     /// <summary>
     /// Full timeline JSON kept for the newest matches only (~120 KB each; 208k rows filled a 40 GB disk).
-    /// Lab horizons need timelines for their newest 5k rows, the desktop only shows recent matches.
+    /// The 35' lab model needs timelines for its newest 5k games of 35+ minutes; on 11.11 those reached
+    /// back 49k cache rows, so 60k leaves headroom. Older timelines are re-fetched from Riot on demand.
     /// </summary>
-    public const int TimelineCacheKeepNewest = 30_000;
+    public const int TimelineCacheKeepNewest = 60_000;
 
     private readonly IRiotApiClient _apiClient;
     private readonly IMatchRepository _matchRepo;
