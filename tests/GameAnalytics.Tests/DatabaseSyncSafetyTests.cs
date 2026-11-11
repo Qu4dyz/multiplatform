@@ -63,6 +63,15 @@ public sealed class DatabaseSyncSafetyTests : IDisposable
         public List<Match> Trained { get; } = new();
 
         public PredictionResult PredictMatchOutcome(MatchInputFeatures features) => throw new NotSupportedException();
+        public PredictionResult PredictMatchOutcome(MatchInputFeatures features, int predictionMinute) => throw new NotSupportedException();
+        public bool HasHorizonModel(int predictionMinute) => false;
+
+        public Task TrainHorizonModelAsync(
+            IEnumerable<Match> historicalMatches,
+            int predictionMinute,
+            Func<string, MatchTimelineData?> timelineLookup,
+            int? maxRows = 5_000,
+            CancellationToken ct = default) => Task.CompletedTask;
 
         public Task TrainModelAsync(IEnumerable<Match> historicalMatches, CancellationToken ct = default)
         {
